@@ -2386,8 +2386,8 @@
                     const sessionItem = document.createElement('div');
                     sessionItem.className = 'session-item';
                     
-                    const sessionName = session.name || session.id || 'Unnamed Session';
-                    const sessionDate = session.date ? new Date(session.date).toLocaleString() : 'Unknown date';
+                    const sessionName = session.id || session.name || 'Unnamed Session';
+                    const sessionDate = session.modified ? new Date(session.modified).toLocaleString() : 'Unknown date';
                     
                     sessionItem.innerHTML = `
                         <div class="session-info">
@@ -2686,7 +2686,9 @@
             
             clearSelectedRecipe() {
                 this.selectedRecipe = null;
-                this.selectedRecipeDisplay.style.display = 'none';
+                if (this.selectedRecipeDisplay) {
+                    this.selectedRecipeDisplay.style.display = 'none';
+                }
                 
                 // Clear selected state from all cards
                 document.querySelectorAll('.recipe-card').forEach(card => {

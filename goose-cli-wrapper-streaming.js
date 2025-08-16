@@ -268,9 +268,8 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         if (code === 0) {
           try {
             const sessions = JSON.parse(output);
-            // Extract just the session IDs/names from the objects
-            const sessionNames = sessions.map(session => session.id);
-            resolve(sessionNames);
+            // Return full session objects with all metadata
+            resolve(sessions);
           } catch (error) {
             resolve([]);
           }

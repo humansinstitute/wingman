@@ -105,8 +105,9 @@ class GooseWebServer {
         const result = await conversationManager.resumeGooseSession(sessionName);
         
         if (result.success) {
-          // Broadcast status update to all clients
+          // Broadcast status update and conversation history to all clients
           this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+          this.io.emit('conversationHistory', conversationManager.getConversation());
         }
         
         res.json(result);
