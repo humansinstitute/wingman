@@ -10,6 +10,8 @@ Wingman transforms Goose into a powerful, persistent development environment tha
 
 Wingman provides a server architecture with session management, structured data persistence, and a recipe ecosystem to your installed Goose Cli. Marry it to Tailscale and you can leave Goose at home with your computer while you check in on your agents, setup new tasks, run workflows, or push along chats from your laptop, phone, or wherever you are.
 
+If this is useful - send sats! pw21@walletofsatoshi.com
+
 ![Launch Meme Description](public/LaunchMeme.png "Launch Meme")
 
 ## Features
