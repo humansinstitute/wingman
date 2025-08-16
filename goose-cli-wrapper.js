@@ -15,6 +15,7 @@ class GooseCLIWrapper extends EventEmitter {
       recipe: options.recipe || null,
       recipePath: options.recipePath || null,
       parameters: options.parameters || {},
+      workingDirectory: options.workingDirectory || process.cwd(),
       ...options
     };
     
@@ -55,7 +56,7 @@ class GooseCLIWrapper extends EventEmitter {
       
       this.gooseProcess = spawn('goose', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        cwd: this.options.workingDirectory
       });
 
       this.gooseProcess.stdout.on('data', (data) => {
@@ -205,7 +206,8 @@ class GooseCLIWrapper extends EventEmitter {
   async listSessions() {
     return new Promise((resolve, reject) => {
       const listProcess = spawn('goose', ['session', 'list', '--format', 'json'], {
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: this.options.workingDirectory
       });
 
       let output = '';

@@ -58,13 +58,14 @@ class GooseWebServer {
 
     this.app.post('/api/goose/start', async (req, res) => {
       try {
-        const { sessionName, debug, extensions, builtins } = req.body;
+        const { sessionName, debug, extensions, builtins, workingDirectory } = req.body;
         
         const result = await conversationManager.startGooseSession({
           sessionName: sessionName || `web-session-${Date.now()}`,
           debug: debug || false,
           extensions: extensions || [],
-          builtins: builtins || ['developer']
+          builtins: builtins || ['developer'],
+          workingDirectory: workingDirectory
         });
         
         if (result.success) {
@@ -274,7 +275,7 @@ class GooseWebServer {
     // Start session with recipe
     this.app.post('/api/goose/start-with-recipe', async (req, res) => {
       try {
-        const { recipeId, sessionName, parameters } = req.body;
+        const { recipeId, sessionName, parameters, workingDirectory } = req.body;
         
         if (!recipeId) {
           return res.status(400).json({ error: 'Recipe ID is required' });
@@ -282,7 +283,7 @@ class GooseWebServer {
         
         const result = await conversationManager.startGooseSessionWithRecipe(
           recipeId, 
-          { sessionName, parameters }
+          { sessionName, parameters, workingDirectory }
         );
         
         if (result.success) {
@@ -305,6 +306,54 @@ class GooseWebServer {
         }
         const recipes = await recipeManager.searchRecipes(query);
         res.json(recipes);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Directory browsing API
+    this.app.get('/api/directories', async (req, res) => {
+      try {
+        const fs = require('fs').promises;
+        const path = require('path');
+        const os = require('os');
+        
+        const { dir } = req.query;
+        const targetDir = dir || os.homedir();
+        
+        // Security: Ensure we can't browse outside reasonable bounds
+        const resolvedPath = path.resolve(targetDir);
+        
+        const items = await fs.readdir(resolvedPath, { withFileTypes: true });
+        const directories = items
+          .filter(item => item.isDirectory())
+          .map(item => ({
+            name: item.name,
+            path: path.join(resolvedPath, item.name),
+            isDirectory: true
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Add parent directory option if not at root
+        const parentPath = path.dirname(resolvedPath);
+        let result = directories;
+        
+        if (parentPath !== resolvedPath) {
+          result = [
+            {
+              name: '..',
+              path: parentPath,
+              isDirectory: true,
+              isParent: true
+            },
+            ...directories
+          ];
+        }
+        
+        res.json({
+          currentPath: resolvedPath,
+          directories: result
+        });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }

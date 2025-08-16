@@ -958,6 +958,64 @@
             font-style: italic;
         }
 
+        /* Directory Selector Styles */
+        .directory-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .directory-selector input {
+            flex: 1;
+        }
+
+        .directory-browser {
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+        }
+
+        .directory-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s ease;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .directory-item:last-child {
+            border-bottom: none;
+        }
+
+        .directory-item:hover {
+            background: var(--accent-light);
+        }
+
+        .directory-item.selected {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+        }
+
+        .directory-icon {
+            font-size: 1rem;
+            width: 1.2rem;
+            text-align: center;
+        }
+
+        .current-path {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-secondary);
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
         /* Settings Modal */
         .settings-section {
             margin-bottom: 1.5rem;
@@ -1304,6 +1362,27 @@
             </div>
         </div>
     </div>
+
+    <!-- Directory Browser Modal -->
+    <div id="directoryBrowserModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Select Working Directory</h3>
+                <button class="modal-close" id="closeDirectoryBrowserModal">×</button>
+            </div>
+            
+            <div class="current-path" id="currentPath">/</div>
+            
+            <div class="directory-browser" id="directoryBrowser">
+                <div class="loading" style="padding: 2rem; text-align: center;">Loading directories...</div>
+            </div>
+            
+            <div style="margin-top: 1rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                <button id="selectDirectoryBtn" class="btn btn-primary">Select This Directory</button>
+                <button id="cancelDirectorySelection" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
     
     <div class="chat-container">
         <div class="messages" id="messages"></div>
@@ -1367,6 +1446,14 @@
                     <div class="form-group">
                         <label class="form-label" for="newSessionName">Session Name</label>
                         <input type="text" id="newSessionName" class="form-input" placeholder="Enter session name (optional)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="workingDirectory">Working Directory</label>
+                        <div class="directory-selector">
+                            <input type="text" id="workingDirectory" class="form-input" readonly placeholder="Click to select directory">
+                            <button type="button" id="browseDirectoryBtn" class="btn-small btn-secondary">📁 Browse</button>
+                        </div>
                     </div>
                     
                     <!-- Recipe Selection Summary -->
@@ -1455,6 +1542,16 @@
                 this.selectedRecipeDescription = document.getElementById('selectedRecipeDescription');
                 this.clearRecipeSelection = document.getElementById('clearRecipeSelection');
                 
+                // Directory browser elements
+                this.workingDirectory = document.getElementById('workingDirectory');
+                this.browseDirectoryBtn = document.getElementById('browseDirectoryBtn');
+                this.directoryBrowserModal = document.getElementById('directoryBrowserModal');
+                this.closeDirectoryBrowserModal = document.getElementById('closeDirectoryBrowserModal');
+                this.currentPath = document.getElementById('currentPath');
+                this.directoryBrowser = document.getElementById('directoryBrowser');
+                this.selectDirectoryBtn = document.getElementById('selectDirectoryBtn');
+                this.cancelDirectorySelection = document.getElementById('cancelDirectorySelection');
+                
                 // Recipe preview elements
                 this.recipePreviewPanel = document.getElementById('recipePreviewPanel');
                 this.previewRecipeName = document.getElementById('previewRecipeName');
@@ -1468,11 +1565,18 @@
                 this.availableRecipes = [];
                 this.categories = [];
                 
+                // Directory browser state
+                this.currentWorkingDirectory = null;
+                this.selectedDirectory = null;
+                
                 this.currentGooseStatus = null;
                 this.setupTheme();
                 this.setupEventListeners();
                 this.setupSocketListeners();
                 this.updateGooseControls(false);
+                
+                // Initialize working directory to current location
+                this.initializeWorkingDirectory();
                 
                 // Auto-show session modal if no active session after initial load
                 setTimeout(() => {
@@ -1536,6 +1640,12 @@
                 this.confirmRecipeSelection.addEventListener('click', () => this.confirmRecipe());
                 this.cancelRecipePreview.addEventListener('click', () => this.hideRecipePreview());
                 
+                // Directory browser event listeners
+                this.browseDirectoryBtn.addEventListener('click', () => this.showDirectoryBrowser());
+                this.closeDirectoryBrowserModal.addEventListener('click', () => this.hideDirectoryBrowser());
+                this.selectDirectoryBtn.addEventListener('click', () => this.confirmDirectorySelection());
+                this.cancelDirectorySelection.addEventListener('click', () => this.hideDirectoryBrowser());
+                
                 // Recipe selection event listeners
                 this.recipeTabs.forEach(tab => {
                     tab.addEventListener('click', () => this.switchRecipeTab(tab.dataset.tab));
@@ -1559,6 +1669,12 @@
                 this.settingsModal.addEventListener('click', (e) => {
                     if (e.target === this.settingsModal) {
                         this.hideSettingsModal();
+                    }
+                });
+                
+                this.directoryBrowserModal.addEventListener('click', (e) => {
+                    if (e.target === this.directoryBrowserModal) {
+                        this.hideDirectoryBrowser();
                     }
                 });
                 
@@ -2139,7 +2255,8 @@
                         },
                         body: JSON.stringify({ 
                             sessionName: sessionName || undefined,
-                            builtins: ['developer']
+                            builtins: ['developer'],
+                            workingDirectory: this.currentWorkingDirectory
                         })
                     });
                     
@@ -2424,7 +2541,8 @@
                         body: JSON.stringify({
                             recipeId: recipeId,
                             sessionName: sessionName || undefined,
-                            parameters
+                            parameters,
+                            workingDirectory: this.currentWorkingDirectory
                         })
                     });
                     
@@ -2476,6 +2594,92 @@
                     console.error('Error deleting session:', error);
                     this.appendText(`❌ Failed to delete session: ${error.message}\\n`, 'system-message');
                     this.scrollToBottom();
+                }
+            }
+            
+            // Directory Browser Methods
+            async showDirectoryBrowser() {
+                this.selectedDirectory = this.currentWorkingDirectory;
+                await this.loadDirectories();
+                this.directoryBrowserModal.classList.add('show');
+            }
+            
+            hideDirectoryBrowser() {
+                this.directoryBrowserModal.classList.remove('show');
+                this.selectedDirectory = null;
+            }
+            
+            async loadDirectories(path = null) {
+                try {
+                    const url = new URL('/api/directories', window.location.origin);
+                    if (path) {
+                        url.searchParams.set('dir', path);
+                    }
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    this.currentPath.textContent = data.currentPath;
+                    this.selectedDirectory = data.currentPath;
+                    
+                    this.renderDirectories(data.directories);
+                } catch (error) {
+                    console.error('Error loading directories:', error);
+                    this.directoryBrowser.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-muted);">Failed to load directories</div>';
+                }
+            }
+            
+            renderDirectories(directories) {
+                this.directoryBrowser.innerHTML = directories.map(dir => `
+                    <div class="directory-item" data-path="${dir.path}">
+                        <div class="directory-icon">${dir.isParent ? '⬆️' : '📁'}</div>
+                        <div>${dir.name}</div>
+                    </div>
+                `).join('');
+                
+                // Add click event listeners
+                this.directoryBrowser.querySelectorAll('.directory-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const path = item.dataset.path;
+                        
+                        // Clear previous selection
+                        this.directoryBrowser.querySelectorAll('.directory-item').forEach(i => {
+                            i.classList.remove('selected');
+                        });
+                        
+                        // Select this item
+                        item.classList.add('selected');
+                        this.selectedDirectory = path;
+                    });
+                    
+                    item.addEventListener('dblclick', () => {
+                        const path = item.dataset.path;
+                        this.loadDirectories(path);
+                    });
+                });
+            }
+            
+            confirmDirectorySelection() {
+                if (this.selectedDirectory) {
+                    this.workingDirectory.value = this.selectedDirectory;
+                    this.currentWorkingDirectory = this.selectedDirectory;
+                    this.hideDirectoryBrowser();
+                }
+            }
+            
+            async initializeWorkingDirectory() {
+                try {
+                    // Try to get the current working directory from the server
+                    const response = await fetch('/api/directories');
+                    const data = await response.json();
+                    
+                    this.currentWorkingDirectory = data.currentPath;
+                    this.workingDirectory.value = data.currentPath;
+                    this.workingDirectory.placeholder = data.currentPath;
+                } catch (error) {
+                    console.error('Error initializing working directory:', error);
+                    // Fallback to a reasonable default message
+                    this.workingDirectory.placeholder = 'Click Browse to select directory';
                 }
             }
         }

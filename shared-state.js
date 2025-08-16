@@ -56,7 +56,8 @@ class GooseConversationManager extends EventEmitter {
       debug: options.debug || false,
       maxTurns: options.maxTurns || 1000,
       extensions: options.extensions || [],
-      builtins: options.builtins || []
+      builtins: options.builtins || [],
+      workingDirectory: options.workingDirectory || process.cwd()
     });
 
     // Listen to Goose streaming events
@@ -138,7 +139,8 @@ class GooseConversationManager extends EventEmitter {
       builtins: [...(recipe.builtins || []), ...(options.builtins || [])],
       recipePath: recipePath,
       recipe: processedRecipe,
-      parameters: options.parameters || {}
+      parameters: options.parameters || {},
+      workingDirectory: options.workingDirectory || process.cwd()
     });
 
     // Set up event listeners (same as regular session)
