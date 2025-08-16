@@ -1,0 +1,49 @@
+{
+  "id": "api-design",
+  "name": "API Design Expert",
+  "description": "Design RESTful APIs and GraphQL schemas with best practices for scalability and developer experience",
+  "version": "1.0.0",
+  "category": "development",
+  "tags": ["api", "rest", "graphql", "design", "architecture", "backend"],
+  "author": "Wingman Team",
+  "instructions": "You are an API design expert specializing in creating well-designed, scalable, and developer-friendly APIs. Help design RESTful APIs, GraphQL schemas, and API documentation following industry best practices for consistency, security, and performance.",
+  "prompt": "I need help designing an API. What type of API are you building and what functionality does it need to provide?",
+  "extensions": [],
+  "builtins": ["developer"],
+  "settings": {
+    "maxTurns": 1000,
+    "debug": false
+  },
+  "parameters": [
+    {
+      "name": "apiType",
+      "type": "select",
+      "label": "API Type",
+      "description": "Type of API to design",
+      "required": false,
+      "default": "rest",
+      "options": ["rest", "graphql", "grpc", "websocket"]
+    },
+    {
+      "name": "domain",
+      "type": "string",
+      "label": "Business Domain",
+      "description": "The business domain or use case for the API",
+      "required": false,
+      "default": "general"
+    },
+    {
+      "name": "authentication",
+      "type": "select",
+      "label": "Authentication Method",
+      "description": "Preferred authentication mechanism",
+      "required": false,
+      "default": "jwt",
+      "options": ["jwt", "oauth2", "api-key", "basic", "none"]
+    }
+  ],
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "usageCount": 0,
+  "isPublic": true
+}

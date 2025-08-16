@@ -1,0 +1,42 @@
+[
+  {
+    "id": "development",
+    "name": "Development",
+    "icon": "💻"
+  },
+  {
+    "id": "debugging",
+    "name": "Debugging",
+    "icon": "🐛"
+  },
+  {
+    "id": "testing",
+    "name": "Testing",
+    "icon": "🧪"
+  },
+  {
+    "id": "documentation",
+    "name": "Documentation",
+    "icon": "📝"
+  },
+  {
+    "id": "refactoring",
+    "name": "Refactoring",
+    "icon": "🔧"
+  },
+  {
+    "id": "review",
+    "name": "Code Review",
+    "icon": "👀"
+  },
+  {
+    "id": "deployment",
+    "name": "Deployment",
+    "icon": "🚀"
+  },
+  {
+    "id": "custom",
+    "name": "Custom",
+    "icon": "⚙️"
+  }
+]

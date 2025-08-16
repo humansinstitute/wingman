@@ -1,0 +1,23 @@
+{
+  "recipes": {
+    "4688dcf1cdbb9324041e430d915447de": {
+      "name": "Tech Co-Founder",
+      "path": "/Users/mini/code/wingman/.worktrees/recipe/recipes/user/4688dcf1cdbb9324041e430d915447de.json",
+      "createdAt": "2025-08-16T06:02:10.323Z"
+    }
+  },
+  "usage": {
+    "4688dcf1cdbb9324041e430d915447de": {
+      "count": 1,
+      "sessions": [
+        {
+          "sessionId": "recipe2",
+          "timestamp": "2025-08-16T06:09:49.466Z"
+        }
+      ],
+      "firstUsed": "2025-08-16T06:09:49.466Z",
+      "lastUsed": "2025-08-16T06:09:49.466Z"
+    }
+  },
+  "lastUpdated": "2025-08-16T05:54:11.930Z"
+}

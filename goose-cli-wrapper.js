@@ -12,6 +12,9 @@ class GooseCLIWrapper extends EventEmitter {
       maxTurns: options.maxTurns || 1000,
       extensions: options.extensions || [],
       builtins: options.builtins || [],
+      recipe: options.recipe || null,
+      recipePath: options.recipePath || null,
+      parameters: options.parameters || {},
       ...options
     };
     
@@ -33,12 +36,17 @@ class GooseCLIWrapper extends EventEmitter {
         args.push('--max-turns', this.options.maxTurns.toString());
       }
       
-      // Add extensions
+      // Add recipe if specified
+      if (this.options.recipePath) {
+        args.push('--recipe', this.options.recipePath);
+      }
+      
+      // Add extensions (if not using recipe or as additional)
       this.options.extensions.forEach(ext => {
         args.push('--with-extension', ext);
       });
       
-      // Add built-in extensions
+      // Add built-in extensions (if not using recipe or as additional)
       this.options.builtins.forEach(builtin => {
         args.push('--with-builtin', builtin);
       });
@@ -76,6 +84,23 @@ class GooseCLIWrapper extends EventEmitter {
         resolve();
       }, 2000);
     });
+  }
+
+  async startWithRecipe(recipePath, parameters = {}) {
+    this.options.recipePath = recipePath;
+    this.options.parameters = parameters;
+    
+    return this.start();
+  }
+
+  async createTempRecipeFile(recipe) {
+    const tempDir = path.join(__dirname, 'temp');
+    await fs.mkdir(tempDir, { recursive: true });
+    
+    const tempFilePath = path.join(tempDir, `recipe-${Date.now()}.json`);
+    await fs.writeFile(tempFilePath, JSON.stringify(recipe, null, 2));
+    
+    return tempFilePath;
   }
 
   handleOutput(data) {

@@ -547,9 +547,9 @@
             background: var(--bg-primary);
             border-radius: 12px;
             padding: 1.5rem;
-            max-width: 500px;
-            width: 90%;
-            max-height: 70vh;
+            max-width: 800px;
+            width: 95%;
+            max-height: 85vh;
             overflow-y: auto;
             box-shadow: var(--shadow-lg);
             border: 1px solid var(--border-primary);
@@ -647,6 +647,256 @@
         .btn-resume:hover {
             background: var(--accent-secondary);
             transform: translateY(-1px);
+        }
+
+        /* Recipe Summary Styles */
+        .selected-recipe-summary {
+            border: 1px solid var(--accent-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            background: var(--accent-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .recipe-info {
+            flex: 1;
+        }
+
+        .recipe-info strong {
+            color: var(--text-primary);
+        }
+
+        .recipe-info p {
+            color: var(--text-secondary);
+            margin: 0.5rem 0 0 0;
+            font-size: 0.9rem;
+        }
+
+        .recipe-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        /* Recipe Selector Modal Styles */
+        .recipe-selector-content {
+            margin-bottom: 1.5rem;
+        }
+
+        .recipe-preview-panel {
+            border-top: 1px solid var(--border-primary);
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .preview-content {
+            margin-bottom: 1rem;
+        }
+
+        .preview-content h5 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-content p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .recipe-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-primary);
+            margin-bottom: 1rem;
+        }
+
+        .recipe-tab {
+            background: none;
+            border: none;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .recipe-tab.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .recipe-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .recipe-tab-content {
+            display: none;
+        }
+
+        .recipe-tab-content.active {
+            display: block;
+        }
+
+        .recipe-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .recipe-card {
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-secondary);
+        }
+
+        .recipe-card:hover {
+            border-color: var(--accent-primary);
+            background: var(--accent-bg);
+        }
+
+        .recipe-card.selected {
+            border-color: var(--accent-primary);
+            background: var(--accent-light);
+        }
+
+        .recipe-card-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+
+        .recipe-card-description {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            line-height: 1.3;
+            margin-bottom: 0.5rem;
+        }
+
+        .recipe-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .recipe-tag {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+            padding: 0.125rem 0.375rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+        }
+
+        .category-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .category-button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 20px;
+            padding: 0.375rem 0.75rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .category-button:hover {
+            background: var(--accent-light);
+            border-color: var(--accent-primary);
+            color: var(--accent-tertiary);
+        }
+
+        .category-button.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        .selected-recipe {
+            border: 1px solid var(--accent-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            background: var(--accent-bg);
+        }
+
+        .selected-recipe h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .selected-recipe p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .recipe-parameters {
+            margin-bottom: 1rem;
+        }
+
+        .parameter-input {
+            margin-bottom: 0.75rem;
+        }
+
+        .parameter-label {
+            display: block;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+
+        .parameter-description {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .search-box {
+            margin-bottom: 1rem;
+        }
+
+        .search-box input {
+            width: 100%;
+        }
+
+        /* Responsive adjustments for session modal */
+        @media (max-width: 768px) {
+            .modal {
+                max-width: 95%;
+                width: 95%;
+                padding: 1rem;
+                max-height: 90vh;
+            }
+            
+            .recipe-grid {
+                grid-template-columns: 1fr;
+                max-height: 250px;
+            }
+            
+            .recipe-selector {
+                padding: 1rem;
+                min-height: 300px;
+            }
         }
 
         .btn-delete {
@@ -948,6 +1198,7 @@
                 ☰
             </button>
             <!-- Hidden elements for desktop use -->
+            <a href="/recipes" class="btn-settings" aria-label="Recipe Manager" style="display: none; text-decoration: none;">📋</a>
             <button id="settingsBtn" class="btn-settings" aria-label="Settings" style="display: none;">⚙️</button>
             <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" style="display: none;">
                 <span class="theme-icon-light">☀️</span>
@@ -973,6 +1224,13 @@
                 </div>
             </div>
             
+            <!-- Recipe Manager -->
+            <div class="mobile-menu-item">
+                <a href="/recipes" class="mobile-settings-btn" style="text-decoration: none; color: inherit;">
+                    📋 Recipe Manager
+                </a>
+            </div>
+            
             <!-- Theme Toggle -->
             <div class="mobile-menu-item">
                 <span class="mobile-menu-label">Theme</span>
@@ -987,6 +1245,62 @@
                 <button id="mobileSettingsBtn" class="mobile-settings-btn">
                     ⚙️ Settings
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipe Selector Modal -->
+    <div id="recipeSelectorModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Choose a Recipe</h3>
+                <button class="modal-close" id="closeRecipeSelectorModal">×</button>
+            </div>
+            
+            <div class="recipe-selector-content">
+                <div class="recipe-tabs">
+                    <button class="recipe-tab active" data-tab="popular">Popular</button>
+                    <button class="recipe-tab" data-tab="categories">Categories</button>
+                    <button class="recipe-tab" data-tab="search">Search</button>
+                </div>
+                
+                <div id="popular-recipes" class="recipe-tab-content active">
+                    <div class="recipe-grid" id="popularRecipeGrid">
+                        <!-- Popular recipes will be loaded here -->
+                    </div>
+                </div>
+                
+                <div id="category-recipes" class="recipe-tab-content">
+                    <div class="category-list" id="categoryList">
+                        <!-- Categories will be loaded here -->
+                    </div>
+                    <div class="recipe-grid" id="categoryRecipeGrid">
+                        <!-- Category recipes will be loaded here -->
+                    </div>
+                </div>
+                
+                <div id="search-recipes" class="recipe-tab-content">
+                    <div class="search-box">
+                        <input type="text" id="recipeSearchInput" class="form-input" placeholder="Search recipes...">
+                    </div>
+                    <div class="recipe-grid" id="searchRecipeGrid">
+                        <!-- Search results will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recipe Preview Panel -->
+            <div id="recipePreviewPanel" class="recipe-preview-panel" style="display: none;">
+                <h4>Recipe Preview</h4>
+                <div class="preview-content">
+                    <h5 id="previewRecipeName"></h5>
+                    <p id="previewRecipeDescription"></p>
+                    <div id="previewRecipeParameters"></div>
+                </div>
+                <div class="preview-actions">
+                    <button id="confirmRecipeSelection" class="btn btn-primary">Select This Recipe</button>
+                    <button id="cancelRecipePreview" class="btn btn-secondary">Back</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1051,10 +1365,26 @@
             <div class="new-session-section">
                 <div class="new-session-form">
                     <div class="form-group">
-                        <label class="form-label" for="newSessionName">New Session Name</label>
+                        <label class="form-label" for="newSessionName">Session Name</label>
                         <input type="text" id="newSessionName" class="form-input" placeholder="Enter session name (optional)">
                     </div>
-                    <button id="startNewSession" class="btn-small btn-resume">Start New</button>
+                    
+                    <!-- Recipe Selection Summary -->
+                    <div id="selectedRecipeDisplay" class="selected-recipe-summary" style="display: none;">
+                        <div class="recipe-info">
+                            <strong>Selected Recipe:</strong> <span id="selectedRecipeName"></span>
+                            <p id="selectedRecipeDescription"></p>
+                        </div>
+                        <div class="recipe-actions">
+                            <button id="changeRecipeBtn" class="btn-small btn-secondary">Change Recipe</button>
+                            <button id="clearRecipeSelection" class="btn-small btn-secondary">Clear</button>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="selectRecipeBtn" class="btn-small btn-secondary">📋 Choose Recipe</button>
+                        <button id="startNewSession" class="btn-small btn-primary">Start Session</button>
+                    </div>
                 </div>
             </div>
             
@@ -1105,6 +1435,38 @@
                 this.mobileGooseStatus = document.getElementById('mobileGooseStatus');
                 this.mobileThemeToggle = document.getElementById('mobileThemeToggle');
                 this.mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
+                
+                // Recipe selection elements
+                this.recipeSelectorModal = document.getElementById('recipeSelectorModal');
+                this.selectRecipeBtn = document.getElementById('selectRecipeBtn');
+                this.changeRecipeBtn = document.getElementById('changeRecipeBtn');
+                this.closeRecipeSelectorModal = document.getElementById('closeRecipeSelectorModal');
+                
+                this.recipeTabs = document.querySelectorAll('.recipe-tab');
+                this.recipeTabContents = document.querySelectorAll('.recipe-tab-content');
+                this.popularRecipeGrid = document.getElementById('popularRecipeGrid');
+                this.categoryList = document.getElementById('categoryList');
+                this.categoryRecipeGrid = document.getElementById('categoryRecipeGrid');
+                this.searchRecipeGrid = document.getElementById('searchRecipeGrid');
+                this.recipeSearchInput = document.getElementById('recipeSearchInput');
+                
+                this.selectedRecipeDisplay = document.getElementById('selectedRecipeDisplay');
+                this.selectedRecipeName = document.getElementById('selectedRecipeName');
+                this.selectedRecipeDescription = document.getElementById('selectedRecipeDescription');
+                this.clearRecipeSelection = document.getElementById('clearRecipeSelection');
+                
+                // Recipe preview elements
+                this.recipePreviewPanel = document.getElementById('recipePreviewPanel');
+                this.previewRecipeName = document.getElementById('previewRecipeName');
+                this.previewRecipeDescription = document.getElementById('previewRecipeDescription');
+                this.previewRecipeParameters = document.getElementById('previewRecipeParameters');
+                this.confirmRecipeSelection = document.getElementById('confirmRecipeSelection');
+                this.cancelRecipePreview = document.getElementById('cancelRecipePreview');
+                
+                // Recipe state
+                this.selectedRecipe = null;
+                this.availableRecipes = [];
+                this.categories = [];
                 
                 this.currentGooseStatus = null;
                 this.setupTheme();
@@ -1162,7 +1524,26 @@
                 // Modal event listeners
                 this.gooseStatus.addEventListener('click', () => this.showSessionModal());
                 this.closeModal.addEventListener('click', () => this.hideSessionModal());
-                this.startNewSession.addEventListener('click', () => this.startNewSessionFromModal());
+                this.startNewSession.addEventListener('click', () => this.startSessionFromModal());
+                
+                // Recipe selector modal event listeners
+                this.selectRecipeBtn.addEventListener('click', () => this.showRecipeSelectorModal());
+                this.changeRecipeBtn.addEventListener('click', () => this.showRecipeSelectorModal());
+                this.closeRecipeSelectorModal.addEventListener('click', () => this.hideRecipeSelectorModal());
+                this.clearRecipeSelection.addEventListener('click', () => this.clearSelectedRecipe());
+                
+                // Recipe preview event listeners
+                this.confirmRecipeSelection.addEventListener('click', () => this.confirmRecipe());
+                this.cancelRecipePreview.addEventListener('click', () => this.hideRecipePreview());
+                
+                // Recipe selection event listeners
+                this.recipeTabs.forEach(tab => {
+                    tab.addEventListener('click', () => this.switchRecipeTab(tab.dataset.tab));
+                });
+                
+                this.recipeSearchInput.addEventListener('input', (e) => {
+                    this.searchRecipes(e.target.value);
+                });
                 
                 // Settings modal event listeners
                 this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
@@ -1550,6 +1931,90 @@
             hideSessionModal() {
                 this.sessionModal.classList.remove('show');
                 this.newSessionName.value = '';
+                // Don't clear recipe selection here - let individual methods handle it
+            }
+
+            // Recipe Selector Modal Methods
+            async showRecipeSelectorModal() {
+                // Load popular recipes on first show
+                if (!this.popularRecipeGrid.innerHTML.trim()) {
+                    await this.loadPopularRecipes();
+                }
+                
+                this.recipeSelectorModal.classList.add('show');
+            }
+
+            hideRecipeSelectorModal() {
+                this.recipeSelectorModal.classList.remove('show');
+                this.hideRecipePreview();
+            }
+
+            showRecipePreview(recipe) {
+                this.previewRecipeName.textContent = recipe.name;
+                this.previewRecipeDescription.textContent = recipe.description;
+                
+                // Show parameters if any
+                if (recipe.parameters && recipe.parameters.length > 0) {
+                    this.previewRecipeParameters.innerHTML = `
+                        <div style="margin-top: 1rem;">
+                            <strong>Parameters:</strong>
+                            <ul style="margin-left: 1rem; margin-top: 0.5rem;">
+                                ${recipe.parameters.map(param => `
+                                    <li>${param.label || param.name}${param.required ? ' *' : ''}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    this.previewRecipeParameters.innerHTML = '';
+                }
+                
+                this.recipePreviewPanel.style.display = 'block';
+                this.currentPreviewRecipe = recipe;
+            }
+
+            hideRecipePreview() {
+                this.recipePreviewPanel.style.display = 'none';
+                this.currentPreviewRecipe = null;
+            }
+
+            confirmRecipe() {
+                if (this.currentPreviewRecipe) {
+                    this.selectedRecipe = this.currentPreviewRecipe;
+                    this.updateSelectedRecipeDisplay();
+                    this.hideRecipeSelectorModal();
+                }
+            }
+
+            updateSelectedRecipeDisplay() {
+                if (this.selectedRecipe) {
+                    this.selectedRecipeName.textContent = this.selectedRecipe.name;
+                    this.selectedRecipeDescription.textContent = this.selectedRecipe.description;
+                    
+                    // Add parameter inputs if the recipe has parameters
+                    let parametersHtml = '';
+                    if (this.selectedRecipe.parameters && this.selectedRecipe.parameters.length > 0) {
+                        parametersHtml = `
+                            <div class="recipe-parameters" style="margin-top: 1rem;">
+                                <strong>Parameters:</strong>
+                                ${this.selectedRecipe.parameters.map(param => `
+                                    <div class="parameter-input" style="margin-top: 0.5rem;">
+                                        <label class="parameter-label" for="session-param-${param.name}" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                                            ${param.label || param.name}${param.required ? ' *' : ''}
+                                        </label>
+                                        ${this.renderParameterInputForSession(param)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+                    
+                    // Update the description element to include parameters
+                    this.selectedRecipeDescription.innerHTML = this.selectedRecipe.description + parametersHtml;
+                    this.selectedRecipeDisplay.style.display = 'block';
+                } else {
+                    this.selectedRecipeDisplay.style.display = 'none';
+                }
             }
             
             showSettingsModal() {
@@ -1623,6 +2088,7 @@
             
             async resumeSession(sessionName) {
                 this.hideSessionModal();
+                this.clearSelectedRecipe(); // Clear recipe selection for resumed sessions
                 
                 try {
                     const response = await fetch('/api/goose/resume', {
@@ -1649,9 +2115,21 @@
                 }
             }
             
-            async startNewSessionFromModal() {
+            async startSessionFromModal() {
                 const sessionName = this.newSessionName.value.trim();
+                
+                if (this.selectedRecipe) {
+                    // Start with recipe
+                    await this.startSessionWithRecipe(sessionName);
+                } else {
+                    // Start regular session
+                    await this.startRegularSession(sessionName);
+                }
+            }
+
+            async startRegularSession(sessionName) {
                 this.hideSessionModal();
+                this.clearSelectedRecipe();
                 
                 try {
                     const response = await fetch('/api/goose/start', {
@@ -1668,7 +2146,7 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        this.appendText(`✅ Started new session: ${result.sessionName}\\n`, 'system-message');
+                        this.appendText(`✅ Started new session: ${result.sessionName}\n`, 'system-message');
                         this.scrollToBottom();
                     } else {
                         throw new Error(result.error);
@@ -1676,7 +2154,293 @@
                     
                 } catch (error) {
                     console.error('Error starting new session:', error);
-                    this.appendText(`❌ Failed to start new session: ${error.message}\\n`, 'system-message');
+                    this.appendText(`❌ Failed to start new session: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            // Recipe Methods
+            async loadPopularRecipes() {
+                try {
+                    const response = await fetch('/api/recipes/popular?limit=6');
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    const recipes = await response.json();
+                    this.renderRecipeGrid(recipes, this.popularRecipeGrid);
+                } catch (error) {
+                    console.error('Error loading popular recipes:', error);
+                    this.popularRecipeGrid.innerHTML = '<p class="text-muted">Failed to load popular recipes</p>';
+                }
+            }
+            
+            async loadCategories() {
+                try {
+                    const response = await fetch('/api/recipes/categories');
+                    this.categories = await response.json();
+                    this.renderCategories();
+                } catch (error) {
+                    console.error('Error loading categories:', error);
+                }
+            }
+            
+            renderCategories() {
+                this.categoryList.innerHTML = this.categories.map(category => `
+                    <button class="category-button" data-category="${category.id}">
+                        ${category.icon} ${category.name}
+                    </button>
+                `).join('');
+                
+                // Add event listeners
+                this.categoryList.querySelectorAll('.category-button').forEach(btn => {
+                    btn.addEventListener('click', () => this.loadRecipesByCategory(btn.dataset.category));
+                });
+            }
+            
+            async loadRecipesByCategory(categoryId) {
+                try {
+                    // Update active category button
+                    this.categoryList.querySelectorAll('.category-button').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.category === categoryId);
+                    });
+                    
+                    const response = await fetch(`/api/recipes?category=${categoryId}`);
+                    const recipes = await response.json();
+                    this.renderRecipeGrid(recipes, this.categoryRecipeGrid);
+                } catch (error) {
+                    console.error('Error loading recipes by category:', error);
+                }
+            }
+            
+            async searchRecipes(query) {
+                if (!query.trim()) {
+                    this.searchRecipeGrid.innerHTML = '<p class="text-muted">Enter a search term to find recipes</p>';
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/recipes/search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query })
+                    });
+                    const recipes = await response.json();
+                    this.renderRecipeGrid(recipes, this.searchRecipeGrid);
+                } catch (error) {
+                    console.error('Error searching recipes:', error);
+                }
+            }
+            
+            renderRecipeGrid(recipes, container) {
+                if (!recipes.length) {
+                    container.innerHTML = '<p class="text-muted">No recipes found</p>';
+                    return;
+                }
+                
+                container.innerHTML = recipes.map(recipe => `
+                    <div class="recipe-card" data-recipe-id="${recipe.id}">
+                        <div class="recipe-card-title">${recipe.name}</div>
+                        <div class="recipe-card-description">${recipe.description}</div>
+                        <div class="recipe-card-tags">
+                            ${recipe.tags.slice(0, 3).map(tag => `<span class="recipe-tag">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add click event listeners
+                container.querySelectorAll('.recipe-card').forEach(card => {
+                    card.addEventListener('click', () => this.previewRecipe(card.dataset.recipeId));
+                });
+            }
+            
+            async previewRecipe(recipeId) {
+                try {
+                    const response = await fetch(`/api/recipes/${recipeId}`);
+                    const recipe = await response.json();
+                    
+                    // Highlight selected card
+                    document.querySelectorAll('.recipe-card').forEach(card => {
+                        card.classList.toggle('selected', card.dataset.recipeId === recipeId);
+                    });
+                    
+                    this.showRecipePreview(recipe);
+                } catch (error) {
+                    console.error('Error loading recipe:', error);
+                }
+            }
+            
+            renderRecipeParameters() {
+                if (!this.selectedRecipe.parameters || this.selectedRecipe.parameters.length === 0) {
+                    this.recipeParameters.innerHTML = '';
+                    return;
+                }
+                
+                this.recipeParameters.innerHTML = this.selectedRecipe.parameters.map(param => `
+                    <div class="parameter-input">
+                        <label class="parameter-label" for="param-${param.name}">
+                            ${param.label || param.name}${param.required ? ' *' : ''}
+                        </label>
+                        ${param.description ? `<div class="parameter-description">${param.description}</div>` : ''}
+                        ${this.renderParameterInput(param)}
+                    </div>
+                `).join('');
+            }
+            
+            renderParameterInput(param) {
+                const baseAttrs = `id="param-${param.name}" name="${param.name}" class="form-input"`;
+                
+                switch (param.type) {
+                    case 'select':
+                        return `<select ${baseAttrs}>
+                            ${param.options.map(option => 
+                                `<option value="${option}" ${option === param.default ? 'selected' : ''}>${option}</option>`
+                            ).join('')}
+                        </select>`;
+                    
+                    case 'boolean':
+                        return `<select ${baseAttrs}>
+                            <option value="true" ${param.default === true ? 'selected' : ''}>Yes</option>
+                            <option value="false" ${param.default === false ? 'selected' : ''}>No</option>
+                        </select>`;
+                    
+                    case 'number':
+                        return `<input type="number" ${baseAttrs} 
+                            value="${param.default || ''}" 
+                            ${param.validation?.min ? `min="${param.validation.min}"` : ''}
+                            ${param.validation?.max ? `max="${param.validation.max}"` : ''}>`;
+                    
+                    default: // string
+                        return `<input type="text" ${baseAttrs} 
+                            value="${param.default || ''}" 
+                            placeholder="${param.description || ''}">`;
+                }
+            }
+            
+            renderParameterInputForSession(param) {
+                const baseAttrs = `id="session-param-${param.name}" name="${param.name}" class="form-input" style="font-size: 0.8rem; padding: 0.5rem;"`;
+                
+                switch (param.type) {
+                    case 'select':
+                        return `<select ${baseAttrs}>
+                            ${param.options.map(option => 
+                                `<option value="${option}" ${option === param.default ? 'selected' : ''}>${option}</option>`
+                            ).join('')}
+                        </select>`;
+                    
+                    case 'boolean':
+                        return `<select ${baseAttrs}>
+                            <option value="true" ${param.default === true ? 'selected' : ''}>Yes</option>
+                            <option value="false" ${param.default === false ? 'selected' : ''}>No</option>
+                        </select>`;
+                    
+                    case 'number':
+                        return `<input type="number" ${baseAttrs} 
+                            value="${param.default || ''}" 
+                            ${param.validation?.min ? `min="${param.validation.min}"` : ''}
+                            ${param.validation?.max ? `max="${param.validation.max}"` : ''}>`;
+                    
+                    default: // string
+                        return `<input type="text" ${baseAttrs} 
+                            value="${param.default || ''}" 
+                            placeholder="${param.description || ''}">`;
+                }
+            }
+            
+            clearSelectedRecipe() {
+                this.selectedRecipe = null;
+                this.selectedRecipeDisplay.style.display = 'none';
+                
+                // Clear selected state from all cards
+                document.querySelectorAll('.recipe-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+            }
+            
+            switchRecipeTab(tabName) {
+                // Update tab buttons
+                this.recipeTabs.forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.tab === tabName);
+                });
+                
+                // Update tab content
+                this.recipeTabContents.forEach(content => {
+                    content.classList.toggle('active', content.id === `${tabName}-recipes`);
+                });
+                
+                // Load content if needed
+                if (tabName === 'popular' && !this.popularRecipeGrid.innerHTML.trim()) {
+                    this.loadPopularRecipes();
+                } else if (tabName === 'categories' && !this.categoryList.innerHTML.trim()) {
+                    this.loadCategories();
+                }
+            }
+            
+            getParameterValues() {
+                if (!this.selectedRecipe?.parameters) return {};
+                
+                const values = {};
+                this.selectedRecipe.parameters.forEach(param => {
+                    // Try session parameter inputs first, then fall back to modal parameter inputs
+                    let input = document.getElementById(`session-param-${param.name}`) || 
+                               document.getElementById(`param-${param.name}`);
+                    
+                    if (input) {
+                        let value = input.value;
+                        
+                        // Type conversion
+                        if (param.type === 'number') {
+                            value = value ? Number(value) : undefined;
+                        } else if (param.type === 'boolean') {
+                            value = value === 'true';
+                        }
+                        
+                        values[param.name] = value;
+                    }
+                });
+                
+                return values;
+            }
+            
+            async startSessionWithRecipe(sessionName) {
+                if (!this.selectedRecipe) {
+                    console.error('No recipe selected');
+                    this.appendText(`❌ No recipe selected. Please select a recipe first.\n`, 'system-message');
+                    return;
+                }
+                
+                // Collect parameter values if the recipe has parameters
+                const parameters = this.getParameterValues();
+                
+                // Store recipe info before hiding modal
+                const recipeId = this.selectedRecipe.id;
+                const recipeName = this.selectedRecipe.name;
+                
+                this.hideSessionModal();
+                
+                try {
+                    const response = await fetch('/api/goose/start-with-recipe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recipeId: recipeId,
+                            sessionName: sessionName || undefined,
+                            parameters
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Started session with recipe "${result.recipe?.name || recipeName}": ${result.sessionName}\n`, 'system-message');
+                        this.scrollToBottom();
+                        this.clearSelectedRecipe(); // Clear selection after successful start
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting session with recipe:', error);
+                    this.appendText(`❌ Failed to start session with recipe: ${error.message}\n`, 'system-message');
                     this.scrollToBottom();
                 }
             }
