@@ -107,7 +107,7 @@ class GooseConversationManager extends EventEmitter {
 
     this.currentSessionName = options.sessionName || `web-session-${Date.now()}`;
     
-    // Update session status in database
+    // Update session status and store context in database
     if (this.dbInitialized) {
       try {
         // Create or get session
@@ -117,6 +117,15 @@ class GooseConversationManager extends EventEmitter {
           }
         });
         await this.db.updateSessionStatus(this.currentSessionName, 'active');
+        
+        // Store complete session context
+        await this.db.storeSessionContext(this.currentSessionName, {
+          workingDirectory: options.workingDirectory || process.cwd(),
+          extensions: options.extensions || [],
+          builtins: options.builtins || [],
+          debug: options.debug || false,
+          maxTurns: options.maxTurns || 1000
+        });
       } catch (error) {
         console.error('Error managing session in database:', error);
       }
@@ -247,6 +256,24 @@ class GooseConversationManager extends EventEmitter {
     });
 
     try {
+      // Store complete session context including recipe info
+      if (this.dbInitialized) {
+        try {
+          await this.db.storeSessionContext(this.currentSessionName, {
+            workingDirectory: options.workingDirectory || process.cwd(),
+            recipeId: recipeId,
+            recipeParameters: options.parameters || {},
+            extensions: [...(recipe.extensions || []), ...(options.extensions || [])],
+            builtins: [...(recipe.builtins || []), ...(options.builtins || [])],
+            debug: options.debug || false,
+            maxTurns: options.maxTurns || 1000,
+            recipeConfig: processedRecipe
+          });
+        } catch (error) {
+          console.error('Error storing recipe session context:', error);
+        }
+      }
+
       // Track recipe usage
       await recipeManager.trackUsage(recipeId, this.currentSessionName);
 
@@ -361,31 +388,80 @@ class GooseConversationManager extends EventEmitter {
       await this.stopGooseSession();
     }
 
+    // Clear current conversation display since we're switching sessions
+    this.conversation = [];
+    this.emit('conversationCleared');
+
     // Switch to the new session
     this.currentSessionName = sessionName;
     
-    // Update session status in database
+    // Get stored session context
+    let sessionContext = {};
     if (this.dbInitialized) {
       try {
         await this.db.updateSessionStatus(sessionName, 'active');
+        sessionContext = await this.db.getSessionContext(sessionName) || {};
       } catch (error) {
-        console.error('Error updating session status:', error);
+        console.error('Error retrieving session context:', error);
       }
     }
     
     // Load conversation for this session
     await this.load();
 
-    this.gooseWrapper = new GooseCLIWrapper({
-      sessionName: sessionName
-    });
+    // Create wrapper with restored context
+    const wrapperOptions = {
+      sessionName: sessionName,
+      workingDirectory: sessionContext.workingDirectory || process.cwd(),
+      debug: sessionContext.debug || false,
+      maxTurns: sessionContext.maxTurns || 1000,
+      extensions: sessionContext.extensions || [],
+      builtins: sessionContext.builtins || []
+    };
+
+    // If this was a recipe session, restore recipe context
+    if (sessionContext.recipeId && sessionContext.recipeConfig) {
+      try {
+        // Create temporary recipe file for restoration
+        const recipePath = await this.createTempRecipeFile(sessionContext.recipeConfig);
+        wrapperOptions.recipePath = recipePath;
+        wrapperOptions.recipe = sessionContext.recipeConfig;
+        wrapperOptions.parameters = sessionContext.recipeParameters || {};
+        
+        console.log(`Resuming session with recipe: ${sessionContext.recipeConfig.name}`);
+      } catch (error) {
+        console.error('Error restoring recipe context:', error);
+        // Continue without recipe if restoration fails
+      }
+    }
+
+    this.gooseWrapper = new GooseCLIWrapper(wrapperOptions);
     
     // Set up event listeners
     this.setupGooseListeners();
     
     try {
       await this.gooseWrapper.resumeSession(sessionName);
-      return { success: true, sessionName };
+      
+      const result = { 
+        success: true, 
+        sessionName,
+        context: {
+          workingDirectory: sessionContext.workingDirectory,
+          recipeId: sessionContext.recipeId,
+          recipeName: sessionContext.recipeConfig?.name
+        }
+      };
+      
+      console.log(`Session resumed successfully in: ${sessionContext.workingDirectory || process.cwd()}`);
+      if (sessionContext.recipeId) {
+        console.log(`Recipe restored: ${sessionContext.recipeConfig?.name || sessionContext.recipeId}`);
+      }
+      
+      // Emit the loaded conversation history for the new session
+      this.emit('conversationHistory', this.conversation);
+      
+      return result;
     } catch (error) {
       console.error('Failed to resume Goose session:', error);
       return { success: false, error: error.message };
