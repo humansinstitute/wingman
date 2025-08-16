@@ -4,12 +4,12 @@
       "name": "Tech Co-Founder",
       "path": "/Users/mini/code/wingman/.worktrees/recipe/recipes/user/4688dcf1cdbb9324041e430d915447de.json",
       "createdAt": "2025-08-16T06:02:10.323Z",
-      "updatedAt": "2025-08-16T07:00:00.889Z"
+      "updatedAt": "2025-08-16T12:23:24.988Z"
     }
   },
   "usage": {
     "4688dcf1cdbb9324041e430d915447de": {
-      "count": 4,
+      "count": 5,
       "sessions": [
         {
           "sessionId": "recipe2",
@@ -26,10 +26,14 @@
         {
           "sessionId": "Pipeliner",
           "timestamp": "2025-08-16T10:09:15.931Z"
+        },
+        {
+          "sessionId": "Test Restoriation",
+          "timestamp": "2025-08-16T12:17:59.469Z"
         }
       ],
       "firstUsed": "2025-08-16T06:09:49.466Z",
-      "lastUsed": "2025-08-16T10:09:15.931Z"
+      "lastUsed": "2025-08-16T12:17:59.469Z"
     }
   },
   "lastUpdated": "2025-08-16T05:54:11.930Z"

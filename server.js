@@ -105,9 +105,9 @@ class GooseWebServer {
         const result = await conversationManager.resumeGooseSession(sessionName);
         
         if (result.success) {
-          // Broadcast status update and conversation history to all clients
+          // Broadcast status update to all clients
           this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
-          this.io.emit('conversationHistory', conversationManager.getConversation());
+          // Note: conversationHistory is now emitted from the conversationManager itself
         }
         
         res.json(result);
@@ -434,6 +434,11 @@ class GooseWebServer {
 
     conversationManager.on('gooseError', (error) => {
       this.io.emit('gooseError', error);
+    });
+
+    // Broadcast conversation history updates (for session switching)
+    conversationManager.on('conversationHistory', (conversation) => {
+      this.io.emit('conversationHistory', conversation);
     });
   }
 
