@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
+const os = require('os');
 const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
 
@@ -316,10 +318,16 @@ class GooseWebServer {
       try {
         const fs = require('fs').promises;
         const path = require('path');
-        const os = require('os');
         
         const { dir } = req.query;
-        const targetDir = dir || os.homedir();
+        
+        // Use ROOT_WORKING_DIR from environment, expanding ~ to home directory
+        let defaultDir = process.env.ROOT_WORKING_DIR || os.homedir();
+        if (defaultDir.startsWith('~/')) {
+          defaultDir = path.join(os.homedir(), defaultDir.slice(2));
+        }
+        
+        const targetDir = dir || defaultDir;
         
         // Security: Ensure we can't browse outside reasonable bounds
         const resolvedPath = path.resolve(targetDir);

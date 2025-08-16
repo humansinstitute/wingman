@@ -539,6 +539,16 @@
             z-index: 1000;
         }
 
+        /* Higher z-index for wizard modals */
+        .modal-overlay.wizard-modal {
+            z-index: 1100;
+        }
+
+        /* Highest z-index for nested modals like directory browser */
+        .modal-overlay.nested-modal {
+            z-index: 1200;
+        }
+
         .modal-overlay.show {
             display: flex;
         }
@@ -1016,6 +1026,33 @@
             border-bottom: 1px solid var(--border-primary);
         }
 
+        /* Wizard Styles */
+        .wizard-step {
+            padding: 1rem 0;
+        }
+
+        .wizard-step h4 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .wizard-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .wizard-nav {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: flex-start;
+        }
+
         /* Settings Modal */
         .settings-section {
             margin-bottom: 1.5rem;
@@ -1308,7 +1345,7 @@
     </div>
 
     <!-- Recipe Selector Modal -->
-    <div id="recipeSelectorModal" class="modal-overlay">
+    <div id="recipeSelectorModal" class="modal-overlay nested-modal">
         <div class="modal">
             <div class="modal-header">
                 <h3 class="modal-title">Choose a Recipe</h3>
@@ -1364,7 +1401,7 @@
     </div>
 
     <!-- Directory Browser Modal -->
-    <div id="directoryBrowserModal" class="modal-overlay">
+    <div id="directoryBrowserModal" class="modal-overlay nested-modal">
         <div class="modal">
             <div class="modal-header">
                 <h3 class="modal-title">Select Working Directory</h3>
@@ -1448,35 +1485,80 @@
                         <input type="text" id="newSessionName" class="form-input" placeholder="Enter session name (optional)">
                     </div>
                     
-                    <div class="form-group">
-                        <label class="form-label" for="workingDirectory">Working Directory</label>
-                        <div class="directory-selector">
-                            <input type="text" id="workingDirectory" class="form-input" readonly placeholder="Click to select directory">
-                            <button type="button" id="browseDirectoryBtn" class="btn-small btn-secondary">📁 Browse</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Recipe Selection Summary -->
-                    <div id="selectedRecipeDisplay" class="selected-recipe-summary" style="display: none;">
-                        <div class="recipe-info">
-                            <strong>Selected Recipe:</strong> <span id="selectedRecipeName"></span>
-                            <p id="selectedRecipeDescription"></p>
-                        </div>
-                        <div class="recipe-actions">
-                            <button id="changeRecipeBtn" class="btn-small btn-secondary">Change Recipe</button>
-                            <button id="clearRecipeSelection" class="btn-small btn-secondary">Clear</button>
-                        </div>
-                    </div>
-                    
                     <div class="button-group">
-                        <button id="selectRecipeBtn" class="btn-small btn-secondary">📋 Choose Recipe</button>
-                        <button id="startNewSession" class="btn-small btn-primary">Start Session</button>
+                        <button id="createNewSessionBtn" class="btn btn-primary">Create New Session</button>
                     </div>
                 </div>
             </div>
             
             <div class="session-list" id="sessionList">
                 <!-- Sessions will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Creation Wizard -->
+    <div id="sessionWizardModal" class="modal-overlay wizard-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="wizardTitle">Create New Session</h3>
+                <button class="modal-close" id="closeWizardModal">×</button>
+            </div>
+            
+            <!-- Step 1: Session Name -->
+            <div id="wizardStep1" class="wizard-step">
+                <h4>Step 1: Session Name</h4>
+                <div class="form-group">
+                    <label class="form-label" for="wizardSessionName">Session Name</label>
+                    <input type="text" id="wizardSessionName" class="form-input" placeholder="Enter session name (optional)">
+                </div>
+                <div class="wizard-buttons">
+                    <button id="wizardStep1Next" class="btn btn-primary">Next: Choose Recipe</button>
+                </div>
+            </div>
+            
+            <!-- Step 2: Recipe Selection -->
+            <div id="wizardStep2" class="wizard-step" style="display: none;">
+                <h4>Step 2: Recipe Selection</h4>
+                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Would you like to use a recipe for this session?</p>
+                
+                <div id="selectedRecipeWizard" class="selected-recipe-summary" style="display: none;">
+                    <div class="recipe-info">
+                        <strong>Selected Recipe:</strong> <span id="wizardSelectedRecipeName"></span>
+                        <p id="wizardSelectedRecipeDescription"></p>
+                    </div>
+                </div>
+                
+                <div class="wizard-buttons">
+                    <button id="wizardChooseRecipeBtn" class="btn btn-secondary">📋 Choose Recipe</button>
+                    <button id="wizardSkipRecipeBtn" class="btn btn-secondary">Skip (Default)</button>
+                    <button id="wizardStep2Next" class="btn btn-primary" disabled>Next: Working Directory</button>
+                </div>
+                <div class="wizard-nav">
+                    <button id="wizardStep2Back" class="btn btn-secondary">← Back</button>
+                </div>
+            </div>
+            
+            <!-- Step 3: Working Directory -->
+            <div id="wizardStep3" class="wizard-step" style="display: none;">
+                <h4>Step 3: Working Directory</h4>
+                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Choose the directory where Goose should run.</p>
+                
+                <div class="form-group">
+                    <label class="form-label" for="wizardWorkingDirectory">Working Directory</label>
+                    <div class="directory-selector">
+                        <input type="text" id="wizardWorkingDirectory" class="form-input" readonly>
+                        <button type="button" id="wizardBrowseDirectoryBtn" class="btn-small btn-secondary">📁 Browse</button>
+                    </div>
+                </div>
+                
+                <div class="wizard-buttons">
+                    <button id="wizardUseCurrentDirBtn" class="btn btn-secondary">Use Current Directory</button>
+                    <button id="wizardCreateSessionBtn" class="btn btn-primary">Create Session</button>
+                </div>
+                <div class="wizard-nav">
+                    <button id="wizardStep3Back" class="btn btn-secondary">← Back</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1508,7 +1590,32 @@
                 this.sessionList = document.getElementById('sessionList');
                 this.closeModal = document.getElementById('closeModal');
                 this.newSessionName = document.getElementById('newSessionName');
-                this.startNewSession = document.getElementById('startNewSession');
+                this.createNewSessionBtn = document.getElementById('createNewSessionBtn');
+                
+                // Wizard elements
+                this.sessionWizardModal = document.getElementById('sessionWizardModal');
+                this.closeWizardModal = document.getElementById('closeWizardModal');
+                this.wizardStep1 = document.getElementById('wizardStep1');
+                this.wizardStep2 = document.getElementById('wizardStep2');
+                this.wizardStep3 = document.getElementById('wizardStep3');
+                this.wizardSessionName = document.getElementById('wizardSessionName');
+                this.wizardWorkingDirectory = document.getElementById('wizardWorkingDirectory');
+                
+                // Wizard buttons
+                this.wizardStep1Next = document.getElementById('wizardStep1Next');
+                this.wizardStep2Back = document.getElementById('wizardStep2Back');
+                this.wizardStep2Next = document.getElementById('wizardStep2Next');
+                this.wizardStep3Back = document.getElementById('wizardStep3Back');
+                this.wizardChooseRecipeBtn = document.getElementById('wizardChooseRecipeBtn');
+                this.wizardSkipRecipeBtn = document.getElementById('wizardSkipRecipeBtn');
+                this.wizardBrowseDirectoryBtn = document.getElementById('wizardBrowseDirectoryBtn');
+                this.wizardUseCurrentDirBtn = document.getElementById('wizardUseCurrentDirBtn');
+                this.wizardCreateSessionBtn = document.getElementById('wizardCreateSessionBtn');
+                
+                // Wizard recipe elements
+                this.selectedRecipeWizard = document.getElementById('selectedRecipeWizard');
+                this.wizardSelectedRecipeName = document.getElementById('wizardSelectedRecipeName');
+                this.wizardSelectedRecipeDescription = document.getElementById('wizardSelectedRecipeDescription');
                 
                 // Settings modal elements
                 this.settingsModal = document.getElementById('settingsModal');
@@ -1552,6 +1659,14 @@
                 this.selectDirectoryBtn = document.getElementById('selectDirectoryBtn');
                 this.cancelDirectorySelection = document.getElementById('cancelDirectorySelection');
                 
+                // Debug: Check if directory browser elements were found
+                console.log('Directory browser elements found:', {
+                    closeDirectoryBrowserModal: !!this.closeDirectoryBrowserModal,
+                    selectDirectoryBtn: !!this.selectDirectoryBtn,
+                    cancelDirectorySelection: !!this.cancelDirectorySelection,
+                    directoryBrowserModal: !!this.directoryBrowserModal
+                });
+                
                 // Recipe preview elements
                 this.recipePreviewPanel = document.getElementById('recipePreviewPanel');
                 this.previewRecipeName = document.getElementById('previewRecipeName');
@@ -1568,6 +1683,14 @@
                 // Directory browser state
                 this.currentWorkingDirectory = null;
                 this.selectedDirectory = null;
+                
+                // Wizard state
+                this.wizardCurrentStep = 1;
+                this.wizardData = {
+                    sessionName: '',
+                    selectedRecipe: null,
+                    workingDirectory: null
+                };
                 
                 this.currentGooseStatus = null;
                 this.setupTheme();
@@ -1618,33 +1741,125 @@
             }
             
             setupEventListeners() {
-                this.sendBtn.addEventListener('click', () => this.sendMessage());
-                this.clearBtn.addEventListener('click', () => this.clearConversation());
-                this.startSessionBtn.addEventListener('click', () => this.startGooseSession());
-                this.stopSessionBtn.addEventListener('click', () => this.stopGooseSession());
-                this.listSessionsBtn.addEventListener('click', () => this.listGooseSessions());
-                this.sendCommandBtn.addEventListener('click', () => this.sendGooseCommand());
+                // Helper function to safely add event listeners
+                const safeAddEventListener = (element, elementName, event, handler) => {
+                    if (element) {
+                        element.addEventListener(event, handler);
+                    } else {
+                        console.warn(`${elementName} element not found - skipping event listener`);
+                    }
+                };
+                
+                safeAddEventListener(this.sendBtn, 'sendBtn', 'click', () => this.sendMessage());
+                safeAddEventListener(this.clearBtn, 'clearBtn', 'click', () => this.clearConversation());
+                safeAddEventListener(this.startSessionBtn, 'startSessionBtn', 'click', () => this.startGooseSession());
+                safeAddEventListener(this.stopSessionBtn, 'stopSessionBtn', 'click', () => this.stopGooseSession());
+                safeAddEventListener(this.listSessionsBtn, 'listSessionsBtn', 'click', () => this.listGooseSessions());
+                safeAddEventListener(this.sendCommandBtn, 'sendCommandBtn', 'click', () => this.sendGooseCommand());
                 
                 // Modal event listeners
-                this.gooseStatus.addEventListener('click', () => this.showSessionModal());
-                this.closeModal.addEventListener('click', () => this.hideSessionModal());
-                this.startNewSession.addEventListener('click', () => this.startSessionFromModal());
+                safeAddEventListener(this.gooseStatus, 'gooseStatus', 'click', () => this.showSessionModal());
+                safeAddEventListener(this.closeModal, 'closeModal', 'click', () => this.hideSessionModal());
+                safeAddEventListener(this.createNewSessionBtn, 'createNewSessionBtn', 'click', () => this.startSessionWizard());
+                
+                // Wizard event listeners
+                safeAddEventListener(this.closeWizardModal, 'closeWizardModal', 'click', () => this.hideSessionWizard());
+                safeAddEventListener(this.wizardStep1Next, 'wizardStep1Next', 'click', () => this.wizardGoToStep(2));
+                safeAddEventListener(this.wizardStep2Back, 'wizardStep2Back', 'click', () => this.wizardGoToStep(1));
+                safeAddEventListener(this.wizardStep2Next, 'wizardStep2Next', 'click', () => this.wizardGoToStep(3));
+                safeAddEventListener(this.wizardStep3Back, 'wizardStep3Back', 'click', () => this.wizardGoToStep(2));
+                safeAddEventListener(this.wizardChooseRecipeBtn, 'wizardChooseRecipeBtn', 'click', () => this.wizardChooseRecipe());
+                safeAddEventListener(this.wizardSkipRecipeBtn, 'wizardSkipRecipeBtn', 'click', () => this.wizardSkipRecipe());
+                safeAddEventListener(this.wizardBrowseDirectoryBtn, 'wizardBrowseDirectoryBtn', 'click', () => this.wizardBrowseDirectory());
+                safeAddEventListener(this.wizardUseCurrentDirBtn, 'wizardUseCurrentDirBtn', 'click', () => this.wizardUseCurrentDirectory());
+                safeAddEventListener(this.wizardCreateSessionBtn, 'wizardCreateSessionBtn', 'click', () => this.wizardCreateSession());
                 
                 // Recipe selector modal event listeners
-                this.selectRecipeBtn.addEventListener('click', () => this.showRecipeSelectorModal());
-                this.changeRecipeBtn.addEventListener('click', () => this.showRecipeSelectorModal());
-                this.closeRecipeSelectorModal.addEventListener('click', () => this.hideRecipeSelectorModal());
-                this.clearRecipeSelection.addEventListener('click', () => this.clearSelectedRecipe());
+                safeAddEventListener(this.selectRecipeBtn, 'selectRecipeBtn', 'click', () => this.showRecipeSelectorModal());
+                safeAddEventListener(this.changeRecipeBtn, 'changeRecipeBtn', 'click', () => this.showRecipeSelectorModal());
+                safeAddEventListener(this.closeRecipeSelectorModal, 'closeRecipeSelectorModal', 'click', () => this.hideRecipeSelectorModal());
+                safeAddEventListener(this.clearRecipeSelection, 'clearRecipeSelection', 'click', () => this.clearSelectedRecipe());
                 
                 // Recipe preview event listeners
-                this.confirmRecipeSelection.addEventListener('click', () => this.confirmRecipe());
-                this.cancelRecipePreview.addEventListener('click', () => this.hideRecipePreview());
+                safeAddEventListener(this.confirmRecipeSelection, 'confirmRecipeSelection', 'click', () => this.confirmRecipe());
+                safeAddEventListener(this.cancelRecipePreview, 'cancelRecipePreview', 'click', () => this.hideRecipePreview());
                 
                 // Directory browser event listeners
-                this.browseDirectoryBtn.addEventListener('click', () => this.showDirectoryBrowser());
-                this.closeDirectoryBrowserModal.addEventListener('click', () => this.hideDirectoryBrowser());
-                this.selectDirectoryBtn.addEventListener('click', () => this.confirmDirectorySelection());
-                this.cancelDirectorySelection.addEventListener('click', () => this.hideDirectoryBrowser());
+                safeAddEventListener(this.browseDirectoryBtn, 'browseDirectoryBtn', 'click', () => this.showDirectoryBrowser());
+                
+                if (this.closeDirectoryBrowserModal) {
+                    console.log('Adding click listener to closeDirectoryBrowserModal element:', this.closeDirectoryBrowserModal);
+                    
+                    this.closeDirectoryBrowserModal.addEventListener('click', (e) => {
+                        console.log('🔥 Close directory browser (X) clicked - Event object:', e);
+                        console.log('🔥 Event target:', e.target);
+                        console.log('🔥 Current target:', e.currentTarget);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.hideDirectoryBrowser();
+                    });
+                    
+                    // Add mousedown listener
+                    this.closeDirectoryBrowserModal.addEventListener('mousedown', (e) => {
+                        console.log('🔥 MOUSEDOWN on close (X) button');
+                    });
+                    
+                    console.log('✅ Event listeners added to closeDirectoryBrowserModal');
+                } else {
+                    console.error('❌ closeDirectoryBrowserModal element not found');
+                }
+                
+                if (this.selectDirectoryBtn) {
+                    console.log('Adding click listener to selectDirectoryBtn element:', this.selectDirectoryBtn);
+                    
+                    // Add multiple event listeners to debug
+                    this.selectDirectoryBtn.addEventListener('click', (e) => {
+                        console.log('🔥 Select directory button clicked - Event object:', e);
+                        console.log('🔥 Event target:', e.target);
+                        console.log('🔥 Current target:', e.currentTarget);
+                        console.log('🔥 Button element:', this.selectDirectoryBtn);
+                        console.log('🔥 Selected directory:', this.selectedDirectory);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.confirmDirectorySelection();
+                    });
+                    
+                    // Add mousedown listener too
+                    this.selectDirectoryBtn.addEventListener('mousedown', (e) => {
+                        console.log('🔥 MOUSEDOWN on select directory button');
+                    });
+                    
+                    // Add pointer events listener
+                    this.selectDirectoryBtn.addEventListener('pointerdown', (e) => {
+                        console.log('🔥 POINTERDOWN on select directory button');
+                    });
+                    
+                    console.log('✅ Event listeners added to selectDirectoryBtn');
+                } else {
+                    console.error('❌ selectDirectoryBtn element not found');
+                }
+                
+                if (this.cancelDirectorySelection) {
+                    console.log('Adding click listener to cancelDirectorySelection element:', this.cancelDirectorySelection);
+                    
+                    this.cancelDirectorySelection.addEventListener('click', (e) => {
+                        console.log('🔥 Cancel directory button clicked - Event object:', e);
+                        console.log('🔥 Event target:', e.target);
+                        console.log('🔥 Current target:', e.currentTarget);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.hideDirectoryBrowser();
+                    });
+                    
+                    // Add mousedown listener
+                    this.cancelDirectorySelection.addEventListener('mousedown', (e) => {
+                        console.log('🔥 MOUSEDOWN on cancel directory button');
+                    });
+                    
+                    console.log('✅ Event listeners added to cancelDirectorySelection');
+                } else {
+                    console.error('❌ cancelDirectorySelection element not found');
+                }
                 
                 // Recipe selection event listeners
                 this.recipeTabs.forEach(tab => {
@@ -1675,6 +1890,12 @@
                 this.directoryBrowserModal.addEventListener('click', (e) => {
                     if (e.target === this.directoryBrowserModal) {
                         this.hideDirectoryBrowser();
+                    }
+                });
+                
+                this.sessionWizardModal.addEventListener('click', (e) => {
+                    if (e.target === this.sessionWizardModal) {
+                        this.hideSessionWizard();
                     }
                 });
                 
@@ -2599,12 +2820,57 @@
             
             // Directory Browser Methods
             async showDirectoryBrowser() {
+                console.log('🔥 showDirectoryBrowser called');
                 this.selectedDirectory = this.currentWorkingDirectory;
                 await this.loadDirectories();
                 this.directoryBrowserModal.classList.add('show');
+                
+                // Add global click detector on the modal to debug all clicks
+                console.log('🔥 Adding global click detector to modal');
+                this.directoryBrowserModal.addEventListener('click', (e) => {
+                    console.log('🔥 GLOBAL CLICK on directory modal detected:', e.target);
+                    console.log('🔥 Click coordinates:', e.clientX, e.clientY);
+                    console.log('🔥 Target element:', e.target.tagName, e.target.className, e.target.id);
+                    console.log('🔥 Is button?', e.target.tagName === 'BUTTON');
+                });
+                
+                // Debug the buttons' CSS properties
+                setTimeout(() => {
+                    const selectBtn = document.getElementById('selectDirectoryBtn');
+                    const cancelBtn = document.getElementById('cancelDirectorySelection');
+                    const closeBtn = this.closeDirectoryBrowserModal;
+                    
+                    console.log('🔥 CSS Debug - Select button computed style:');
+                    if (selectBtn) {
+                        const selectStyle = window.getComputedStyle(selectBtn);
+                        console.log('  pointer-events:', selectStyle.pointerEvents);
+                        console.log('  z-index:', selectStyle.zIndex);
+                        console.log('  position:', selectStyle.position);
+                        console.log('  display:', selectStyle.display);
+                        console.log('  visibility:', selectStyle.visibility);
+                        console.log('  opacity:', selectStyle.opacity);
+                    }
+                    
+                    console.log('🔥 CSS Debug - Cancel button computed style:');
+                    if (cancelBtn) {
+                        const cancelStyle = window.getComputedStyle(cancelBtn);
+                        console.log('  pointer-events:', cancelStyle.pointerEvents);
+                        console.log('  z-index:', cancelStyle.zIndex);
+                        console.log('  position:', cancelStyle.position);
+                    }
+                    
+                    console.log('🔥 CSS Debug - Close (X) button computed style:');
+                    if (closeBtn) {
+                        const closeStyle = window.getComputedStyle(closeBtn);
+                        console.log('  pointer-events:', closeStyle.pointerEvents);
+                        console.log('  z-index:', closeStyle.zIndex);
+                        console.log('  position:', closeStyle.position);
+                    }
+                }, 1000);
             }
             
             hideDirectoryBrowser() {
+                console.log('hideDirectoryBrowser called');
                 this.directoryBrowserModal.classList.remove('show');
                 this.selectedDirectory = null;
             }
@@ -2620,7 +2886,7 @@
                     const data = await response.json();
                     
                     this.currentPath.textContent = data.currentPath;
-                    this.selectedDirectory = data.currentPath;
+                    this.selectedDirectory = data.currentPath; // Auto-select current directory
                     
                     this.renderDirectories(data.directories);
                 } catch (error) {
@@ -2659,13 +2925,6 @@
                 });
             }
             
-            confirmDirectorySelection() {
-                if (this.selectedDirectory) {
-                    this.workingDirectory.value = this.selectedDirectory;
-                    this.currentWorkingDirectory = this.selectedDirectory;
-                    this.hideDirectoryBrowser();
-                }
-            }
             
             async initializeWorkingDirectory() {
                 try {
@@ -2674,12 +2933,256 @@
                     const data = await response.json();
                     
                     this.currentWorkingDirectory = data.currentPath;
-                    this.workingDirectory.value = data.currentPath;
-                    this.workingDirectory.placeholder = data.currentPath;
+                    if (this.workingDirectory) {
+                        this.workingDirectory.value = data.currentPath;
+                        this.workingDirectory.placeholder = data.currentPath;
+                    }
+                    
+                    // Also set wizard working directory
+                    if (this.wizardWorkingDirectory) {
+                        this.wizardWorkingDirectory.value = data.currentPath;
+                        this.wizardWorkingDirectory.placeholder = data.currentPath;
+                    }
                 } catch (error) {
                     console.error('Error initializing working directory:', error);
                     // Fallback to a reasonable default message
-                    this.workingDirectory.placeholder = 'Click Browse to select directory';
+                    if (this.workingDirectory) {
+                        this.workingDirectory.placeholder = 'Click Browse to select directory';
+                    }
+                    if (this.wizardWorkingDirectory) {
+                        this.wizardWorkingDirectory.placeholder = 'Click Browse to select directory';
+                    }
+                }
+            }
+            
+            // Session Creation Wizard Methods
+            startSessionWizard() {
+                // Reset wizard state
+                this.wizardCurrentStep = 1;
+                this.wizardData = {
+                    sessionName: '',
+                    selectedRecipe: null,
+                    workingDirectory: this.currentWorkingDirectory
+                };
+                
+                // Copy session name from main modal if set
+                this.wizardSessionName.value = this.newSessionName.value;
+                this.wizardWorkingDirectory.value = this.currentWorkingDirectory || '';
+                
+                // Hide session modal and show wizard
+                this.hideSessionModal();
+                this.showWizardStep(1);
+                this.sessionWizardModal.classList.add('show');
+            }
+            
+            hideSessionWizard() {
+                this.sessionWizardModal.classList.remove('show');
+                this.resetWizard();
+            }
+            
+            showWizardStep(step) {
+                // Hide all steps
+                this.wizardStep1.style.display = 'none';
+                this.wizardStep2.style.display = 'none';
+                this.wizardStep3.style.display = 'none';
+                
+                // Show current step
+                switch (step) {
+                    case 1:
+                        this.wizardStep1.style.display = 'block';
+                        break;
+                    case 2:
+                        this.wizardStep2.style.display = 'block';
+                        this.updateStep2State();
+                        break;
+                    case 3:
+                        this.wizardStep3.style.display = 'block';
+                        break;
+                }
+                
+                this.wizardCurrentStep = step;
+            }
+            
+            wizardGoToStep(step) {
+                // Validate current step before proceeding
+                if (this.wizardCurrentStep === 1) {
+                    this.wizardData.sessionName = this.wizardSessionName.value.trim();
+                }
+                
+                if (this.wizardCurrentStep === 2) {
+                    // Step 2 validation handled by button states
+                }
+                
+                this.showWizardStep(step);
+            }
+            
+            updateStep2State() {
+                // Enable/disable next button based on recipe selection
+                const hasRecipe = this.wizardData.selectedRecipe !== null;
+                const skippedRecipe = this.wizardData.selectedRecipe === false;
+                
+                this.wizardStep2Next.disabled = !(hasRecipe || skippedRecipe);
+                
+                // Update recipe display
+                if (this.wizardData.selectedRecipe && this.wizardData.selectedRecipe !== false) {
+                    this.wizardSelectedRecipeName.textContent = this.wizardData.selectedRecipe.name;
+                    this.wizardSelectedRecipeDescription.textContent = this.wizardData.selectedRecipe.description;
+                    this.selectedRecipeWizard.style.display = 'block';
+                } else {
+                    this.selectedRecipeWizard.style.display = 'none';
+                }
+            }
+            
+            wizardChooseRecipe() {
+                // Store wizard context and show recipe selector
+                this.selectedRecipe = this.wizardData.selectedRecipe;
+                this.showRecipeSelectorModal();
+            }
+            
+            wizardSkipRecipe() {
+                this.wizardData.selectedRecipe = false; // false means explicitly skipped
+                this.updateStep2State();
+            }
+            
+            wizardBrowseDirectory() {
+                // Use existing directory browser
+                this.showDirectoryBrowser();
+            }
+            
+            wizardUseCurrentDirectory() {
+                this.wizardData.workingDirectory = this.currentWorkingDirectory;
+                this.wizardWorkingDirectory.value = this.currentWorkingDirectory || '';
+            }
+            
+            async wizardCreateSession() {
+                // Collect final data
+                this.wizardData.sessionName = this.wizardSessionName.value.trim();
+                this.wizardData.workingDirectory = this.wizardWorkingDirectory.value || this.currentWorkingDirectory;
+                
+                // Create session based on whether recipe was selected
+                if (this.wizardData.selectedRecipe && this.wizardData.selectedRecipe !== false) {
+                    await this.createSessionWithRecipe(
+                        this.wizardData.sessionName,
+                        this.wizardData.selectedRecipe,
+                        this.wizardData.workingDirectory
+                    );
+                } else {
+                    await this.createRegularSession(
+                        this.wizardData.sessionName,
+                        this.wizardData.workingDirectory
+                    );
+                }
+                
+                this.hideSessionWizard();
+            }
+            
+            resetWizard() {
+                this.wizardCurrentStep = 1;
+                this.wizardData = {
+                    sessionName: '',
+                    selectedRecipe: null,
+                    workingDirectory: this.currentWorkingDirectory
+                };
+                this.wizardSessionName.value = '';
+                this.selectedRecipeWizard.style.display = 'none';
+                this.wizardStep2Next.disabled = true;
+            }
+            
+            // Override confirmRecipe to work with wizard
+            confirmRecipe() {
+                if (this.currentPreviewRecipe) {
+                    if (this.sessionWizardModal.classList.contains('show')) {
+                        // Wizard mode
+                        this.wizardData.selectedRecipe = this.currentPreviewRecipe;
+                        this.updateStep2State();
+                    } else {
+                        // Original mode
+                        this.selectedRecipe = this.currentPreviewRecipe;
+                        this.updateSelectedRecipeDisplay();
+                    }
+                    this.hideRecipeSelectorModal();
+                }
+            }
+            
+            // Override confirmDirectorySelection to work with wizard
+            confirmDirectorySelection() {
+                console.log('confirmDirectorySelection called, selectedDirectory:', this.selectedDirectory);
+                if (this.selectedDirectory) {
+                    if (this.sessionWizardModal.classList.contains('show')) {
+                        // Wizard mode
+                        console.log('Setting wizard working directory:', this.selectedDirectory);
+                        this.wizardData.workingDirectory = this.selectedDirectory;
+                        this.wizardWorkingDirectory.value = this.selectedDirectory;
+                    } else {
+                        // Original mode
+                        console.log('Setting regular working directory:', this.selectedDirectory);
+                        if (this.workingDirectory) {
+                            this.workingDirectory.value = this.selectedDirectory;
+                        }
+                        this.currentWorkingDirectory = this.selectedDirectory;
+                    }
+                    this.hideDirectoryBrowser();
+                } else {
+                    console.log('No directory selected');
+                }
+            }
+            
+            async createSessionWithRecipe(sessionName, recipe, workingDirectory) {
+                try {
+                    const parameters = {}; // Could collect from recipe parameters in future
+                    
+                    const response = await fetch('/api/goose/start-with-recipe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recipeId: recipe.id,
+                            sessionName: sessionName || undefined,
+                            parameters,
+                            workingDirectory
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Started session with recipe "${recipe.name}": ${result.sessionName}\n`, 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting session with recipe:', error);
+                    this.appendText(`❌ Failed to start session with recipe: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async createRegularSession(sessionName, workingDirectory) {
+                try {
+                    const response = await fetch('/api/goose/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            sessionName: sessionName || undefined,
+                            builtins: ['developer'],
+                            workingDirectory
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Started new session: ${result.sessionName}\n`, 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting new session:', error);
+                    this.appendText(`❌ Failed to start new session: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
                 }
             }
         }

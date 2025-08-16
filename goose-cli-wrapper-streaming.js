@@ -43,11 +43,13 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         args.push('--with-builtin', builtin);
       });
       
+      const workingDir = this.options.workingDirectory || process.cwd();
       console.log(`Starting Goose session: goose ${args.join(' ')}`);
+      console.log(`Working directory: ${workingDir}`);
       
       this.gooseProcess = spawn('goose', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        cwd: workingDir
       });
 
       this.gooseProcess.stdout.on('data', (data) => {
@@ -362,7 +364,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
 
   async deleteSession(sessionName) {
     return new Promise((resolve, reject) => {
-      const deleteProcess = spawn('goose', ['session', 'delete', '--name', sessionName], {
+      const deleteProcess = spawn('goose', ['session', 'remove', '--name', sessionName], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
