@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wingman: Goose</title>
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png" id="favicon-light">
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png" id="favicon-dark" disabled>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS Variables for theming */
+        :root {
+            /* Light theme (default) */
+            --bg-gradient-start: #f9f9f9;
+            --bg-gradient-end: #f5f5f0;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafaf9;
+            --bg-tertiary: #f5f5f4;
+            --text-primary: #1c1917;
+            --text-secondary: #44403c;
+            --text-tertiary: #57534e;
+            --text-muted: #78716c;
+            --text-disabled: #a8a29e;
+            --border-primary: #e7e5e4;
+            --border-secondary: #d6d3d1;
+            --accent-primary: #059669;
+            --accent-secondary: #047857;
+            --accent-tertiary: #065f46;
+            --accent-light: #d1fae5;
+            --accent-bg: #f0fdf4;
+            --code-bg: #1c1917;
+            --code-text: #f5f5f4;
+            --inline-code-bg: #f5f5f4;
+            --inline-code-text: #dc2626;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 2px 4px rgba(5, 150, 105, 0.2);
+            --shadow-lg: 0 4px 8px rgba(5, 150, 105, 0.3);
+        }
+
+        /* Dark theme */
+        body.dark-theme {
+            --bg-gradient-start: #0a0a0a;
+            --bg-gradient-end: #1c1917;
+            --bg-primary: #1c1917;
+            --bg-secondary: #292524;
+            --bg-tertiary: #44403c;
+            --text-primary: #f5f5f4;
+            --text-secondary: #e7e5e4;
+            --text-tertiary: #d6d3d1;
+            --text-muted: #a8a29e;
+            --text-disabled: #78716c;
+            --border-primary: #44403c;
+            --border-secondary: #57534e;
+            --accent-primary: #10b981;
+            --accent-secondary: #059669;
+            --accent-tertiary: #34d399;
+            --accent-light: #064e3b;
+            --accent-bg: #022c22;
+            --code-bg: #000000;
+            --code-text: #f5f5f4;
+            --inline-code-bg: #292524;
+            --inline-code-text: #34d399;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 2px 4px rgba(16, 185, 129, 0.2);
+            --shadow-lg: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(to bottom, var(--bg-gradient-start), var(--bg-gradient-end));
+            color: var(--text-tertiary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            line-height: 1.5;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        
+        .header {
+            background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+        
+        .header h1 {
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            transition: transform 0.2s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.1);
+        }
+
+        /* Light theme logo visibility */
+        .logo-light {
+            display: inline;
+        }
+
+        .logo-dark {
+            display: none;
+        }
+
+        /* Dark theme logo visibility */
+        body.dark-theme .logo-light {
+            display: none;
+        }
+
+        body.dark-theme .logo-dark {
+            display: inline;
+        }
+        
+        .header-right {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .connection-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-primary);
+            transition: background 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .connection-bar.disconnected {
+            background: #dc2626;
+        }
+        
+        .goose-status {
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .goose-status:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .status-active {
+            background: var(--accent-primary);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .status-inactive {
+            background: var(--text-disabled);
+            color: white;
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 880px;
+            margin: 0 auto;
+            width: 100%;
+            overflow: hidden;
+            padding: 0 1rem;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background: var(--bg-primary);
+            font-family: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            line-height: 1.6;
+            display: block;
+            border-radius: 12px;
+            margin: 1rem 0;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-primary);
+            transition: all 0.3s ease;
+        }
+        
+        .user-input {
+            color: var(--accent-primary);
+            font-weight: 600;
+            background: var(--accent-bg);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+            border-left: 3px solid var(--accent-primary);
+            display: block;
+        }
+        
+        .system-output {
+            color: var(--text-secondary);
+        }
+        
+        .system-message {
+            color: var(--text-disabled);
+            font-style: italic;
+            background: var(--bg-secondary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+            border-left: 3px solid var(--border-secondary);
+            display: block;
+        }
+
+        /* Markdown formatting */
+        .system-output h1 {
+            color: var(--accent-primary);
+            font-size: 1.5em;
+            margin: 1.5em 0 0.75em 0;
+            font-weight: 600;
+            border-bottom: 2px solid var(--accent-light);
+            padding-bottom: 0.5em;
+        }
+
+        .system-output h2 {
+            color: var(--accent-tertiary);
+            font-size: 1.25em;
+            margin: 1.25em 0 0.5em 0;
+            font-weight: 600;
+        }
+
+        .system-output h3 {
+            color: var(--accent-tertiary);
+            font-size: 1.125em;
+            margin: 1em 0 0.5em 0;
+            font-weight: 600;
+        }
+
+        .system-output strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .system-output em {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .system-output code {
+            background: var(--inline-code-bg);
+            color: var(--inline-code-text);
+            padding: 0.25em 0.5em;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.875em;
+            border: 1px solid var(--border-primary);
+        }
+
+        .system-output pre {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid var(--accent-primary);
+            overflow-x: auto;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .system-output pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+            border: none;
+        }
+
+        .system-output ul {
+            margin: 1rem 0;
+            padding-left: 1.5em;
+        }
+
+        .system-output li {
+            margin: 0.5em 0;
+            color: var(--text-secondary);
+        }
+
+        .system-output a {
+            color: var(--accent-primary);
+            text-decoration: underline;
+            transition: color 0.2s ease;
+        }
+
+        .system-output a:hover {
+            color: var(--accent-secondary);
+        }
+        
+        .input-container {
+            padding: 1rem 1.5rem;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-primary);
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 0.75rem;
+            width: 100%;
+        }
+        
+        .input-container input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        
+        .input-container input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-primary);
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+        
+        .input-container button {
+            padding: 1rem 2rem;
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .input-container button:hover:not(:disabled) {
+            background: var(--accent-secondary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .input-container button:disabled {
+            background: var(--text-disabled);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border-secondary) !important;
+            box-shadow: var(--shadow-sm) !important;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--accent-primary) !important;
+            color: white !important;
+            border-color: var(--accent-primary) !important;
+            box-shadow: var(--shadow-md) !important;
+        }
+        
+        .btn-danger {
+            background: #dc2626 !important;
+            color: white !important;
+            border: 1px solid #dc2626 !important;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2) !important;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #b91c1c !important;
+            border-color: #b91c1c !important;
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3) !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-settings {
+            background: var(--bg-tertiary) !important;
+            color: var(--text-secondary) !important;
+            border: 1px solid var(--border-primary) !important;
+            font-size: 1.2rem;
+            padding: 0.75rem;
+            min-width: 50px;
+            border-radius: 50px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-settings:hover:not(:disabled) {
+            background: var(--accent-primary) !important;
+            color: white !important;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md) !important;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 1rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        
+        .goose-command-input {
+            background: var(--bg-tertiary) !important;
+            border-color: var(--text-disabled) !important;
+            font-family: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+            padding: 1rem 1.25rem !important;
+            font-size: 0.95rem !important;
+        }
+        
+        .session-controls {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+        }
+        
+        .session-name-input {
+            flex: 1;
+            padding: 1rem 1.25rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-secondary);
+            color: var(--text-primary);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .session-name-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-primary);
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+
+        /* Scrollbar styling */
+        .messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .messages::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        
+        .messages::-webkit-scrollbar-thumb {
+            background: var(--border-secondary);
+            border-radius: 4px;
+        }
+        
+        .messages::-webkit-scrollbar-thumb:hover {
+            background: var(--text-disabled);
+        }
+
+        /* Theme toggle button */
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 50px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .theme-icon-light {
+            display: inline;
+        }
+
+        .theme-icon-dark {
+            display: none;
+        }
+
+        body.dark-theme .theme-icon-light {
+            display: none;
+        }
+
+        body.dark-theme .theme-icon-dark {
+            display: inline;
+        }
+
+        /* Session Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 70vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-primary);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .session-list {
+            margin-bottom: 1rem;
+        }
+
+        .session-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border-primary);
+        }
+
+        .session-item:hover {
+            background: var(--accent-light);
+            border-color: var(--accent-primary);
+            transform: translateY(-1px);
+        }
+
+        .session-info {
+            flex: 1;
+        }
+
+        .session-name {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .session-date {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .session-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-small {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn-resume {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-resume:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-1px);
+        }
+
+        .btn-delete {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #b91c1c;
+            transform: translateY(-1px);
+        }
+
+        .new-session-section {
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-primary);
+            margin-bottom: 1rem;
+        }
+
+        .new-session-form {
+            display: flex;
+            gap: 0.75rem;
+            align-items: end;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            background: var(--bg-primary);
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+
+        .empty-sessions {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Settings Modal */
+        .settings-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .settings-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        
+        .button-group button {
+            padding: 1rem 1.5rem;
+            font-size: 0.9rem;
+            min-height: 48px;
+        }
+
+        .command-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .command-controls input {
+            flex: 1;
+        }
+        
+        .command-controls button {
+            padding: 1rem 1.5rem;
+            font-size: 0.9rem;
+            min-height: 48px;
+        }
+
+        .action-controls {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .action-controls button {
+            padding: 1rem 1.5rem;
+            font-size: 0.9rem;
+            min-height: 48px;
+        }
+
+        /* Mobile hamburger menu */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+            color: var(--text-primary);
+        }
+
+        .mobile-menu-toggle:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-primary);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+            padding: 1rem 1.5rem;
+            display: block;
+        }
+
+        .mobile-menu.show {
+            transform: translateY(0);
+        }
+
+        .mobile-menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .mobile-menu-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+            color: var(--text-primary);
+        }
+
+        .mobile-menu-close:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .mobile-menu-items {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .mobile-menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+        }
+
+        .mobile-menu-item.session-only {
+            justify-content: center;
+        }
+
+        .mobile-menu-label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* Desktop and Mobile menu responsiveness */
+        @media (min-width: 769px) {
+            /* Desktop: Show mobile menu toggle, keep header-right visible */
+            .mobile-menu-toggle {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            /* Mobile: Show mobile menu toggle */
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            /* Hide session status on mobile - it's in hamburger menu */
+            #gooseStatus {
+                display: none;
+            }
+
+            /* Hide send button on mobile */
+            .input-container button#sendBtn {
+                display: none;
+            }
+
+            /* Adjust chat container padding */
+            .chat-container {
+                padding: 0 0.75rem;
+            }
+
+            /* Adjust input container for mobile */
+            .input-container {
+                padding: 1rem;
+            }
+
+            /* Make status display full width in mobile menu */
+            .mobile-menu-item .goose-status {
+                margin: 0;
+                flex: 1;
+                text-align: center;
+            }
+
+            /* Adjust header padding */
+            .header {
+                padding: 1rem;
+            }
+
+            /* Smaller logo on mobile */
+            .logo {
+                width: 28px;
+                height: 28px;
+            }
+
+            .header h1 {
+                font-size: 1.25rem;
+            }
+
+            /* Settings button in mobile menu */
+            .mobile-settings-btn {
+                background: var(--accent-primary);
+                color: white;
+                border: 1px solid var(--accent-primary);
+                padding: 0.75rem 1.5rem;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 0.875rem;
+                font-weight: 500;
+                transition: all 0.2s ease;
+                width: 100%;
+                box-shadow: var(--shadow-sm);
+            }
+
+            .mobile-settings-btn:hover {
+                background: var(--accent-secondary);
+                border-color: var(--accent-secondary);
+                transform: translateY(-1px);
+                box-shadow: var(--shadow-md);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="connectionBar" class="connection-bar"></div>
+    <div class="header">
+        <h1>
+            <img src="Wingman_Goose_Logo_Light.png" alt="Wingman Goose" class="logo logo-light">
+            <img src="Wingman_Goose_Logo_Dark.png" alt="Wingman Goose" class="logo logo-dark">
+            Wingman: Goose
+        </h1>
+        <div class="header-right">
+            <div id="gooseStatus" class="goose-status status-inactive">
+                No Session Active
+            </div>
+            <button id="mobileMenuToggle" class="mobile-menu-toggle" aria-label="Open menu">
+                ☰
+            </button>
+            <!-- Hidden elements for desktop use -->
+            <button id="settingsBtn" class="btn-settings" aria-label="Settings" style="display: none;">⚙️</button>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" style="display: none;">
+                <span class="theme-icon-light">☀️</span>
+                <span class="theme-icon-dark">🌙</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="mobile-menu">
+        <div class="mobile-menu-header">
+            <h3 style="color: var(--text-primary); margin: 0;">Menu</h3>
+            <button id="mobileMenuClose" class="mobile-menu-close" aria-label="Close menu">
+                ×
+            </button>
+        </div>
+        
+        <div class="mobile-menu-items">
+            <!-- Session Status -->
+            <div class="mobile-menu-item session-only">
+                <div id="mobileGooseStatus" class="goose-status status-inactive">
+                    No Session Active
+                </div>
+            </div>
+            
+            <!-- Theme Toggle -->
+            <div class="mobile-menu-item">
+                <span class="mobile-menu-label">Theme</span>
+                <button id="mobileThemeToggle" class="theme-toggle" aria-label="Toggle theme">
+                    <span class="theme-icon-light">☀️ Light</span>
+                    <span class="theme-icon-dark">🌙 Dark</span>
+                </button>
+            </div>
+            
+            <!-- Settings -->
+            <div class="mobile-menu-item">
+                <button id="mobileSettingsBtn" class="mobile-settings-btn">
+                    ⚙️ Settings
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-container">
+        <div class="messages" id="messages"></div>
+        <div class="loading" id="loading">Goose is thinking...</div>
+        
+        <div class="input-container">
+            <div class="input-row">
+                <input type="text" id="messageInput" placeholder="Type your message to Goose..." maxlength="2000">
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Settings</h3>
+                <button class="modal-close" id="closeSettingsModal">×</button>
+            </div>
+            
+            <div class="settings-section">
+                <h4 class="settings-title">Session Management</h4>
+                <div class="session-controls">
+                    <input type="text" id="sessionNameInput" class="session-name-input" placeholder="Session name (optional)">
+                    <div class="button-group">
+                        <button id="startSessionBtn" class="btn-secondary">Start Session</button>
+                        <button id="stopSessionBtn" class="btn-secondary">Stop Session</button>
+                        <button id="listSessionsBtn" class="btn-secondary">List Sessions</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4 class="settings-title">Goose Commands</h4>
+                <div class="command-controls">
+                    <input type="text" id="commandInput" class="goose-command-input" placeholder="Goose command (e.g., /help, /mode chat, /plan task)">
+                    <button id="sendCommandBtn" class="btn-secondary">Send Command</button>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4 class="settings-title">Actions</h4>
+                <div class="action-controls">
+                    <button id="clearBtn" class="btn-danger">Clear Conversation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Modal -->
+    <div id="sessionModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Goose Sessions</h3>
+                <button class="modal-close" id="closeModal">×</button>
+            </div>
+            
+            <div class="new-session-section">
+                <div class="new-session-form">
+                    <div class="form-group">
+                        <label class="form-label" for="newSessionName">New Session Name</label>
+                        <input type="text" id="newSessionName" class="form-input" placeholder="Enter session name (optional)">
+                    </div>
+                    <button id="startNewSession" class="btn-small btn-resume">Start New</button>
+                </div>
+            </div>
+            
+            <div class="session-list" id="sessionList">
+                <!-- Sessions will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class GooseStreamingApp {
+            constructor() {
+                this.socket = io();
+                this.messagesDiv = document.getElementById('messages');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.loading = document.getElementById('loading');
+                this.connectionBar = document.getElementById('connectionBar');
+                this.gooseStatus = document.getElementById('gooseStatus');
+                
+                this.sessionNameInput = document.getElementById('sessionNameInput');
+                this.startSessionBtn = document.getElementById('startSessionBtn');
+                this.stopSessionBtn = document.getElementById('stopSessionBtn');
+                this.listSessionsBtn = document.getElementById('listSessionsBtn');
+                
+                this.commandInput = document.getElementById('commandInput');
+                this.sendCommandBtn = document.getElementById('sendCommandBtn');
+                
+                this.themeToggle = document.getElementById('themeToggle');
+                
+                // Modal elements
+                this.sessionModal = document.getElementById('sessionModal');
+                this.sessionList = document.getElementById('sessionList');
+                this.closeModal = document.getElementById('closeModal');
+                this.newSessionName = document.getElementById('newSessionName');
+                this.startNewSession = document.getElementById('startNewSession');
+                
+                // Settings modal elements
+                this.settingsModal = document.getElementById('settingsModal');
+                this.settingsBtn = document.getElementById('settingsBtn');
+                this.closeSettingsModal = document.getElementById('closeSettingsModal');
+                
+                // Mobile menu elements
+                this.mobileMenu = document.getElementById('mobileMenu');
+                this.mobileMenuToggle = document.getElementById('mobileMenuToggle');
+                this.mobileMenuClose = document.getElementById('mobileMenuClose');
+                this.mobileGooseStatus = document.getElementById('mobileGooseStatus');
+                this.mobileThemeToggle = document.getElementById('mobileThemeToggle');
+                this.mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
+                
+                this.currentGooseStatus = null;
+                this.setupTheme();
+                this.setupEventListeners();
+                this.setupSocketListeners();
+                this.updateGooseControls(false);
+                
+                // Auto-show session modal if no active session after initial load
+                setTimeout(() => {
+                    this.checkForAutoSessionModal();
+                }, 1000);
+            }
+            
+            setupTheme() {
+                // Load saved theme or default to light
+                const savedTheme = localStorage.getItem('goose-theme') || 'light';
+                if (savedTheme === 'dark') {
+                    document.body.classList.add('dark-theme');
+                    this.updateFavicon(true);
+                }
+                
+                // Setup theme toggles (desktop and mobile)
+                const toggleTheme = () => {
+                    document.body.classList.toggle('dark-theme');
+                    const isDark = document.body.classList.contains('dark-theme');
+                    localStorage.setItem('goose-theme', isDark ? 'dark' : 'light');
+                    this.updateFavicon(isDark);
+                };
+                
+                this.themeToggle.addEventListener('click', toggleTheme);
+                this.mobileThemeToggle.addEventListener('click', toggleTheme);
+            }
+            
+            updateFavicon(isDark) {
+                const lightFavicon = document.getElementById('favicon-light');
+                const darkFavicon = document.getElementById('favicon-dark');
+                
+                if (isDark) {
+                    lightFavicon.disabled = true;
+                    darkFavicon.disabled = false;
+                } else {
+                    lightFavicon.disabled = false;
+                    darkFavicon.disabled = true;
+                }
+            }
+            
+            setupEventListeners() {
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+                this.clearBtn.addEventListener('click', () => this.clearConversation());
+                this.startSessionBtn.addEventListener('click', () => this.startGooseSession());
+                this.stopSessionBtn.addEventListener('click', () => this.stopGooseSession());
+                this.listSessionsBtn.addEventListener('click', () => this.listGooseSessions());
+                this.sendCommandBtn.addEventListener('click', () => this.sendGooseCommand());
+                
+                // Modal event listeners
+                this.gooseStatus.addEventListener('click', () => this.showSessionModal());
+                this.closeModal.addEventListener('click', () => this.hideSessionModal());
+                this.startNewSession.addEventListener('click', () => this.startNewSessionFromModal());
+                
+                // Settings modal event listeners
+                this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
+                this.closeSettingsModal.addEventListener('click', () => this.hideSettingsModal());
+                
+                // Close modals when clicking overlay
+                this.sessionModal.addEventListener('click', (e) => {
+                    if (e.target === this.sessionModal) {
+                        this.hideSessionModal();
+                    }
+                });
+                
+                this.settingsModal.addEventListener('click', (e) => {
+                    if (e.target === this.settingsModal) {
+                        this.hideSettingsModal();
+                    }
+                });
+                
+                this.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+                
+                this.commandInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.sendGooseCommand();
+                    }
+                });
+                
+                // Mobile menu event listeners
+                this.mobileMenuToggle.addEventListener('click', () => this.showMobileMenu());
+                this.mobileMenuClose.addEventListener('click', () => this.hideMobileMenu());
+                this.mobileGooseStatus.addEventListener('click', () => {
+                    this.hideMobileMenu();
+                    this.showSessionModal();
+                });
+                this.mobileSettingsBtn.addEventListener('click', () => {
+                    this.hideMobileMenu();
+                    this.showSettingsModal();
+                });
+                
+                // Close mobile menu when clicking outside
+                this.mobileMenu.addEventListener('click', (e) => {
+                    if (e.target === this.mobileMenu) {
+                        this.hideMobileMenu();
+                    }
+                });
+            }
+            
+            setupSocketListeners() {
+                this.socket.on('connect', () => {
+                    this.connectionBar.classList.remove('disconnected');
+                });
+                
+                this.socket.on('disconnect', () => {
+                    this.connectionBar.classList.add('disconnected');
+                });
+                
+                this.socket.on('conversationHistory', (messages) => {
+                    // Clear all content and reset to streaming display
+                    this.messagesDiv.innerHTML = '';
+                    messages.forEach(message => this.appendMessage(message));
+                    this.scrollToBottom();
+                });
+                
+                this.socket.on('newMessage', (message) => {
+                    this.appendMessage(message);
+                    this.scrollToBottom();
+                });
+                
+                this.socket.on('conversationCleared', () => {
+                    this.messagesDiv.innerHTML = '';
+                });
+                
+                this.socket.on('gooseStatusUpdate', (status) => {
+                    this.updateGooseStatus(status);
+                });
+                
+                this.socket.on('gooseError', (error) => {
+                    this.appendText(`❌ Goose Error: ${error}\\n`, 'system-message');
+                    this.scrollToBottom();
+                });
+            }
+            
+            updateGooseStatus(status) {
+                const statusEl = this.gooseStatus;
+                const mobileStatusEl = this.mobileGooseStatus;
+                
+                if (status.active) {
+                    const statusText = `Active (${status.sessionName || 'Unknown'})`;
+                    const statusClass = 'goose-status status-active';
+                    
+                    statusEl.textContent = statusText;
+                    statusEl.className = statusClass;
+                    mobileStatusEl.textContent = statusText;
+                    mobileStatusEl.className = statusClass;
+                } else {
+                    const statusText = 'No Session Active';
+                    const statusClass = 'goose-status status-inactive';
+                    
+                    statusEl.textContent = statusText;
+                    statusEl.className = statusClass;
+                    mobileStatusEl.textContent = statusText;
+                    mobileStatusEl.className = statusClass;
+                }
+                
+                this.updateGooseControls(status.active);
+                this.currentGooseStatus = status;
+            }
+            
+            checkForAutoSessionModal() {
+                // Only show session modal automatically if no active session
+                if (this.currentGooseStatus && !this.currentGooseStatus.active) {
+                    console.log('Auto-showing session modal: no active session detected');
+                    this.showSessionModal();
+                } else if (!this.currentGooseStatus) {
+                    // If we haven't received status yet, check server directly
+                    this.checkServerStatusAndShowModal();
+                }
+            }
+            
+            async checkServerStatusAndShowModal() {
+                try {
+                    const response = await fetch('/api/goose/status');
+                    const status = await response.json();
+                    
+                    if (!status.active) {
+                        console.log('Auto-showing session modal: server reports no active session');
+                        this.showSessionModal();
+                    }
+                } catch (error) {
+                    console.error('Error checking server status:', error);
+                    // If we can't check status, show modal anyway as a fallback
+                    console.log('Auto-showing session modal: fallback due to status check error');
+                    this.showSessionModal();
+                }
+            }
+            
+            updateGooseControls(active) {
+                this.sendBtn.disabled = !active;
+                this.sendCommandBtn.disabled = !active;
+                this.stopSessionBtn.disabled = !active;
+                this.startSessionBtn.disabled = active;
+                
+                if (!active) {
+                    this.messageInput.placeholder = 'Start a Goose session first...';
+                } else {
+                    this.messageInput.placeholder = 'Type your message to Goose...';
+                }
+            }
+            
+            appendMessage(message) {
+                console.log('Appending message:', message.role, message.source, message.content.substring(0, 50));
+                
+                // Skip thinking and tool messages - they're included in the main stream
+                if (message.type === 'thinking' || message.source === 'goose-thinking' || message.source === 'goose-tool') {
+                    return;
+                }
+                
+                const time = new Date(message.timestamp).toLocaleTimeString();
+                
+                if (message.role === 'user') {
+                    // User input in blue with timestamp
+                    this.appendText(`[${time}] You: ${message.content}\\n\\n`, 'user-input');
+                } else if (message.role === 'system') {
+                    // System messages in gray italic with timestamp
+                    this.appendText(`[${time}] ${message.content}\\n\\n`, 'system-message');
+                } else {
+                    // Goose responses - format as markdown and flow naturally
+                    console.log('Adding goose response as formatted text');
+                    this.appendFormattedText(message.content + '\\n\\n');
+                }
+                
+                // Always scroll to bottom after adding content
+                this.scrollToBottom();
+            }
+            
+            appendText(text, className = 'system-output') {
+                const span = document.createElement('span');
+                span.className = className;
+                span.textContent = text;
+                this.messagesDiv.appendChild(span);
+            }
+            
+            appendFormattedText(text) {
+                // Convert markdown to HTML for better formatting
+                const formattedContent = this.formatMarkdown(text);
+                
+                const div = document.createElement('div');
+                div.className = 'system-output';
+                div.innerHTML = formattedContent;
+                this.messagesDiv.appendChild(div);
+            }
+            
+            formatMarkdown(text) {
+                return text
+                    // Headers
+                    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                    // Bold
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    // Italic
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    // Code blocks
+                    .replace(/```([\\s\\S]*?)```/g, '<pre><code>$1</code></pre>')
+                    // Inline code
+                    .replace(/`([^`]+)`/g, '<code>$1</code>')
+                    // Links
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                    // Line breaks
+                    .replace(/\n/g, '<br>')
+                    // Lists (basic support)
+                    .replace(/^\s*[-*+] (.+)$/gim, '<li>$1</li>')
+                    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            }
+            
+            async sendMessage() {
+                const content = this.messageInput.value.trim();
+                if (!content) return;
+                
+                this.messageInput.value = '';
+                this.sendBtn.disabled = true;
+                this.loading.style.display = 'block';
+                
+                try {
+                    const response = await fetch('/api/message', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ content })
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to send message');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                    this.appendText(`❌ Failed to send message: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                } finally {
+                    this.sendBtn.disabled = false;
+                    this.loading.style.display = 'none';
+                }
+            }
+            
+            async startGooseSession() {
+                const sessionName = this.sessionNameInput.value.trim();
+                
+                try {
+                    const response = await fetch('/api/goose/start', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            sessionName: sessionName || undefined,
+                            builtins: ['developer']
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.sessionNameInput.value = '';
+                        this.appendText(`✅ Started Goose session: ${result.sessionName}\\n`, 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting session:', error);
+                    this.appendText(`❌ Failed to start Goose session: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async stopGooseSession() {
+                try {
+                    const response = await fetch('/api/goose/stop', {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        this.appendText('⏹ Stopped Goose session\\n', 'system-message');
+                        this.scrollToBottom();
+                    }
+                    
+                } catch (error) {
+                    console.error('Error stopping session:', error);
+                    this.appendText('❌ Failed to stop Goose session\\n', 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async listGooseSessions() {
+                try {
+                    const response = await fetch('/api/goose/sessions');
+                    const sessions = await response.json();
+                    
+                    if (sessions.length === 0) {
+                        this.appendText('📋 No Goose sessions found\\n', 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        const sessionList = sessions.map((s, i) => 
+                            `${i + 1}. ${s.name || s.id || 'Unnamed'}`
+                        ).join('\\n');
+                        
+                        this.appendText(`📋 Available Goose sessions:\\n${sessionList}\\n`, 'system-message');
+                        this.scrollToBottom();
+                    }
+                    
+                } catch (error) {
+                    console.error('Error listing sessions:', error);
+                    this.appendText('❌ Failed to list Goose sessions\\n', 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async sendGooseCommand() {
+                const command = this.commandInput.value.trim();
+                if (!command) return;
+                
+                this.commandInput.value = '';
+                
+                try {
+                    const response = await fetch('/api/goose/command', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ command })
+                    });
+                    
+                    if (response.ok) {
+                        this.appendText(`📤 Sent command: ${command}\\n`, 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error sending command:', error);
+                    this.appendText(`❌ Failed to send command: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            clearConversation() {
+                if (confirm('Are you sure you want to clear the conversation?')) {
+                    fetch('/api/conversation', { method: 'DELETE' })
+                        .catch(error => console.error('Error clearing conversation:', error));
+                }
+            }
+            
+            scrollToBottom() {
+                // Use requestAnimationFrame to ensure DOM updates are complete
+                requestAnimationFrame(() => {
+                    this.messagesDiv.scrollTop = this.messagesDiv.scrollHeight;
+                });
+            }
+            
+            async showSessionModal() {
+                try {
+                    // Fetch available sessions
+                    const response = await fetch('/api/goose/sessions');
+                    const sessions = await response.json();
+                    
+                    this.populateSessionList(sessions);
+                    this.sessionModal.classList.add('show');
+                } catch (error) {
+                    console.error('Error fetching sessions:', error);
+                    this.appendText(`❌ Failed to fetch sessions: ${error.message}\\n`, 'system-message');
+                }
+            }
+            
+            hideSessionModal() {
+                this.sessionModal.classList.remove('show');
+                this.newSessionName.value = '';
+            }
+            
+            showSettingsModal() {
+                this.settingsModal.classList.add('show');
+            }
+            
+            hideSettingsModal() {
+                this.settingsModal.classList.remove('show');
+            }
+            
+            showMobileMenu() {
+                this.mobileMenu.classList.add('show');
+                // Prevent body scrolling when menu is open
+                document.body.style.overflow = 'hidden';
+            }
+            
+            hideMobileMenu() {
+                this.mobileMenu.classList.remove('show');
+                // Restore body scrolling
+                document.body.style.overflow = '';
+            }
+            
+            populateSessionList(sessions) {
+                this.sessionList.innerHTML = '';
+                
+                if (sessions.length === 0) {
+                    this.sessionList.innerHTML = '<div class="empty-sessions">No active sessions found</div>';
+                    return;
+                }
+                
+                sessions.forEach(session => {
+                    const sessionItem = document.createElement('div');
+                    sessionItem.className = 'session-item';
+                    
+                    const sessionName = session.name || session.id || 'Unnamed Session';
+                    const sessionDate = session.date ? new Date(session.date).toLocaleString() : 'Unknown date';
+                    
+                    sessionItem.innerHTML = `
+                        <div class="session-info">
+                            <div class="session-name">${sessionName}</div>
+                            <div class="session-date">${sessionDate}</div>
+                        </div>
+                        <div class="session-actions">
+                            <button class="btn-small btn-resume" data-session="${sessionName}">Resume</button>
+                            <button class="btn-small btn-delete" data-session="${sessionName}">Delete</button>
+                        </div>
+                    `;
+                    
+                    // Add click handler for resume button
+                    const resumeBtn = sessionItem.querySelector('.btn-resume');
+                    resumeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.resumeSession(sessionName);
+                    });
+                    
+                    // Add click handler for delete button
+                    const deleteBtn = sessionItem.querySelector('.btn-delete');
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.deleteSession(sessionName);
+                    });
+                    
+                    // Add click handler for the entire item
+                    sessionItem.addEventListener('click', () => {
+                        this.resumeSession(sessionName);
+                    });
+                    
+                    this.sessionList.appendChild(sessionItem);
+                });
+            }
+            
+            async resumeSession(sessionName) {
+                this.hideSessionModal();
+                
+                try {
+                    const response = await fetch('/api/goose/resume', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sessionName })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Resumed session: ${sessionName}\\n`, 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error resuming session:', error);
+                    this.appendText(`❌ Failed to resume session: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async startNewSessionFromModal() {
+                const sessionName = this.newSessionName.value.trim();
+                this.hideSessionModal();
+                
+                try {
+                    const response = await fetch('/api/goose/start', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            sessionName: sessionName || undefined,
+                            builtins: ['developer']
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Started new session: ${result.sessionName}\\n`, 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting new session:', error);
+                    this.appendText(`❌ Failed to start new session: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async deleteSession(sessionName) {
+                // Confirm deletion
+                if (!confirm(`Are you sure you want to delete session "${sessionName}"? This action cannot be undone.`)) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/goose/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sessionName })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Deleted session: ${sessionName}\\n`, 'system-message');
+                        this.scrollToBottom();
+                        
+                        // Refresh the session list
+                        this.showSessionModal();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error deleting session:', error);
+                    this.appendText(`❌ Failed to delete session: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+        }
+        
+        // Initialize the app
+        new GooseStreamingApp();
+    </script>
+</body>
+</html>
