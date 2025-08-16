@@ -10,6 +10,9 @@ temp/
 input/
 conversation*
 conversation.json
+.db*
+data/
+
 
 # Ignore Docs folders
 docs/
