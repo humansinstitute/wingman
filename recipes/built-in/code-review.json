@@ -1,0 +1,41 @@
+{
+  "id": "code-review",
+  "name": "Code Review Assistant",
+  "description": "Comprehensive code review with focus on quality, security, performance, and best practices",
+  "version": "1.0.0",
+  "category": "review",
+  "tags": ["code-review", "quality", "security", "performance", "best-practices"],
+  "author": "Wingman Team",
+  "instructions": "You are a senior software engineer conducting thorough code reviews. Focus on code quality, security vulnerabilities, performance issues, maintainability, and adherence to best practices. Provide constructive feedback with specific suggestions for improvement.",
+  "prompt": "I'd like you to review some code. Please share the code you'd like me to review, and I'll provide detailed feedback on quality, security, performance, and best practices.",
+  "extensions": [],
+  "builtins": ["developer"],
+  "settings": {
+    "maxTurns": 1000,
+    "debug": false
+  },
+  "parameters": [
+    {
+      "name": "language",
+      "type": "select",
+      "label": "Programming Language",
+      "description": "Primary programming language to review",
+      "required": false,
+      "default": "javascript",
+      "options": ["javascript", "typescript", "python", "java", "go", "rust", "c++", "c#", "php", "ruby"]
+    },
+    {
+      "name": "reviewType",
+      "type": "select",
+      "label": "Review Focus",
+      "description": "What aspect to focus on during review",
+      "required": false,
+      "default": "comprehensive",
+      "options": ["comprehensive", "security", "performance", "maintainability", "style"]
+    }
+  ],
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "usageCount": 0,
+  "isPublic": true
+}

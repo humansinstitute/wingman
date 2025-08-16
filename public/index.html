@@ -539,6 +539,16 @@
             z-index: 1000;
         }
 
+        /* Higher z-index for wizard modals */
+        .modal-overlay.wizard-modal {
+            z-index: 1100;
+        }
+
+        /* Highest z-index for nested modals like directory browser */
+        .modal-overlay.nested-modal {
+            z-index: 1200;
+        }
+
         .modal-overlay.show {
             display: flex;
         }
@@ -547,9 +557,9 @@
             background: var(--bg-primary);
             border-radius: 12px;
             padding: 1.5rem;
-            max-width: 500px;
-            width: 90%;
-            max-height: 70vh;
+            max-width: 800px;
+            width: 95%;
+            max-height: 85vh;
             overflow-y: auto;
             box-shadow: var(--shadow-lg);
             border: 1px solid var(--border-primary);
@@ -649,6 +659,256 @@
             transform: translateY(-1px);
         }
 
+        /* Recipe Summary Styles */
+        .selected-recipe-summary {
+            border: 1px solid var(--accent-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            background: var(--accent-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .recipe-info {
+            flex: 1;
+        }
+
+        .recipe-info strong {
+            color: var(--text-primary);
+        }
+
+        .recipe-info p {
+            color: var(--text-secondary);
+            margin: 0.5rem 0 0 0;
+            font-size: 0.9rem;
+        }
+
+        .recipe-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        /* Recipe Selector Modal Styles */
+        .recipe-selector-content {
+            margin-bottom: 1.5rem;
+        }
+
+        .recipe-preview-panel {
+            border-top: 1px solid var(--border-primary);
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .preview-content {
+            margin-bottom: 1rem;
+        }
+
+        .preview-content h5 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-content p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .recipe-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-primary);
+            margin-bottom: 1rem;
+        }
+
+        .recipe-tab {
+            background: none;
+            border: none;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .recipe-tab.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .recipe-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .recipe-tab-content {
+            display: none;
+        }
+
+        .recipe-tab-content.active {
+            display: block;
+        }
+
+        .recipe-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .recipe-card {
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-secondary);
+        }
+
+        .recipe-card:hover {
+            border-color: var(--accent-primary);
+            background: var(--accent-bg);
+        }
+
+        .recipe-card.selected {
+            border-color: var(--accent-primary);
+            background: var(--accent-light);
+        }
+
+        .recipe-card-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+
+        .recipe-card-description {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            line-height: 1.3;
+            margin-bottom: 0.5rem;
+        }
+
+        .recipe-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .recipe-tag {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+            padding: 0.125rem 0.375rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+        }
+
+        .category-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .category-button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 20px;
+            padding: 0.375rem 0.75rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .category-button:hover {
+            background: var(--accent-light);
+            border-color: var(--accent-primary);
+            color: var(--accent-tertiary);
+        }
+
+        .category-button.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        .selected-recipe {
+            border: 1px solid var(--accent-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            background: var(--accent-bg);
+        }
+
+        .selected-recipe h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .selected-recipe p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .recipe-parameters {
+            margin-bottom: 1rem;
+        }
+
+        .parameter-input {
+            margin-bottom: 0.75rem;
+        }
+
+        .parameter-label {
+            display: block;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+
+        .parameter-description {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .search-box {
+            margin-bottom: 1rem;
+        }
+
+        .search-box input {
+            width: 100%;
+        }
+
+        /* Responsive adjustments for session modal */
+        @media (max-width: 768px) {
+            .modal {
+                max-width: 95%;
+                width: 95%;
+                padding: 1rem;
+                max-height: 90vh;
+            }
+            
+            .recipe-grid {
+                grid-template-columns: 1fr;
+                max-height: 250px;
+            }
+            
+            .recipe-selector {
+                padding: 1rem;
+                min-height: 300px;
+            }
+        }
+
         .btn-delete {
             background: #dc2626;
             color: white;
@@ -706,6 +966,91 @@
             padding: 2rem;
             color: var(--text-muted);
             font-style: italic;
+        }
+
+        /* Directory Selector Styles */
+        .directory-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .directory-selector input {
+            flex: 1;
+        }
+
+        .directory-browser {
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+        }
+
+        .directory-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s ease;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .directory-item:last-child {
+            border-bottom: none;
+        }
+
+        .directory-item:hover {
+            background: var(--accent-light);
+        }
+
+        .directory-item.selected {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+        }
+
+        .directory-icon {
+            font-size: 1rem;
+            width: 1.2rem;
+            text-align: center;
+        }
+
+        .current-path {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-secondary);
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        /* Wizard Styles */
+        .wizard-step {
+            padding: 1rem 0;
+        }
+
+        .wizard-step h4 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .wizard-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .wizard-nav {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: flex-start;
         }
 
         /* Settings Modal */
@@ -948,6 +1293,7 @@
                 ☰
             </button>
             <!-- Hidden elements for desktop use -->
+            <a href="/recipes" class="btn-settings" aria-label="Recipe Manager" style="display: none; text-decoration: none;">📋</a>
             <button id="settingsBtn" class="btn-settings" aria-label="Settings" style="display: none;">⚙️</button>
             <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" style="display: none;">
                 <span class="theme-icon-light">☀️</span>
@@ -973,6 +1319,13 @@
                 </div>
             </div>
             
+            <!-- Recipe Manager -->
+            <div class="mobile-menu-item">
+                <a href="/recipes" class="mobile-settings-btn" style="text-decoration: none; color: inherit;">
+                    📋 Recipe Manager
+                </a>
+            </div>
+            
             <!-- Theme Toggle -->
             <div class="mobile-menu-item">
                 <span class="mobile-menu-label">Theme</span>
@@ -987,6 +1340,83 @@
                 <button id="mobileSettingsBtn" class="mobile-settings-btn">
                     ⚙️ Settings
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipe Selector Modal -->
+    <div id="recipeSelectorModal" class="modal-overlay nested-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Choose a Recipe</h3>
+                <button class="modal-close" id="closeRecipeSelectorModal">×</button>
+            </div>
+            
+            <div class="recipe-selector-content">
+                <div class="recipe-tabs">
+                    <button class="recipe-tab active" data-tab="popular">Popular</button>
+                    <button class="recipe-tab" data-tab="categories">Categories</button>
+                    <button class="recipe-tab" data-tab="search">Search</button>
+                </div>
+                
+                <div id="popular-recipes" class="recipe-tab-content active">
+                    <div class="recipe-grid" id="popularRecipeGrid">
+                        <!-- Popular recipes will be loaded here -->
+                    </div>
+                </div>
+                
+                <div id="category-recipes" class="recipe-tab-content">
+                    <div class="category-list" id="categoryList">
+                        <!-- Categories will be loaded here -->
+                    </div>
+                    <div class="recipe-grid" id="categoryRecipeGrid">
+                        <!-- Category recipes will be loaded here -->
+                    </div>
+                </div>
+                
+                <div id="search-recipes" class="recipe-tab-content">
+                    <div class="search-box">
+                        <input type="text" id="recipeSearchInput" class="form-input" placeholder="Search recipes...">
+                    </div>
+                    <div class="recipe-grid" id="searchRecipeGrid">
+                        <!-- Search results will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recipe Preview Panel -->
+            <div id="recipePreviewPanel" class="recipe-preview-panel" style="display: none;">
+                <h4>Recipe Preview</h4>
+                <div class="preview-content">
+                    <h5 id="previewRecipeName"></h5>
+                    <p id="previewRecipeDescription"></p>
+                    <div id="previewRecipeParameters"></div>
+                </div>
+                <div class="preview-actions">
+                    <button id="confirmRecipeSelection" class="btn btn-primary">Select This Recipe</button>
+                    <button id="cancelRecipePreview" class="btn btn-secondary">Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Directory Browser Modal -->
+    <div id="directoryBrowserModal" class="modal-overlay nested-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Select Working Directory</h3>
+                <button class="modal-close" id="closeDirectoryBrowserModal">×</button>
+            </div>
+            
+            <div class="current-path" id="currentPath">/</div>
+            
+            <div class="directory-browser" id="directoryBrowser">
+                <div class="loading" style="padding: 2rem; text-align: center;">Loading directories...</div>
+            </div>
+            
+            <div style="margin-top: 1rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                <button id="selectDirectoryBtn" class="btn btn-primary">Select This Directory</button>
+                <button id="cancelDirectorySelection" class="btn btn-secondary">Cancel</button>
             </div>
         </div>
     </div>
@@ -1051,15 +1481,84 @@
             <div class="new-session-section">
                 <div class="new-session-form">
                     <div class="form-group">
-                        <label class="form-label" for="newSessionName">New Session Name</label>
+                        <label class="form-label" for="newSessionName">Session Name</label>
                         <input type="text" id="newSessionName" class="form-input" placeholder="Enter session name (optional)">
                     </div>
-                    <button id="startNewSession" class="btn-small btn-resume">Start New</button>
+                    
+                    <div class="button-group">
+                        <button id="createNewSessionBtn" class="btn btn-primary">Create New Session</button>
+                    </div>
                 </div>
             </div>
             
             <div class="session-list" id="sessionList">
                 <!-- Sessions will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Creation Wizard -->
+    <div id="sessionWizardModal" class="modal-overlay wizard-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="wizardTitle">Create New Session</h3>
+                <button class="modal-close" id="closeWizardModal">×</button>
+            </div>
+            
+            <!-- Step 1: Session Name -->
+            <div id="wizardStep1" class="wizard-step">
+                <h4>Step 1: Session Name</h4>
+                <div class="form-group">
+                    <label class="form-label" for="wizardSessionName">Session Name</label>
+                    <input type="text" id="wizardSessionName" class="form-input" placeholder="Enter session name (optional)">
+                </div>
+                <div class="wizard-buttons">
+                    <button id="wizardStep1Next" class="btn btn-primary">Next: Choose Recipe</button>
+                </div>
+            </div>
+            
+            <!-- Step 2: Recipe Selection -->
+            <div id="wizardStep2" class="wizard-step" style="display: none;">
+                <h4>Step 2: Recipe Selection</h4>
+                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Would you like to use a recipe for this session?</p>
+                
+                <div id="selectedRecipeWizard" class="selected-recipe-summary" style="display: none;">
+                    <div class="recipe-info">
+                        <strong>Selected Recipe:</strong> <span id="wizardSelectedRecipeName"></span>
+                        <p id="wizardSelectedRecipeDescription"></p>
+                    </div>
+                </div>
+                
+                <div class="wizard-buttons">
+                    <button id="wizardChooseRecipeBtn" class="btn btn-secondary">📋 Choose Recipe</button>
+                    <button id="wizardSkipRecipeBtn" class="btn btn-secondary">Skip (Default)</button>
+                    <button id="wizardStep2Next" class="btn btn-primary" disabled>Next: Working Directory</button>
+                </div>
+                <div class="wizard-nav">
+                    <button id="wizardStep2Back" class="btn btn-secondary">← Back</button>
+                </div>
+            </div>
+            
+            <!-- Step 3: Working Directory -->
+            <div id="wizardStep3" class="wizard-step" style="display: none;">
+                <h4>Step 3: Working Directory</h4>
+                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Choose the directory where Goose should run.</p>
+                
+                <div class="form-group">
+                    <label class="form-label" for="wizardWorkingDirectory">Working Directory</label>
+                    <div class="directory-selector">
+                        <input type="text" id="wizardWorkingDirectory" class="form-input" readonly>
+                        <button type="button" id="wizardBrowseDirectoryBtn" class="btn-small btn-secondary">📁 Browse</button>
+                    </div>
+                </div>
+                
+                <div class="wizard-buttons">
+                    <button id="wizardUseCurrentDirBtn" class="btn btn-secondary">Use Current Directory</button>
+                    <button id="wizardCreateSessionBtn" class="btn btn-primary">Create Session</button>
+                </div>
+                <div class="wizard-nav">
+                    <button id="wizardStep3Back" class="btn btn-secondary">← Back</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1091,7 +1590,32 @@
                 this.sessionList = document.getElementById('sessionList');
                 this.closeModal = document.getElementById('closeModal');
                 this.newSessionName = document.getElementById('newSessionName');
-                this.startNewSession = document.getElementById('startNewSession');
+                this.createNewSessionBtn = document.getElementById('createNewSessionBtn');
+                
+                // Wizard elements
+                this.sessionWizardModal = document.getElementById('sessionWizardModal');
+                this.closeWizardModal = document.getElementById('closeWizardModal');
+                this.wizardStep1 = document.getElementById('wizardStep1');
+                this.wizardStep2 = document.getElementById('wizardStep2');
+                this.wizardStep3 = document.getElementById('wizardStep3');
+                this.wizardSessionName = document.getElementById('wizardSessionName');
+                this.wizardWorkingDirectory = document.getElementById('wizardWorkingDirectory');
+                
+                // Wizard buttons
+                this.wizardStep1Next = document.getElementById('wizardStep1Next');
+                this.wizardStep2Back = document.getElementById('wizardStep2Back');
+                this.wizardStep2Next = document.getElementById('wizardStep2Next');
+                this.wizardStep3Back = document.getElementById('wizardStep3Back');
+                this.wizardChooseRecipeBtn = document.getElementById('wizardChooseRecipeBtn');
+                this.wizardSkipRecipeBtn = document.getElementById('wizardSkipRecipeBtn');
+                this.wizardBrowseDirectoryBtn = document.getElementById('wizardBrowseDirectoryBtn');
+                this.wizardUseCurrentDirBtn = document.getElementById('wizardUseCurrentDirBtn');
+                this.wizardCreateSessionBtn = document.getElementById('wizardCreateSessionBtn');
+                
+                // Wizard recipe elements
+                this.selectedRecipeWizard = document.getElementById('selectedRecipeWizard');
+                this.wizardSelectedRecipeName = document.getElementById('wizardSelectedRecipeName');
+                this.wizardSelectedRecipeDescription = document.getElementById('wizardSelectedRecipeDescription');
                 
                 // Settings modal elements
                 this.settingsModal = document.getElementById('settingsModal');
@@ -1106,11 +1630,76 @@
                 this.mobileThemeToggle = document.getElementById('mobileThemeToggle');
                 this.mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
                 
+                // Recipe selection elements
+                this.recipeSelectorModal = document.getElementById('recipeSelectorModal');
+                this.selectRecipeBtn = document.getElementById('selectRecipeBtn');
+                this.changeRecipeBtn = document.getElementById('changeRecipeBtn');
+                this.closeRecipeSelectorModal = document.getElementById('closeRecipeSelectorModal');
+                
+                this.recipeTabs = document.querySelectorAll('.recipe-tab');
+                this.recipeTabContents = document.querySelectorAll('.recipe-tab-content');
+                this.popularRecipeGrid = document.getElementById('popularRecipeGrid');
+                this.categoryList = document.getElementById('categoryList');
+                this.categoryRecipeGrid = document.getElementById('categoryRecipeGrid');
+                this.searchRecipeGrid = document.getElementById('searchRecipeGrid');
+                this.recipeSearchInput = document.getElementById('recipeSearchInput');
+                
+                this.selectedRecipeDisplay = document.getElementById('selectedRecipeDisplay');
+                this.selectedRecipeName = document.getElementById('selectedRecipeName');
+                this.selectedRecipeDescription = document.getElementById('selectedRecipeDescription');
+                this.clearRecipeSelection = document.getElementById('clearRecipeSelection');
+                
+                // Directory browser elements
+                this.workingDirectory = document.getElementById('workingDirectory');
+                this.browseDirectoryBtn = document.getElementById('browseDirectoryBtn');
+                this.directoryBrowserModal = document.getElementById('directoryBrowserModal');
+                this.closeDirectoryBrowserModal = document.getElementById('closeDirectoryBrowserModal');
+                this.currentPath = document.getElementById('currentPath');
+                this.directoryBrowser = document.getElementById('directoryBrowser');
+                this.selectDirectoryBtn = document.getElementById('selectDirectoryBtn');
+                this.cancelDirectorySelection = document.getElementById('cancelDirectorySelection');
+                
+                // Debug: Check if directory browser elements were found
+                console.log('Directory browser elements found:', {
+                    closeDirectoryBrowserModal: !!this.closeDirectoryBrowserModal,
+                    selectDirectoryBtn: !!this.selectDirectoryBtn,
+                    cancelDirectorySelection: !!this.cancelDirectorySelection,
+                    directoryBrowserModal: !!this.directoryBrowserModal
+                });
+                
+                // Recipe preview elements
+                this.recipePreviewPanel = document.getElementById('recipePreviewPanel');
+                this.previewRecipeName = document.getElementById('previewRecipeName');
+                this.previewRecipeDescription = document.getElementById('previewRecipeDescription');
+                this.previewRecipeParameters = document.getElementById('previewRecipeParameters');
+                this.confirmRecipeSelection = document.getElementById('confirmRecipeSelection');
+                this.cancelRecipePreview = document.getElementById('cancelRecipePreview');
+                
+                // Recipe state
+                this.selectedRecipe = null;
+                this.availableRecipes = [];
+                this.categories = [];
+                
+                // Directory browser state
+                this.currentWorkingDirectory = null;
+                this.selectedDirectory = null;
+                
+                // Wizard state
+                this.wizardCurrentStep = 1;
+                this.wizardData = {
+                    sessionName: '',
+                    selectedRecipe: null,
+                    workingDirectory: null
+                };
+                
                 this.currentGooseStatus = null;
                 this.setupTheme();
                 this.setupEventListeners();
                 this.setupSocketListeners();
                 this.updateGooseControls(false);
+                
+                // Initialize working directory to current location
+                this.initializeWorkingDirectory();
                 
                 // Auto-show session modal if no active session after initial load
                 setTimeout(() => {
@@ -1152,17 +1741,134 @@
             }
             
             setupEventListeners() {
-                this.sendBtn.addEventListener('click', () => this.sendMessage());
-                this.clearBtn.addEventListener('click', () => this.clearConversation());
-                this.startSessionBtn.addEventListener('click', () => this.startGooseSession());
-                this.stopSessionBtn.addEventListener('click', () => this.stopGooseSession());
-                this.listSessionsBtn.addEventListener('click', () => this.listGooseSessions());
-                this.sendCommandBtn.addEventListener('click', () => this.sendGooseCommand());
+                // Helper function to safely add event listeners
+                const safeAddEventListener = (element, elementName, event, handler) => {
+                    if (element) {
+                        element.addEventListener(event, handler);
+                    } else {
+                        console.warn(`${elementName} element not found - skipping event listener`);
+                    }
+                };
+                
+                safeAddEventListener(this.sendBtn, 'sendBtn', 'click', () => this.sendMessage());
+                safeAddEventListener(this.clearBtn, 'clearBtn', 'click', () => this.clearConversation());
+                safeAddEventListener(this.startSessionBtn, 'startSessionBtn', 'click', () => this.startGooseSession());
+                safeAddEventListener(this.stopSessionBtn, 'stopSessionBtn', 'click', () => this.stopGooseSession());
+                safeAddEventListener(this.listSessionsBtn, 'listSessionsBtn', 'click', () => this.listGooseSessions());
+                safeAddEventListener(this.sendCommandBtn, 'sendCommandBtn', 'click', () => this.sendGooseCommand());
                 
                 // Modal event listeners
-                this.gooseStatus.addEventListener('click', () => this.showSessionModal());
-                this.closeModal.addEventListener('click', () => this.hideSessionModal());
-                this.startNewSession.addEventListener('click', () => this.startNewSessionFromModal());
+                safeAddEventListener(this.gooseStatus, 'gooseStatus', 'click', () => this.showSessionModal());
+                safeAddEventListener(this.closeModal, 'closeModal', 'click', () => this.hideSessionModal());
+                safeAddEventListener(this.createNewSessionBtn, 'createNewSessionBtn', 'click', () => this.startSessionWizard());
+                
+                // Wizard event listeners
+                safeAddEventListener(this.closeWizardModal, 'closeWizardModal', 'click', () => this.hideSessionWizard());
+                safeAddEventListener(this.wizardStep1Next, 'wizardStep1Next', 'click', () => this.wizardGoToStep(2));
+                safeAddEventListener(this.wizardStep2Back, 'wizardStep2Back', 'click', () => this.wizardGoToStep(1));
+                safeAddEventListener(this.wizardStep2Next, 'wizardStep2Next', 'click', () => this.wizardGoToStep(3));
+                safeAddEventListener(this.wizardStep3Back, 'wizardStep3Back', 'click', () => this.wizardGoToStep(2));
+                safeAddEventListener(this.wizardChooseRecipeBtn, 'wizardChooseRecipeBtn', 'click', () => this.wizardChooseRecipe());
+                safeAddEventListener(this.wizardSkipRecipeBtn, 'wizardSkipRecipeBtn', 'click', () => this.wizardSkipRecipe());
+                safeAddEventListener(this.wizardBrowseDirectoryBtn, 'wizardBrowseDirectoryBtn', 'click', () => this.wizardBrowseDirectory());
+                safeAddEventListener(this.wizardUseCurrentDirBtn, 'wizardUseCurrentDirBtn', 'click', () => this.wizardUseCurrentDirectory());
+                safeAddEventListener(this.wizardCreateSessionBtn, 'wizardCreateSessionBtn', 'click', () => this.wizardCreateSession());
+                
+                // Recipe selector modal event listeners
+                safeAddEventListener(this.selectRecipeBtn, 'selectRecipeBtn', 'click', () => this.showRecipeSelectorModal());
+                safeAddEventListener(this.changeRecipeBtn, 'changeRecipeBtn', 'click', () => this.showRecipeSelectorModal());
+                safeAddEventListener(this.closeRecipeSelectorModal, 'closeRecipeSelectorModal', 'click', () => this.hideRecipeSelectorModal());
+                safeAddEventListener(this.clearRecipeSelection, 'clearRecipeSelection', 'click', () => this.clearSelectedRecipe());
+                
+                // Recipe preview event listeners
+                safeAddEventListener(this.confirmRecipeSelection, 'confirmRecipeSelection', 'click', () => this.confirmRecipe());
+                safeAddEventListener(this.cancelRecipePreview, 'cancelRecipePreview', 'click', () => this.hideRecipePreview());
+                
+                // Directory browser event listeners
+                safeAddEventListener(this.browseDirectoryBtn, 'browseDirectoryBtn', 'click', () => this.showDirectoryBrowser());
+                
+                if (this.closeDirectoryBrowserModal) {
+                    console.log('Adding click listener to closeDirectoryBrowserModal element:', this.closeDirectoryBrowserModal);
+                    
+                    this.closeDirectoryBrowserModal.addEventListener('click', (e) => {
+                        console.log('🔥 Close directory browser (X) clicked - Event object:', e);
+                        console.log('🔥 Event target:', e.target);
+                        console.log('🔥 Current target:', e.currentTarget);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.hideDirectoryBrowser();
+                    });
+                    
+                    // Add mousedown listener
+                    this.closeDirectoryBrowserModal.addEventListener('mousedown', (e) => {
+                        console.log('🔥 MOUSEDOWN on close (X) button');
+                    });
+                    
+                    console.log('✅ Event listeners added to closeDirectoryBrowserModal');
+                } else {
+                    console.error('❌ closeDirectoryBrowserModal element not found');
+                }
+                
+                if (this.selectDirectoryBtn) {
+                    console.log('Adding click listener to selectDirectoryBtn element:', this.selectDirectoryBtn);
+                    
+                    // Add multiple event listeners to debug
+                    this.selectDirectoryBtn.addEventListener('click', (e) => {
+                        console.log('🔥 Select directory button clicked - Event object:', e);
+                        console.log('🔥 Event target:', e.target);
+                        console.log('🔥 Current target:', e.currentTarget);
+                        console.log('🔥 Button element:', this.selectDirectoryBtn);
+                        console.log('🔥 Selected directory:', this.selectedDirectory);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.confirmDirectorySelection();
+                    });
+                    
+                    // Add mousedown listener too
+                    this.selectDirectoryBtn.addEventListener('mousedown', (e) => {
+                        console.log('🔥 MOUSEDOWN on select directory button');
+                    });
+                    
+                    // Add pointer events listener
+                    this.selectDirectoryBtn.addEventListener('pointerdown', (e) => {
+                        console.log('🔥 POINTERDOWN on select directory button');
+                    });
+                    
+                    console.log('✅ Event listeners added to selectDirectoryBtn');
+                } else {
+                    console.error('❌ selectDirectoryBtn element not found');
+                }
+                
+                if (this.cancelDirectorySelection) {
+                    console.log('Adding click listener to cancelDirectorySelection element:', this.cancelDirectorySelection);
+                    
+                    this.cancelDirectorySelection.addEventListener('click', (e) => {
+                        console.log('🔥 Cancel directory button clicked - Event object:', e);
+                        console.log('🔥 Event target:', e.target);
+                        console.log('🔥 Current target:', e.currentTarget);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.hideDirectoryBrowser();
+                    });
+                    
+                    // Add mousedown listener
+                    this.cancelDirectorySelection.addEventListener('mousedown', (e) => {
+                        console.log('🔥 MOUSEDOWN on cancel directory button');
+                    });
+                    
+                    console.log('✅ Event listeners added to cancelDirectorySelection');
+                } else {
+                    console.error('❌ cancelDirectorySelection element not found');
+                }
+                
+                // Recipe selection event listeners
+                this.recipeTabs.forEach(tab => {
+                    tab.addEventListener('click', () => this.switchRecipeTab(tab.dataset.tab));
+                });
+                
+                this.recipeSearchInput.addEventListener('input', (e) => {
+                    this.searchRecipes(e.target.value);
+                });
                 
                 // Settings modal event listeners
                 this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
@@ -1178,6 +1884,18 @@
                 this.settingsModal.addEventListener('click', (e) => {
                     if (e.target === this.settingsModal) {
                         this.hideSettingsModal();
+                    }
+                });
+                
+                this.directoryBrowserModal.addEventListener('click', (e) => {
+                    if (e.target === this.directoryBrowserModal) {
+                        this.hideDirectoryBrowser();
+                    }
+                });
+                
+                this.sessionWizardModal.addEventListener('click', (e) => {
+                    if (e.target === this.sessionWizardModal) {
+                        this.hideSessionWizard();
                     }
                 });
                 
@@ -1550,6 +2268,90 @@
             hideSessionModal() {
                 this.sessionModal.classList.remove('show');
                 this.newSessionName.value = '';
+                // Don't clear recipe selection here - let individual methods handle it
+            }
+
+            // Recipe Selector Modal Methods
+            async showRecipeSelectorModal() {
+                // Load popular recipes on first show
+                if (!this.popularRecipeGrid.innerHTML.trim()) {
+                    await this.loadPopularRecipes();
+                }
+                
+                this.recipeSelectorModal.classList.add('show');
+            }
+
+            hideRecipeSelectorModal() {
+                this.recipeSelectorModal.classList.remove('show');
+                this.hideRecipePreview();
+            }
+
+            showRecipePreview(recipe) {
+                this.previewRecipeName.textContent = recipe.name;
+                this.previewRecipeDescription.textContent = recipe.description;
+                
+                // Show parameters if any
+                if (recipe.parameters && recipe.parameters.length > 0) {
+                    this.previewRecipeParameters.innerHTML = `
+                        <div style="margin-top: 1rem;">
+                            <strong>Parameters:</strong>
+                            <ul style="margin-left: 1rem; margin-top: 0.5rem;">
+                                ${recipe.parameters.map(param => `
+                                    <li>${param.label || param.name}${param.required ? ' *' : ''}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    this.previewRecipeParameters.innerHTML = '';
+                }
+                
+                this.recipePreviewPanel.style.display = 'block';
+                this.currentPreviewRecipe = recipe;
+            }
+
+            hideRecipePreview() {
+                this.recipePreviewPanel.style.display = 'none';
+                this.currentPreviewRecipe = null;
+            }
+
+            confirmRecipe() {
+                if (this.currentPreviewRecipe) {
+                    this.selectedRecipe = this.currentPreviewRecipe;
+                    this.updateSelectedRecipeDisplay();
+                    this.hideRecipeSelectorModal();
+                }
+            }
+
+            updateSelectedRecipeDisplay() {
+                if (this.selectedRecipe) {
+                    this.selectedRecipeName.textContent = this.selectedRecipe.name;
+                    this.selectedRecipeDescription.textContent = this.selectedRecipe.description;
+                    
+                    // Add parameter inputs if the recipe has parameters
+                    let parametersHtml = '';
+                    if (this.selectedRecipe.parameters && this.selectedRecipe.parameters.length > 0) {
+                        parametersHtml = `
+                            <div class="recipe-parameters" style="margin-top: 1rem;">
+                                <strong>Parameters:</strong>
+                                ${this.selectedRecipe.parameters.map(param => `
+                                    <div class="parameter-input" style="margin-top: 0.5rem;">
+                                        <label class="parameter-label" for="session-param-${param.name}" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                                            ${param.label || param.name}${param.required ? ' *' : ''}
+                                        </label>
+                                        ${this.renderParameterInputForSession(param)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+                    
+                    // Update the description element to include parameters
+                    this.selectedRecipeDescription.innerHTML = this.selectedRecipe.description + parametersHtml;
+                    this.selectedRecipeDisplay.style.display = 'block';
+                } else {
+                    this.selectedRecipeDisplay.style.display = 'none';
+                }
             }
             
             showSettingsModal() {
@@ -1623,6 +2425,7 @@
             
             async resumeSession(sessionName) {
                 this.hideSessionModal();
+                this.clearSelectedRecipe(); // Clear recipe selection for resumed sessions
                 
                 try {
                     const response = await fetch('/api/goose/resume', {
@@ -1649,9 +2452,21 @@
                 }
             }
             
-            async startNewSessionFromModal() {
+            async startSessionFromModal() {
                 const sessionName = this.newSessionName.value.trim();
+                
+                if (this.selectedRecipe) {
+                    // Start with recipe
+                    await this.startSessionWithRecipe(sessionName);
+                } else {
+                    // Start regular session
+                    await this.startRegularSession(sessionName);
+                }
+            }
+
+            async startRegularSession(sessionName) {
                 this.hideSessionModal();
+                this.clearSelectedRecipe();
                 
                 try {
                     const response = await fetch('/api/goose/start', {
@@ -1661,14 +2476,15 @@
                         },
                         body: JSON.stringify({ 
                             sessionName: sessionName || undefined,
-                            builtins: ['developer']
+                            builtins: ['developer'],
+                            workingDirectory: this.currentWorkingDirectory
                         })
                     });
                     
                     const result = await response.json();
                     
                     if (result.success) {
-                        this.appendText(`✅ Started new session: ${result.sessionName}\\n`, 'system-message');
+                        this.appendText(`✅ Started new session: ${result.sessionName}\n`, 'system-message');
                         this.scrollToBottom();
                     } else {
                         throw new Error(result.error);
@@ -1676,7 +2492,294 @@
                     
                 } catch (error) {
                     console.error('Error starting new session:', error);
-                    this.appendText(`❌ Failed to start new session: ${error.message}\\n`, 'system-message');
+                    this.appendText(`❌ Failed to start new session: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            // Recipe Methods
+            async loadPopularRecipes() {
+                try {
+                    const response = await fetch('/api/recipes/popular?limit=6');
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    const recipes = await response.json();
+                    this.renderRecipeGrid(recipes, this.popularRecipeGrid);
+                } catch (error) {
+                    console.error('Error loading popular recipes:', error);
+                    this.popularRecipeGrid.innerHTML = '<p class="text-muted">Failed to load popular recipes</p>';
+                }
+            }
+            
+            async loadCategories() {
+                try {
+                    const response = await fetch('/api/recipes/categories');
+                    this.categories = await response.json();
+                    this.renderCategories();
+                } catch (error) {
+                    console.error('Error loading categories:', error);
+                }
+            }
+            
+            renderCategories() {
+                this.categoryList.innerHTML = this.categories.map(category => `
+                    <button class="category-button" data-category="${category.id}">
+                        ${category.icon} ${category.name}
+                    </button>
+                `).join('');
+                
+                // Add event listeners
+                this.categoryList.querySelectorAll('.category-button').forEach(btn => {
+                    btn.addEventListener('click', () => this.loadRecipesByCategory(btn.dataset.category));
+                });
+            }
+            
+            async loadRecipesByCategory(categoryId) {
+                try {
+                    // Update active category button
+                    this.categoryList.querySelectorAll('.category-button').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.category === categoryId);
+                    });
+                    
+                    const response = await fetch(`/api/recipes?category=${categoryId}`);
+                    const recipes = await response.json();
+                    this.renderRecipeGrid(recipes, this.categoryRecipeGrid);
+                } catch (error) {
+                    console.error('Error loading recipes by category:', error);
+                }
+            }
+            
+            async searchRecipes(query) {
+                if (!query.trim()) {
+                    this.searchRecipeGrid.innerHTML = '<p class="text-muted">Enter a search term to find recipes</p>';
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/recipes/search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query })
+                    });
+                    const recipes = await response.json();
+                    this.renderRecipeGrid(recipes, this.searchRecipeGrid);
+                } catch (error) {
+                    console.error('Error searching recipes:', error);
+                }
+            }
+            
+            renderRecipeGrid(recipes, container) {
+                if (!recipes.length) {
+                    container.innerHTML = '<p class="text-muted">No recipes found</p>';
+                    return;
+                }
+                
+                container.innerHTML = recipes.map(recipe => `
+                    <div class="recipe-card" data-recipe-id="${recipe.id}">
+                        <div class="recipe-card-title">${recipe.name}</div>
+                        <div class="recipe-card-description">${recipe.description}</div>
+                        <div class="recipe-card-tags">
+                            ${recipe.tags.slice(0, 3).map(tag => `<span class="recipe-tag">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add click event listeners
+                container.querySelectorAll('.recipe-card').forEach(card => {
+                    card.addEventListener('click', () => this.previewRecipe(card.dataset.recipeId));
+                });
+            }
+            
+            async previewRecipe(recipeId) {
+                try {
+                    const response = await fetch(`/api/recipes/${recipeId}`);
+                    const recipe = await response.json();
+                    
+                    // Highlight selected card
+                    document.querySelectorAll('.recipe-card').forEach(card => {
+                        card.classList.toggle('selected', card.dataset.recipeId === recipeId);
+                    });
+                    
+                    this.showRecipePreview(recipe);
+                } catch (error) {
+                    console.error('Error loading recipe:', error);
+                }
+            }
+            
+            renderRecipeParameters() {
+                if (!this.selectedRecipe.parameters || this.selectedRecipe.parameters.length === 0) {
+                    this.recipeParameters.innerHTML = '';
+                    return;
+                }
+                
+                this.recipeParameters.innerHTML = this.selectedRecipe.parameters.map(param => `
+                    <div class="parameter-input">
+                        <label class="parameter-label" for="param-${param.name}">
+                            ${param.label || param.name}${param.required ? ' *' : ''}
+                        </label>
+                        ${param.description ? `<div class="parameter-description">${param.description}</div>` : ''}
+                        ${this.renderParameterInput(param)}
+                    </div>
+                `).join('');
+            }
+            
+            renderParameterInput(param) {
+                const baseAttrs = `id="param-${param.name}" name="${param.name}" class="form-input"`;
+                
+                switch (param.type) {
+                    case 'select':
+                        return `<select ${baseAttrs}>
+                            ${param.options.map(option => 
+                                `<option value="${option}" ${option === param.default ? 'selected' : ''}>${option}</option>`
+                            ).join('')}
+                        </select>`;
+                    
+                    case 'boolean':
+                        return `<select ${baseAttrs}>
+                            <option value="true" ${param.default === true ? 'selected' : ''}>Yes</option>
+                            <option value="false" ${param.default === false ? 'selected' : ''}>No</option>
+                        </select>`;
+                    
+                    case 'number':
+                        return `<input type="number" ${baseAttrs} 
+                            value="${param.default || ''}" 
+                            ${param.validation?.min ? `min="${param.validation.min}"` : ''}
+                            ${param.validation?.max ? `max="${param.validation.max}"` : ''}>`;
+                    
+                    default: // string
+                        return `<input type="text" ${baseAttrs} 
+                            value="${param.default || ''}" 
+                            placeholder="${param.description || ''}">`;
+                }
+            }
+            
+            renderParameterInputForSession(param) {
+                const baseAttrs = `id="session-param-${param.name}" name="${param.name}" class="form-input" style="font-size: 0.8rem; padding: 0.5rem;"`;
+                
+                switch (param.type) {
+                    case 'select':
+                        return `<select ${baseAttrs}>
+                            ${param.options.map(option => 
+                                `<option value="${option}" ${option === param.default ? 'selected' : ''}>${option}</option>`
+                            ).join('')}
+                        </select>`;
+                    
+                    case 'boolean':
+                        return `<select ${baseAttrs}>
+                            <option value="true" ${param.default === true ? 'selected' : ''}>Yes</option>
+                            <option value="false" ${param.default === false ? 'selected' : ''}>No</option>
+                        </select>`;
+                    
+                    case 'number':
+                        return `<input type="number" ${baseAttrs} 
+                            value="${param.default || ''}" 
+                            ${param.validation?.min ? `min="${param.validation.min}"` : ''}
+                            ${param.validation?.max ? `max="${param.validation.max}"` : ''}>`;
+                    
+                    default: // string
+                        return `<input type="text" ${baseAttrs} 
+                            value="${param.default || ''}" 
+                            placeholder="${param.description || ''}">`;
+                }
+            }
+            
+            clearSelectedRecipe() {
+                this.selectedRecipe = null;
+                this.selectedRecipeDisplay.style.display = 'none';
+                
+                // Clear selected state from all cards
+                document.querySelectorAll('.recipe-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+            }
+            
+            switchRecipeTab(tabName) {
+                // Update tab buttons
+                this.recipeTabs.forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.tab === tabName);
+                });
+                
+                // Update tab content
+                this.recipeTabContents.forEach(content => {
+                    content.classList.toggle('active', content.id === `${tabName}-recipes`);
+                });
+                
+                // Load content if needed
+                if (tabName === 'popular' && !this.popularRecipeGrid.innerHTML.trim()) {
+                    this.loadPopularRecipes();
+                } else if (tabName === 'categories' && !this.categoryList.innerHTML.trim()) {
+                    this.loadCategories();
+                }
+            }
+            
+            getParameterValues() {
+                if (!this.selectedRecipe?.parameters) return {};
+                
+                const values = {};
+                this.selectedRecipe.parameters.forEach(param => {
+                    // Try session parameter inputs first, then fall back to modal parameter inputs
+                    let input = document.getElementById(`session-param-${param.name}`) || 
+                               document.getElementById(`param-${param.name}`);
+                    
+                    if (input) {
+                        let value = input.value;
+                        
+                        // Type conversion
+                        if (param.type === 'number') {
+                            value = value ? Number(value) : undefined;
+                        } else if (param.type === 'boolean') {
+                            value = value === 'true';
+                        }
+                        
+                        values[param.name] = value;
+                    }
+                });
+                
+                return values;
+            }
+            
+            async startSessionWithRecipe(sessionName) {
+                if (!this.selectedRecipe) {
+                    console.error('No recipe selected');
+                    this.appendText(`❌ No recipe selected. Please select a recipe first.\n`, 'system-message');
+                    return;
+                }
+                
+                // Collect parameter values if the recipe has parameters
+                const parameters = this.getParameterValues();
+                
+                // Store recipe info before hiding modal
+                const recipeId = this.selectedRecipe.id;
+                const recipeName = this.selectedRecipe.name;
+                
+                this.hideSessionModal();
+                
+                try {
+                    const response = await fetch('/api/goose/start-with-recipe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recipeId: recipeId,
+                            sessionName: sessionName || undefined,
+                            parameters,
+                            workingDirectory: this.currentWorkingDirectory
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Started session with recipe "${result.recipe?.name || recipeName}": ${result.sessionName}\n`, 'system-message');
+                        this.scrollToBottom();
+                        this.clearSelectedRecipe(); // Clear selection after successful start
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting session with recipe:', error);
+                    this.appendText(`❌ Failed to start session with recipe: ${error.message}\n`, 'system-message');
                     this.scrollToBottom();
                 }
             }
@@ -1711,6 +2814,374 @@
                 } catch (error) {
                     console.error('Error deleting session:', error);
                     this.appendText(`❌ Failed to delete session: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            // Directory Browser Methods
+            async showDirectoryBrowser() {
+                console.log('🔥 showDirectoryBrowser called');
+                this.selectedDirectory = this.currentWorkingDirectory;
+                await this.loadDirectories();
+                this.directoryBrowserModal.classList.add('show');
+                
+                // Add global click detector on the modal to debug all clicks
+                console.log('🔥 Adding global click detector to modal');
+                this.directoryBrowserModal.addEventListener('click', (e) => {
+                    console.log('🔥 GLOBAL CLICK on directory modal detected:', e.target);
+                    console.log('🔥 Click coordinates:', e.clientX, e.clientY);
+                    console.log('🔥 Target element:', e.target.tagName, e.target.className, e.target.id);
+                    console.log('🔥 Is button?', e.target.tagName === 'BUTTON');
+                });
+                
+                // Debug the buttons' CSS properties
+                setTimeout(() => {
+                    const selectBtn = document.getElementById('selectDirectoryBtn');
+                    const cancelBtn = document.getElementById('cancelDirectorySelection');
+                    const closeBtn = this.closeDirectoryBrowserModal;
+                    
+                    console.log('🔥 CSS Debug - Select button computed style:');
+                    if (selectBtn) {
+                        const selectStyle = window.getComputedStyle(selectBtn);
+                        console.log('  pointer-events:', selectStyle.pointerEvents);
+                        console.log('  z-index:', selectStyle.zIndex);
+                        console.log('  position:', selectStyle.position);
+                        console.log('  display:', selectStyle.display);
+                        console.log('  visibility:', selectStyle.visibility);
+                        console.log('  opacity:', selectStyle.opacity);
+                    }
+                    
+                    console.log('🔥 CSS Debug - Cancel button computed style:');
+                    if (cancelBtn) {
+                        const cancelStyle = window.getComputedStyle(cancelBtn);
+                        console.log('  pointer-events:', cancelStyle.pointerEvents);
+                        console.log('  z-index:', cancelStyle.zIndex);
+                        console.log('  position:', cancelStyle.position);
+                    }
+                    
+                    console.log('🔥 CSS Debug - Close (X) button computed style:');
+                    if (closeBtn) {
+                        const closeStyle = window.getComputedStyle(closeBtn);
+                        console.log('  pointer-events:', closeStyle.pointerEvents);
+                        console.log('  z-index:', closeStyle.zIndex);
+                        console.log('  position:', closeStyle.position);
+                    }
+                }, 1000);
+            }
+            
+            hideDirectoryBrowser() {
+                console.log('hideDirectoryBrowser called');
+                this.directoryBrowserModal.classList.remove('show');
+                this.selectedDirectory = null;
+            }
+            
+            async loadDirectories(path = null) {
+                try {
+                    const url = new URL('/api/directories', window.location.origin);
+                    if (path) {
+                        url.searchParams.set('dir', path);
+                    }
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    this.currentPath.textContent = data.currentPath;
+                    this.selectedDirectory = data.currentPath; // Auto-select current directory
+                    
+                    this.renderDirectories(data.directories);
+                } catch (error) {
+                    console.error('Error loading directories:', error);
+                    this.directoryBrowser.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-muted);">Failed to load directories</div>';
+                }
+            }
+            
+            renderDirectories(directories) {
+                this.directoryBrowser.innerHTML = directories.map(dir => `
+                    <div class="directory-item" data-path="${dir.path}">
+                        <div class="directory-icon">${dir.isParent ? '⬆️' : '📁'}</div>
+                        <div>${dir.name}</div>
+                    </div>
+                `).join('');
+                
+                // Add click event listeners
+                this.directoryBrowser.querySelectorAll('.directory-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const path = item.dataset.path;
+                        
+                        // Clear previous selection
+                        this.directoryBrowser.querySelectorAll('.directory-item').forEach(i => {
+                            i.classList.remove('selected');
+                        });
+                        
+                        // Select this item
+                        item.classList.add('selected');
+                        this.selectedDirectory = path;
+                    });
+                    
+                    item.addEventListener('dblclick', () => {
+                        const path = item.dataset.path;
+                        this.loadDirectories(path);
+                    });
+                });
+            }
+            
+            
+            async initializeWorkingDirectory() {
+                try {
+                    // Try to get the current working directory from the server
+                    const response = await fetch('/api/directories');
+                    const data = await response.json();
+                    
+                    this.currentWorkingDirectory = data.currentPath;
+                    if (this.workingDirectory) {
+                        this.workingDirectory.value = data.currentPath;
+                        this.workingDirectory.placeholder = data.currentPath;
+                    }
+                    
+                    // Also set wizard working directory
+                    if (this.wizardWorkingDirectory) {
+                        this.wizardWorkingDirectory.value = data.currentPath;
+                        this.wizardWorkingDirectory.placeholder = data.currentPath;
+                    }
+                } catch (error) {
+                    console.error('Error initializing working directory:', error);
+                    // Fallback to a reasonable default message
+                    if (this.workingDirectory) {
+                        this.workingDirectory.placeholder = 'Click Browse to select directory';
+                    }
+                    if (this.wizardWorkingDirectory) {
+                        this.wizardWorkingDirectory.placeholder = 'Click Browse to select directory';
+                    }
+                }
+            }
+            
+            // Session Creation Wizard Methods
+            startSessionWizard() {
+                // Reset wizard state
+                this.wizardCurrentStep = 1;
+                this.wizardData = {
+                    sessionName: '',
+                    selectedRecipe: null,
+                    workingDirectory: this.currentWorkingDirectory
+                };
+                
+                // Copy session name from main modal if set
+                this.wizardSessionName.value = this.newSessionName.value;
+                this.wizardWorkingDirectory.value = this.currentWorkingDirectory || '';
+                
+                // Hide session modal and show wizard
+                this.hideSessionModal();
+                this.showWizardStep(1);
+                this.sessionWizardModal.classList.add('show');
+            }
+            
+            hideSessionWizard() {
+                this.sessionWizardModal.classList.remove('show');
+                this.resetWizard();
+            }
+            
+            showWizardStep(step) {
+                // Hide all steps
+                this.wizardStep1.style.display = 'none';
+                this.wizardStep2.style.display = 'none';
+                this.wizardStep3.style.display = 'none';
+                
+                // Show current step
+                switch (step) {
+                    case 1:
+                        this.wizardStep1.style.display = 'block';
+                        break;
+                    case 2:
+                        this.wizardStep2.style.display = 'block';
+                        this.updateStep2State();
+                        break;
+                    case 3:
+                        this.wizardStep3.style.display = 'block';
+                        break;
+                }
+                
+                this.wizardCurrentStep = step;
+            }
+            
+            wizardGoToStep(step) {
+                // Validate current step before proceeding
+                if (this.wizardCurrentStep === 1) {
+                    this.wizardData.sessionName = this.wizardSessionName.value.trim();
+                }
+                
+                if (this.wizardCurrentStep === 2) {
+                    // Step 2 validation handled by button states
+                }
+                
+                this.showWizardStep(step);
+            }
+            
+            updateStep2State() {
+                // Enable/disable next button based on recipe selection
+                const hasRecipe = this.wizardData.selectedRecipe !== null;
+                const skippedRecipe = this.wizardData.selectedRecipe === false;
+                
+                this.wizardStep2Next.disabled = !(hasRecipe || skippedRecipe);
+                
+                // Update recipe display
+                if (this.wizardData.selectedRecipe && this.wizardData.selectedRecipe !== false) {
+                    this.wizardSelectedRecipeName.textContent = this.wizardData.selectedRecipe.name;
+                    this.wizardSelectedRecipeDescription.textContent = this.wizardData.selectedRecipe.description;
+                    this.selectedRecipeWizard.style.display = 'block';
+                } else {
+                    this.selectedRecipeWizard.style.display = 'none';
+                }
+            }
+            
+            wizardChooseRecipe() {
+                // Store wizard context and show recipe selector
+                this.selectedRecipe = this.wizardData.selectedRecipe;
+                this.showRecipeSelectorModal();
+            }
+            
+            wizardSkipRecipe() {
+                this.wizardData.selectedRecipe = false; // false means explicitly skipped
+                this.updateStep2State();
+            }
+            
+            wizardBrowseDirectory() {
+                // Use existing directory browser
+                this.showDirectoryBrowser();
+            }
+            
+            wizardUseCurrentDirectory() {
+                this.wizardData.workingDirectory = this.currentWorkingDirectory;
+                this.wizardWorkingDirectory.value = this.currentWorkingDirectory || '';
+            }
+            
+            async wizardCreateSession() {
+                // Collect final data
+                this.wizardData.sessionName = this.wizardSessionName.value.trim();
+                this.wizardData.workingDirectory = this.wizardWorkingDirectory.value || this.currentWorkingDirectory;
+                
+                // Create session based on whether recipe was selected
+                if (this.wizardData.selectedRecipe && this.wizardData.selectedRecipe !== false) {
+                    await this.createSessionWithRecipe(
+                        this.wizardData.sessionName,
+                        this.wizardData.selectedRecipe,
+                        this.wizardData.workingDirectory
+                    );
+                } else {
+                    await this.createRegularSession(
+                        this.wizardData.sessionName,
+                        this.wizardData.workingDirectory
+                    );
+                }
+                
+                this.hideSessionWizard();
+            }
+            
+            resetWizard() {
+                this.wizardCurrentStep = 1;
+                this.wizardData = {
+                    sessionName: '',
+                    selectedRecipe: null,
+                    workingDirectory: this.currentWorkingDirectory
+                };
+                this.wizardSessionName.value = '';
+                this.selectedRecipeWizard.style.display = 'none';
+                this.wizardStep2Next.disabled = true;
+            }
+            
+            // Override confirmRecipe to work with wizard
+            confirmRecipe() {
+                if (this.currentPreviewRecipe) {
+                    if (this.sessionWizardModal.classList.contains('show')) {
+                        // Wizard mode
+                        this.wizardData.selectedRecipe = this.currentPreviewRecipe;
+                        this.updateStep2State();
+                    } else {
+                        // Original mode
+                        this.selectedRecipe = this.currentPreviewRecipe;
+                        this.updateSelectedRecipeDisplay();
+                    }
+                    this.hideRecipeSelectorModal();
+                }
+            }
+            
+            // Override confirmDirectorySelection to work with wizard
+            confirmDirectorySelection() {
+                console.log('confirmDirectorySelection called, selectedDirectory:', this.selectedDirectory);
+                if (this.selectedDirectory) {
+                    if (this.sessionWizardModal.classList.contains('show')) {
+                        // Wizard mode
+                        console.log('Setting wizard working directory:', this.selectedDirectory);
+                        this.wizardData.workingDirectory = this.selectedDirectory;
+                        this.wizardWorkingDirectory.value = this.selectedDirectory;
+                    } else {
+                        // Original mode
+                        console.log('Setting regular working directory:', this.selectedDirectory);
+                        if (this.workingDirectory) {
+                            this.workingDirectory.value = this.selectedDirectory;
+                        }
+                        this.currentWorkingDirectory = this.selectedDirectory;
+                    }
+                    this.hideDirectoryBrowser();
+                } else {
+                    console.log('No directory selected');
+                }
+            }
+            
+            async createSessionWithRecipe(sessionName, recipe, workingDirectory) {
+                try {
+                    const parameters = {}; // Could collect from recipe parameters in future
+                    
+                    const response = await fetch('/api/goose/start-with-recipe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            recipeId: recipe.id,
+                            sessionName: sessionName || undefined,
+                            parameters,
+                            workingDirectory
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Started session with recipe "${recipe.name}": ${result.sessionName}\n`, 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting session with recipe:', error);
+                    this.appendText(`❌ Failed to start session with recipe: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async createRegularSession(sessionName, workingDirectory) {
+                try {
+                    const response = await fetch('/api/goose/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            sessionName: sessionName || undefined,
+                            builtins: ['developer'],
+                            workingDirectory
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`✅ Started new session: ${result.sessionName}\n`, 'system-message');
+                        this.scrollToBottom();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error starting new session:', error);
+                    this.appendText(`❌ Failed to start new session: ${error.message}\n`, 'system-message');
                     this.scrollToBottom();
                 }
             }

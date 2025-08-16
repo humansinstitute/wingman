@@ -1,6 +1,8 @@
 const fs = require('fs').promises;
 const path = require('path');
 const EventEmitter = require('events');
+const recipeManager = require('./recipe-manager');
+
 // Select wrapper based on model (can be configured)
 function getGooseWrapper() {
   // Use streaming wrapper for better continuous display
@@ -54,7 +56,8 @@ class GooseConversationManager extends EventEmitter {
       debug: options.debug || false,
       maxTurns: options.maxTurns || 1000,
       extensions: options.extensions || [],
-      builtins: options.builtins || []
+      builtins: options.builtins || [],
+      workingDirectory: options.workingDirectory || process.cwd()
     });
 
     // Listen to Goose streaming events
@@ -99,6 +102,116 @@ class GooseConversationManager extends EventEmitter {
       console.error('Failed to start Goose session:', error);
       return { success: false, error: error.message };
     }
+  }
+
+  async startGooseSessionWithRecipe(recipeId, options = {}) {
+    if (this.gooseWrapper) {
+      await this.stopGooseSession();
+    }
+
+    // Get recipe from manager
+    const recipe = await recipeManager.getRecipe(recipeId);
+    if (!recipe) {
+      throw new Error(`Recipe ${recipeId} not found`);
+    }
+
+    // Process template parameters
+    const processedRecipe = await recipeManager.processTemplate(
+      recipe, 
+      options.parameters || {}
+    );
+
+    // Validate parameters
+    await recipeManager.validateParameters(recipe, options.parameters || {});
+
+    // Create temporary recipe file
+    const recipePath = await this.createTempRecipeFile(processedRecipe);
+
+    // Set session name
+    this.currentSessionName = options.sessionName || `recipe-${recipe.name}-${Date.now()}`;
+
+    // Create wrapper with recipe configuration
+    this.gooseWrapper = new GooseCLIWrapper({
+      sessionName: this.currentSessionName,
+      debug: options.debug || false,
+      maxTurns: options.maxTurns || 1000,
+      extensions: [...(recipe.extensions || []), ...(options.extensions || [])],
+      builtins: [...(recipe.builtins || []), ...(options.builtins || [])],
+      recipePath: recipePath,
+      recipe: processedRecipe,
+      parameters: options.parameters || {},
+      workingDirectory: options.workingDirectory || process.cwd()
+    });
+
+    // Set up event listeners (same as regular session)
+    this.gooseWrapper.on('streamContent', (streamData) => {
+      this.addMessage({
+        role: 'assistant',
+        content: streamData.content,
+        timestamp: streamData.timestamp,
+        source: streamData.source
+      });
+    });
+
+    this.gooseWrapper.on('aiMessage', (message) => {
+      this.addMessage(message);
+    });
+    
+    this.gooseWrapper.on('thinking', (message) => {
+      this.emit('thinking', message);
+    });
+
+    this.gooseWrapper.on('toolUsage', (tool) => {
+      this.addMessage(tool);
+    });
+
+    this.gooseWrapper.on('error', (error) => {
+      console.error('Goose error:', error);
+      this.emit('gooseError', error);
+    });
+
+    this.gooseWrapper.on('ready', () => {
+      console.log('Goose session ready with recipe:', recipe.name);
+      this.emit('gooseReady');
+    });
+
+    try {
+      // Track recipe usage
+      await recipeManager.trackUsage(recipeId, this.currentSessionName);
+
+      // Start the session
+      await this.gooseWrapper.start();
+
+      // Send initial prompt if specified in recipe
+      if (processedRecipe.prompt) {
+        setTimeout(() => {
+          this.sendToGoose(processedRecipe.prompt);
+        }, 3000); // Wait a bit for Goose to be fully ready
+      }
+
+      return { 
+        success: true, 
+        sessionName: this.currentSessionName,
+        recipe: {
+          id: recipe.id,
+          name: recipe.name,
+          description: recipe.description
+        }
+      };
+    } catch (error) {
+      console.error('Failed to start Goose session with recipe:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async createTempRecipeFile(recipe) {
+    const tempDir = path.join(__dirname, 'temp');
+    await fs.mkdir(tempDir, { recursive: true });
+    
+    const tempFilePath = path.join(tempDir, `recipe-${Date.now()}.json`);
+    await fs.writeFile(tempFilePath, JSON.stringify(recipe, null, 2));
+    
+    return tempFilePath;
   }
 
   async stopGooseSession() {
