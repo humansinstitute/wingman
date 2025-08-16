@@ -1,6 +1,14 @@
-# Goose Multi-Interface Chat Application
+# Wingman: Goose 
 
-A sophisticated multi-interface chat application that integrates with Goose CLI for AI agent conversations, providing both command-line and web interfaces with real-time synchronization.
+He can be your wingman... anytime.
+
+No longer do you have to sit at your desk typing on your keyboard like a caveman. Use those wings my little gosling, fly free and explore. 
+
+Wingman bootstraps and persists your sessions in a Server and provides you access via either web interface or local cli. 
+
+Marry to tailscale and you can now leave Goose at home with  computer all to himself and you can check in on your agents, setup new tasks, run workflows or just push along a chat from your laptop, phone or wherever you are.
+
+![Launch Meme Description](public/LaunchMeme.png "Launch Meme")
 
 ## Features
 
@@ -15,12 +23,6 @@ A sophisticated multi-interface chat application that integrates with Goose CLI 
 - Support for Goose extensions and built-ins
 - Session management and listing
 
-### 💭 Collapsible Thinking Blocks
-- **Web Interface**: Click to expand/collapse thinking process
-- **CLI Interface**: Shows collapsed indicator, use `/show-thinking` to view
-- Separate thinking from main responses for cleaner chat history
-- Tool usage also displayed in collapsible blocks
-
 ### 📱 CLI Interface
 - Interactive command-line chat with Goose
 - Comprehensive Goose session controls
@@ -32,8 +34,9 @@ A sophisticated multi-interface chat application that integrates with Goose CLI 
 - Modern chat UI accessible at http://localhost:3000
 - Goose session management controls
 - Real-time conversation updates
+- Recipe support for custom agents and tasks
+- MCP support and access via Goose Agent
 - Mobile-responsive design
-- Collapsible thinking and tool blocks with visual indicators
 
 ### 💾 Persistence
 - Conversation history automatically saved
@@ -49,7 +52,7 @@ A sophisticated multi-interface chat application that integrates with Goose CLI 
 ## Installation
 
 ```bash
-cd goose-intCLI
+cd wingman
 npm install
 ```
 
