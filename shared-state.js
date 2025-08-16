@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const EventEmitter = require('events');
 const recipeManager = require('./recipe-manager');
+const { getDatabase } = require('./lib/database');
 
 // Select wrapper based on model (can be configured)
 function getGooseWrapper() {
@@ -21,13 +22,57 @@ class GooseConversationManager extends EventEmitter {
   constructor() {
     super();
     this.conversation = [];
-    this.dataFile = path.join(__dirname, 'conversation.json');
+    this.dataFile = path.join(__dirname, 'conversation.json'); // Keep for legacy backup
     this.gooseWrapper = null;
     this.currentSessionName = null;
-    this.load();
+    this.db = getDatabase();
+    this.dbInitialized = false;
+    this.init();
+  }
+
+  async init() {
+    try {
+      if (!this.dbInitialized) {
+        await this.db.init();
+        this.dbInitialized = true;
+      }
+      await this.load();
+    } catch (error) {
+      console.error('Error initializing conversation manager:', error);
+      // Fallback to JSON mode if database fails
+      this.dbInitialized = false;
+      await this.loadFromJson();
+    }
   }
 
   async load() {
+    if (!this.dbInitialized) {
+      return this.loadFromJson();
+    }
+    
+    try {
+      if (this.currentSessionName) {
+        // Load messages for current session
+        const messages = await this.db.getMessages(this.currentSessionName);
+        this.conversation = messages.map(msg => ({
+          id: msg.message_id || msg.id.toString(),
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          source: msg.source
+        }));
+      } else {
+        // No specific session, start with empty conversation
+        this.conversation = [];
+      }
+    } catch (error) {
+      console.error('Error loading from database:', error);
+      // Fallback to JSON
+      await this.loadFromJson();
+    }
+  }
+
+  async loadFromJson() {
     try {
       const data = await fs.readFile(this.dataFile, 'utf8');
       this.conversation = JSON.parse(data);
@@ -38,10 +83,20 @@ class GooseConversationManager extends EventEmitter {
   }
 
   async save() {
+    if (!this.dbInitialized) {
+      return this.saveToJson();
+    }
+    
+    // Database saves are handled per-message in addMessage
+    // This method is kept for API compatibility
+    return Promise.resolve();
+  }
+
+  async saveToJson() {
     try {
       await fs.writeFile(this.dataFile, JSON.stringify(this.conversation, null, 2));
     } catch (error) {
-      console.error('Error saving conversation:', error);
+      console.error('Error saving conversation to JSON:', error);
     }
   }
 
@@ -51,6 +106,22 @@ class GooseConversationManager extends EventEmitter {
     }
 
     this.currentSessionName = options.sessionName || `web-session-${Date.now()}`;
+    
+    // Update session status in database
+    if (this.dbInitialized) {
+      try {
+        // Create or get session
+        await this.db.createSession(this.currentSessionName).catch(error => {
+          if (!error.message.includes('already exists')) {
+            throw error;
+          }
+        });
+        await this.db.updateSessionStatus(this.currentSessionName, 'active');
+      } catch (error) {
+        console.error('Error managing session in database:', error);
+      }
+    }
+    
     this.gooseWrapper = new GooseCLIWrapper({
       sessionName: this.currentSessionName,
       debug: options.debug || false,
@@ -216,6 +287,15 @@ class GooseConversationManager extends EventEmitter {
 
   async stopGooseSession() {
     if (this.gooseWrapper) {
+      // Update session status in database
+      if (this.dbInitialized && this.currentSessionName) {
+        try {
+          await this.db.updateSessionStatus(this.currentSessionName, 'inactive');
+        } catch (error) {
+          console.error('Error updating session status:', error);
+        }
+      }
+      
       await this.gooseWrapper.stop();
       this.gooseWrapper = null;
       this.currentSessionName = null;
@@ -281,10 +361,21 @@ class GooseConversationManager extends EventEmitter {
       await this.stopGooseSession();
     }
 
-    // Clear current conversation when switching sessions
-    this.clear();
-
+    // Switch to the new session
     this.currentSessionName = sessionName;
+    
+    // Update session status in database
+    if (this.dbInitialized) {
+      try {
+        await this.db.updateSessionStatus(sessionName, 'active');
+      } catch (error) {
+        console.error('Error updating session status:', error);
+      }
+    }
+    
+    // Load conversation for this session
+    await this.load();
+
     this.gooseWrapper = new GooseCLIWrapper({
       sessionName: sessionName
     });
@@ -350,11 +441,23 @@ class GooseConversationManager extends EventEmitter {
     const timestampedMessage = {
       ...message,
       timestamp: message.timestamp || new Date().toISOString(),
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+      id: message.id || (Date.now().toString() + Math.random().toString(36).substr(2, 9))
     };
     
+    // Add to in-memory conversation for immediate UI updates
     this.conversation.push(timestampedMessage);
-    this.save();
+    
+    // Save to database if initialized
+    if (this.dbInitialized && this.currentSessionName) {
+      this.db.addMessage(this.currentSessionName, timestampedMessage).catch(error => {
+        console.error('Error saving message to database:', error);
+        // Fallback to JSON save
+        this.saveToJson();
+      });
+    } else {
+      // Fallback to JSON save
+      this.saveToJson();
+    }
     
     // Emit event for real-time updates
     this.emit('messageAdded', timestampedMessage);
@@ -368,14 +471,44 @@ class GooseConversationManager extends EventEmitter {
 
   clear() {
     this.conversation = [];
-    this.save();
+    
+    // Clear from database if available
+    if (this.dbInitialized && this.currentSessionName) {
+      this.db.clearMessages(this.currentSessionName).catch(error => {
+        console.error('Error clearing messages from database:', error);
+        // Fallback to JSON save
+        this.saveToJson();
+      });
+    } else {
+      this.saveToJson();
+    }
+    
     this.emit('conversationCleared');
   }
 
   async deleteGooseSession(sessionName) {
     try {
+      // Delete from Goose CLI
       const wrapper = new GooseCLIWrapper();
       await wrapper.deleteSession(sessionName);
+      
+      // Delete from database if available
+      if (this.dbInitialized) {
+        try {
+          await this.db.deleteSession(sessionName);
+        } catch (dbError) {
+          console.error('Error deleting session from database:', dbError);
+          // Continue anyway since Goose session was deleted
+        }
+      }
+      
+      // If this was the current session, clear it
+      if (this.currentSessionName === sessionName) {
+        this.currentSessionName = null;
+        this.conversation = [];
+        this.emit('conversationCleared');
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Error deleting session:', error);

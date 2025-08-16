@@ -4,11 +4,13 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const chalk = require('chalk');
+const { DatabaseManager } = require('../lib/database');
 
 class GooseCleanup {
   constructor() {
     this.projectDir = path.dirname(__dirname);
     this.gooseSessionsDir = path.join(os.homedir(), '.local', 'share', 'goose', 'sessions');
+    this.db = new DatabaseManager();
     this.logFiles = [
       'conversation.json',
       'goose-output.log',
@@ -25,12 +27,19 @@ class GooseCleanup {
       await this.clearLocalLogs();
       await this.clearGooseSessions();
       await this.clearConversationData();
+      await this.clearDatabase();
       
       console.log(chalk.green.bold('\n✅ Cleanup completed successfully!\n'));
       
     } catch (error) {
       console.error(chalk.red('❌ Cleanup failed:'), error.message);
       process.exit(1);
+    } finally {
+      try {
+        await this.db.close();
+      } catch (error) {
+        // Ignore close errors
+      }
     }
   }
 
@@ -125,6 +134,42 @@ class GooseCleanup {
     console.log(chalk.green(`   Cleared ${clearedCount} conversation files`));
   }
 
+  async clearDatabase() {
+    console.log(chalk.yellow('🗄️  Clearing database...'));
+    
+    try {
+      await this.db.init();
+      
+      // Get stats before clearing
+      const stats = await this.db.getStats();
+      console.log(chalk.gray(`   Found ${stats.sessions} sessions, ${stats.messages} messages`));
+      
+      if (stats.messages > 0 || stats.sessions > 0) {
+        // Clear all messages and sessions
+        const clearedMessages = await this.db.clearAllMessages();
+        const sessions = await this.db.getAllSessions();
+        
+        for (const session of sessions) {
+          await this.db.deleteSession(session.session_name);
+        }
+        
+        console.log(chalk.green(`   ✓ Cleared ${clearedMessages} messages and ${sessions.length} sessions`));
+        
+        // Clean up the database file
+        await this.db.vacuum();
+        console.log(chalk.gray('   ✓ Database optimized'));
+      } else {
+        console.log(chalk.gray('   Database already empty'));
+      }
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        console.log(chalk.gray('   No database found'));
+      } else {
+        console.log(chalk.yellow(`   ⚠ Could not clear database: ${error.message}`));
+      }
+    }
+  }
+
   // Helper method to show what would be deleted (dry run)
   async showPreview() {
     console.log(chalk.blue.bold('\n👀 Preview: Files that would be deleted\n'));
@@ -158,6 +203,27 @@ class GooseCleanup {
       }
     } catch (error) {
       console.log(chalk.gray('   No session files found'));
+    }
+    
+    console.log(chalk.yellow('\nDatabase data:'));
+    try {
+      await this.db.init();
+      const stats = await this.db.getStats();
+      if (stats.sessions > 0 || stats.messages > 0) {
+        console.log(chalk.gray(`   • ${stats.sessions} sessions`));
+        console.log(chalk.gray(`   • ${stats.messages} messages`));
+        console.log(chalk.gray(`   • ${stats.dbPages} database pages`));
+      } else {
+        console.log(chalk.gray('   No database data found'));
+      }
+    } catch (error) {
+      console.log(chalk.gray('   No database found'));
+    } finally {
+      try {
+        await this.db.close();
+      } catch (error) {
+        // Ignore close errors
+      }
     }
   }
 }

@@ -268,7 +268,9 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         if (code === 0) {
           try {
             const sessions = JSON.parse(output);
-            resolve(sessions);
+            // Extract just the session IDs/names from the objects
+            const sessionNames = sessions.map(session => session.id);
+            resolve(sessionNames);
           } catch (error) {
             resolve([]);
           }
@@ -363,82 +365,33 @@ class StreamingGooseCLIWrapper extends EventEmitter {
   }
 
   async deleteSession(sessionName) {
-    return new Promise((resolve, reject) => {
-      console.log(`Attempting to delete session: ${sessionName}`);
-      
-      const deleteProcess = spawn('goose', ['session', 'remove', '--id', sessionName], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
-      let output = '';
-      let errorOutput = '';
-
-      deleteProcess.stdout.on('data', (data) => {
-        output += data.toString();
-        console.log(`Delete stdout: ${data.toString()}`);
-      });
-
-      deleteProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-        console.error(`Delete stderr: ${data.toString()}`);
-      });
-
-      deleteProcess.on('close', (code) => {
-        console.log(`Delete process closed with code: ${code}`);
-        console.log(`Delete output: ${output}`);
-        console.log(`Delete error output: ${errorOutput}`);
-        
-        if (code === 0) {
-          console.log(`Successfully deleted session: ${sessionName}`);
-          resolve({ success: true });
-        } else {
-          console.error(`Failed to delete session ${sessionName}:`, errorOutput);
-          
-          // Check for specific Goose CLI errors and provide better messaging
-          if (errorOutput.includes('not connected') || output.includes('not connected')) {
-            console.log(`Goose CLI failed with "not connected" error. Attempting manual cleanup...`);
-            // Try to manually remove the session file as fallback
-            this.manualSessionCleanup(sessionName).then(() => {
-              resolve({ success: true, method: 'manual' });
-            }).catch((manualError) => {
-              reject(new Error(`Session "${sessionName}" could not be removed via CLI (not connected error) and manual cleanup failed: ${manualError.message}`));
-            });
-          } else if (errorOutput.includes('Session not found') || output.includes('Session not found')) {
-            // Treat "not found" as success since the goal is to remove it
-            console.log(`Session ${sessionName} was already removed or not found`);
-            resolve({ success: true });
-          } else {
-            reject(new Error(`Failed to delete session: ${errorOutput || output || 'Unknown error'}`));
-          }
-        }
-      });
-
-      deleteProcess.on('error', (error) => {
-        console.error('Error spawning delete process:', error);
-        reject(error);
-      });
-    });
-  }
-
-  async manualSessionCleanup(sessionName) {
+    const fs = require('fs').promises;
+    const path = require('path');
     const os = require('os');
-    const sessionPath = path.join(os.homedir(), '.local', 'share', 'goose', 'sessions', `${sessionName}.jsonl`);
     
     try {
-      console.log(`Attempting manual cleanup of session file: ${sessionPath}`);
-      await fs.unlink(sessionPath);
-      console.log(`Successfully removed session file: ${sessionPath}`);
-      return true;
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        console.log(`Session file ${sessionPath} was already removed`);
-        return true; // File doesn't exist, which is what we want
-      } else {
-        console.error(`Failed to manually remove session file: ${error.message}`);
-        throw error;
+      // Directly delete the session file from the filesystem (same approach as clearall.js)
+      const sessionFile = path.join(os.homedir(), '.local', 'share', 'goose', 'sessions', `${sessionName}.jsonl`);
+      
+      try {
+        await fs.unlink(sessionFile);
+        console.log(`Successfully deleted session: ${sessionName}`);
+        return { success: true };
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          // File doesn't exist, consider it already deleted
+          console.log(`Session file not found (already deleted): ${sessionName}`);
+          return { success: true };
+        } else {
+          throw error;
+        }
       }
+    } catch (error) {
+      console.error(`Failed to delete session ${sessionName}:`, error.message);
+      throw new Error(`Failed to delete session: ${error.message}`);
     }
   }
+
 }
 
 module.exports = StreamingGooseCLIWrapper;
