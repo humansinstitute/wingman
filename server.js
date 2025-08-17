@@ -5,7 +5,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
 const os = require('os');
-const conversationManager = require('./shared-state');
+const conversationManager = require('./lib/multi-session-conversation-manager');
 const recipeManager = require('./recipe-manager');
 
 class GooseWebServer {
@@ -309,6 +309,152 @@ class GooseWebServer {
         }
         const recipes = await recipeManager.searchRecipes(query);
         res.json(recipes);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // === NEW MULTI-SESSION API ENDPOINTS ===
+    
+    // Get all running sessions
+    this.app.get('/api/goose/running-sessions', (req, res) => {
+      try {
+        const sessions = conversationManager.getAllSessions();
+        res.json(sessions);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Switch to a different session
+    this.app.post('/api/goose/switch-session', async (req, res) => {
+      try {
+        const { sessionId } = req.body;
+        
+        if (!sessionId) {
+          return res.status(400).json({ error: 'Session ID is required' });
+        }
+        
+        const result = await conversationManager.switchSession(sessionId);
+        
+        if (result.success) {
+          // Broadcast status and conversation updates
+          this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+          this.io.emit('sessionSwitched', {
+            from: result.previousSessionId,
+            to: sessionId
+          });
+        }
+        
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Start a new session (with unique session ID)
+    this.app.post('/api/goose/start-new', async (req, res) => {
+      try {
+        const { sessionName, debug, extensions, builtins, workingDirectory } = req.body;
+        
+        const result = await conversationManager.startGooseSession({
+          sessionName: sessionName || `web-session-${Date.now()}`,
+          debug: debug || false,
+          extensions: extensions || [],
+          builtins: builtins || ['developer'],
+          workingDirectory: workingDirectory
+        });
+        
+        if (result.success) {
+          // Broadcast status update to all clients
+          this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+          this.io.emit('newSessionCreated', result);
+        }
+        
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Stop a specific session
+    this.app.post('/api/goose/stop-session', async (req, res) => {
+      try {
+        const { sessionId } = req.body;
+        
+        if (!sessionId) {
+          return res.status(400).json({ error: 'Session ID is required' });
+        }
+        
+        await conversationManager.stopGooseSession(sessionId);
+        
+        // Broadcast status update to all clients
+        this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+        this.io.emit('sessionStopped', { sessionId });
+        
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Send message to specific session
+    this.app.post('/api/goose/send-message', async (req, res) => {
+      try {
+        const { sessionId, content } = req.body;
+        
+        if (!sessionId && !content) {
+          return res.status(400).json({ error: 'Session ID and content are required' });
+        }
+        
+        // If no sessionId provided, use active session
+        const targetSessionId = sessionId || conversationManager.getGooseStatus().sessionId;
+        
+        if (!targetSessionId) {
+          return res.status(400).json({ 
+            error: 'No session specified and no active session' 
+          });
+        }
+        
+        const userMessage = await conversationManager.sendToGoose(content, targetSessionId);
+        
+        res.json({ success: true, userMessage, sessionId: targetSessionId });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get conversation for specific session
+    this.app.get('/api/goose/conversation/:sessionId', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const conversation = conversationManager.getConversation(sessionId);
+        res.json(conversation);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Clear conversation for specific session
+    this.app.delete('/api/goose/conversation/:sessionId', (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        conversationManager.clear(sessionId);
+        
+        // Emit cleared event for the specific session
+        this.io.emit('conversationCleared', { sessionId });
+        
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get session manager status
+    this.app.get('/api/goose/session-manager-status', (req, res) => {
+      try {
+        const status = conversationManager.getGooseStatus();
+        res.json(status);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }

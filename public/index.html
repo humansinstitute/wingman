@@ -140,6 +140,164 @@
             display: flex;
             gap: 0.5rem;
             align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        /* Session Switcher Styles */
+        .session-switcher {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .session-dropdown {
+            position: relative;
+        }
+
+        .session-dropdown-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            min-width: 200px;
+            justify-content: space-between;
+        }
+
+        .session-dropdown-toggle:hover {
+            background: var(--accent-light);
+            border-color: var(--accent-primary);
+        }
+
+        .session-dropdown-toggle.active {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+
+        .session-dropdown-arrow {
+            font-size: 0.7rem;
+            transition: transform 0.2s ease;
+        }
+
+        .session-dropdown.open .session-dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .session-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            min-width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .session-dropdown.open .session-dropdown-menu {
+            display: block;
+        }
+
+        .session-dropdown-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-primary);
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-dropdown-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .session-dropdown-item:hover {
+            background: var(--accent-light);
+        }
+
+        .session-dropdown-item.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .session-item-info {
+            flex: 1;
+        }
+
+        .session-item-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .session-item-status {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .session-item-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .session-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .session-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .session-dropdown-item:not(.active) .session-action-btn:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .new-session-item {
+            background: var(--accent-bg);
+            border-top: 1px solid var(--border-primary);
+            color: var(--accent-primary);
+            font-weight: 500;
+        }
+
+        .new-session-item:hover {
+            background: var(--accent-light);
+        }
+
+        .session-count {
+            background: var(--accent-primary);
+            color: white;
+            border-radius: 10px;
+            padding: 0.125rem 0.375rem;
+            font-size: 0.7rem;
+            font-weight: 600;
         }
         
         .connection-bar {
@@ -1286,6 +1444,29 @@
             Wingman: Goose
         </h1>
         <div class="header-right">
+            <!-- Session Switcher -->
+            <div class="session-switcher">
+                <div class="session-dropdown" id="sessionDropdown">
+                    <button class="session-dropdown-toggle" id="sessionDropdownToggle">
+                        <span id="sessionDropdownText">No Active Session</span>
+                        <span class="session-count" id="sessionCount" style="display: none;">0</span>
+                        <span class="session-dropdown-arrow">▼</span>
+                    </button>
+                    <div class="session-dropdown-menu" id="sessionDropdownMenu">
+                        <div class="session-dropdown-header">
+                            <span>Active Sessions</span>
+                            <span class="session-count" id="headerSessionCount">0</span>
+                        </div>
+                        <div id="runningSessionsList">
+                            <!-- Running sessions will be populated here -->
+                        </div>
+                        <div class="session-dropdown-item new-session-item" id="newSessionFromDropdown">
+                            <span>+ New Session</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div id="gooseStatus" class="goose-status status-inactive">
                 No Session Active
             </div>
@@ -1873,6 +2054,23 @@
                 // Settings modal event listeners
                 this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
                 this.closeSettingsModal.addEventListener('click', () => this.hideSettingsModal());
+                
+                // Session switcher event listeners
+                this.sessionDropdown = document.getElementById('sessionDropdown');
+                this.sessionDropdownToggle = document.getElementById('sessionDropdownToggle');
+                this.sessionDropdownMenu = document.getElementById('sessionDropdownMenu');
+                this.sessionDropdownText = document.getElementById('sessionDropdownText');
+                this.sessionCount = document.getElementById('sessionCount');
+                this.headerSessionCount = document.getElementById('headerSessionCount');
+                this.runningSessionsList = document.getElementById('runningSessionsList');
+                this.newSessionFromDropdown = document.getElementById('newSessionFromDropdown');
+                
+                // Initialize session switcher state
+                this.runningSessions = [];
+                this.setupSessionSwitcher();
+                
+                // Load initial running sessions
+                this.loadRunningSessions();
                 
                 // Close modals when clicking overlay
                 this.sessionModal.addEventListener('click', (e) => {
@@ -3187,6 +3385,208 @@
                     this.scrollToBottom();
                 }
             }
+            
+            // === SESSION SWITCHER METHODS ===
+            
+            setupSessionSwitcher() {
+                // Session dropdown toggle
+                this.sessionDropdownToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleSessionDropdown();
+                });
+                
+                // New session from dropdown
+                this.newSessionFromDropdown.addEventListener('click', () => {
+                    this.hideSessionDropdown();
+                    this.showSessionModal();
+                });
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!this.sessionDropdown.contains(e.target)) {
+                        this.hideSessionDropdown();
+                    }
+                });
+                
+                // Load running sessions periodically
+                setInterval(() => {
+                    this.loadRunningSessions();
+                }, 5000); // Every 5 seconds
+            }
+            
+            toggleSessionDropdown() {
+                if (this.sessionDropdown.classList.contains('open')) {
+                    this.hideSessionDropdown();
+                } else {
+                    this.showSessionDropdown();
+                }
+            }
+            
+            showSessionDropdown() {
+                this.sessionDropdown.classList.add('open');
+                this.loadRunningSessions(); // Refresh on open
+            }
+            
+            hideSessionDropdown() {
+                this.sessionDropdown.classList.remove('open');
+            }
+            
+            async loadRunningSessions() {
+                try {
+                    const response = await fetch('/api/goose/running-sessions');
+                    const sessions = await response.json();
+                    
+                    this.runningSessions = sessions;
+                    this.updateSessionSwitcher();
+                } catch (error) {
+                    console.error('Error loading running sessions:', error);
+                }
+            }
+            
+            updateSessionSwitcher() {
+                // Update header counts and text
+                const totalSessions = this.runningSessions.length;
+                const activeSession = this.runningSessions.find(s => s.isActive);
+                
+                this.headerSessionCount.textContent = totalSessions;
+                
+                if (totalSessions > 0) {
+                    this.sessionCount.style.display = 'inline';
+                    this.sessionCount.textContent = totalSessions;
+                } else {
+                    this.sessionCount.style.display = 'none';
+                }
+                
+                if (activeSession) {
+                    this.sessionDropdownText.textContent = activeSession.sessionName;
+                    this.sessionDropdownToggle.classList.add('active');
+                } else {
+                    this.sessionDropdownText.textContent = 'No Active Session';
+                    this.sessionDropdownToggle.classList.remove('active');
+                }
+                
+                // Update dropdown list
+                this.renderRunningSessionsList();
+            }
+            
+            renderRunningSessionsList() {
+                this.runningSessionsList.innerHTML = '';
+                
+                if (this.runningSessions.length === 0) {
+                    this.runningSessionsList.innerHTML = `
+                        <div style="padding: 1rem; text-align: center; color: var(--text-muted); font-style: italic;">
+                            No running sessions
+                        </div>
+                    `;
+                    return;
+                }
+                
+                this.runningSessions.forEach(session => {
+                    const sessionItem = document.createElement('div');
+                    sessionItem.className = `session-dropdown-item ${session.isActive ? 'active' : ''}`;
+                    
+                    sessionItem.innerHTML = `
+                        <div class="session-item-info">
+                            <div class="session-item-name">${session.sessionName}</div>
+                            <div class="session-item-status">${session.status}</div>
+                        </div>
+                        <div class="session-item-actions">
+                            ${!session.isActive ? `<button class="session-action-btn" data-action="switch" data-session-id="${session.sessionId}" title="Switch to this session">🔄</button>` : ''}
+                            <button class="session-action-btn" data-action="stop" data-session-id="${session.sessionId}" title="Stop session">⏹</button>
+                        </div>
+                    `;
+                    
+                    // Add event listeners for session actions
+                    sessionItem.querySelectorAll('.session-action-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const action = btn.dataset.action;
+                            const sessionId = btn.dataset.sessionId;
+                            
+                            if (action === 'switch') {
+                                this.switchToSession(sessionId);
+                            } else if (action === 'stop') {
+                                this.stopSession(sessionId);
+                            }
+                        });
+                    });
+                    
+                    // Make entire item clickable to switch (except if already active)
+                    if (!session.isActive) {
+                        sessionItem.style.cursor = 'pointer';
+                        sessionItem.addEventListener('click', () => {
+                            this.switchToSession(session.sessionId);
+                        });
+                    }
+                    
+                    this.runningSessionsList.appendChild(sessionItem);
+                });
+            }
+            
+            async switchToSession(sessionId) {
+                try {
+                    this.hideSessionDropdown();
+                    
+                    const response = await fetch('/api/goose/switch-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sessionId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`🔄 Switched to session: ${sessionId}\n`, 'system-message');
+                        this.scrollToBottom();
+                        this.loadRunningSessions(); // Refresh the list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error switching session:', error);
+                    this.appendText(`❌ Failed to switch session: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async stopSession(sessionId) {
+                try {
+                    const session = this.runningSessions.find(s => s.sessionId === sessionId);
+                    const sessionName = session ? session.sessionName : sessionId;
+                    
+                    if (!confirm(`Are you sure you want to stop session "${sessionName}"?`)) {
+                        return;
+                    }
+                    
+                    const response = await fetch('/api/goose/stop-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sessionId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`⏹ Stopped session: ${sessionName}\n`, 'system-message');
+                        this.scrollToBottom();
+                        this.loadRunningSessions(); // Refresh the list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error stopping session:', error);
+                    this.appendText(`❌ Failed to stop session: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            // === END SESSION SWITCHER METHODS ===
         }
         
         // Initialize the app
