@@ -335,6 +335,14 @@ class GooseConversationManager extends EventEmitter {
       throw new Error('No active Goose session');
     }
 
+    // Debug logging for conversation manager
+    console.log('=== CONVERSATION MANAGER SEND ===');
+    console.log('Message length:', message.length);
+    console.log('Contains newlines:', message.includes('\n'));
+    console.log('Newline count:', (message.match(/\n/g) || []).length);
+    console.log('Raw message:', JSON.stringify(message));
+    console.log('=================================');
+
     // Add the user message to our conversation ONCE
     const userMessage = this.addMessage({
       role: 'user',

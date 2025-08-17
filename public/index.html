@@ -1438,7 +1438,7 @@
         
         <div class="input-container">
             <div class="input-row">
-                <textarea id="messageInput" placeholder="Type your message to Goose... (Shift+Enter for new line)" maxlength="2000" rows="1"></textarea>
+                <textarea id="messageInput" placeholder="Type your message to Goose... (Shift+Enter for new line)" maxlength="5000" rows="1"></textarea>
                 <button id="sendBtn">Send</button>
             </div>
         </div>
@@ -1712,10 +1712,27 @@
                 // Initialize working directory to current location
                 this.initializeWorkingDirectory();
                 
+                // Load configuration and set input length
+                this.loadConfig();
+                
                 // Auto-show session modal if no active session after initial load
                 setTimeout(() => {
                     this.checkForAutoSessionModal();
                 }, 1000);
+            }
+            
+            async loadConfig() {
+                try {
+                    const response = await fetch('/api/config');
+                    const config = await response.json();
+                    
+                    // Set the maxlength attribute on the textarea
+                    this.messageInput.maxLength = config.inputLength;
+                } catch (error) {
+                    console.warn('Failed to load config, using default input length:', error);
+                    // Fallback to default
+                    this.messageInput.maxLength = 5000;
+                }
             }
             
             setupTheme() {
@@ -2134,6 +2151,14 @@
             async sendMessage() {
                 const content = this.messageInput.value.trim();
                 if (!content) return;
+                
+                // Debug logging for frontend
+                console.log('=== FRONTEND SENDING MESSAGE ===');
+                console.log('Content length:', content.length);
+                console.log('Contains newlines:', content.includes('\n'));
+                console.log('Newline count:', (content.match(/\n/g) || []).length);
+                console.log('Raw content:', JSON.stringify(content));
+                console.log('================================');
                 
                 this.messageInput.value = '';
                 this.resizeTextarea(this.messageInput);

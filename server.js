@@ -49,6 +49,12 @@ class GooseWebServer {
       res.json(conversationManager.getGooseStatus());
     });
 
+    this.app.get('/api/config', (req, res) => {
+      res.json({
+        inputLength: parseInt(process.env.INPUT_LENGTH) || 5000
+      });
+    });
+
     this.app.get('/api/goose/sessions', async (req, res) => {
       try {
         const sessions = await conversationManager.listGooseSessions();
@@ -149,6 +155,14 @@ class GooseWebServer {
     this.app.post('/api/message', async (req, res) => {
       try {
         const { content } = req.body;
+        
+        // Debug logging for message content
+        console.log('=== RECEIVED MESSAGE AT SERVER ===');
+        console.log('Content length:', content.length);
+        console.log('Contains newlines:', content.includes('\n'));
+        console.log('Newline count:', (content.match(/\n/g) || []).length);
+        console.log('Raw content:', JSON.stringify(content));
+        console.log('==================================');
         
         const status = conversationManager.getGooseStatus();
         if (!status.active) {

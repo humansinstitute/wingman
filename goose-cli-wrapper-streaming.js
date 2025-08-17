@@ -224,11 +224,28 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       throw new Error('Goose session not ready');
     }
 
+    // Debug logging to verify message content
+    console.log('=== SENDING MESSAGE TO GOOSE ===');
+    console.log('Message length:', message.length);
+    console.log('Contains newlines:', message.includes('\n'));
+    console.log('Newline count:', (message.match(/\n/g) || []).length);
+    console.log('Raw message:', JSON.stringify(message));
+    console.log('=================================');
+
     // Flush any pending content before new message
     this.flushBuffer(new Date().toISOString());
 
     return new Promise((resolve) => {
-      this.gooseProcess.stdin.write(message + '\n');
+      // For multi-line messages, convert to single line to prevent line-by-line processing
+      if (message.includes('\n')) {
+        // Join lines with spaces, collapsing multiple newlines into single spaces
+        const singleLineMessage = message.replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim();
+        this.gooseProcess.stdin.write(singleLineMessage + '\n');
+        console.log('Sent multi-line message as single line:', singleLineMessage.substring(0, 100) + '...');
+      } else {
+        // Single line message - send normally
+        this.gooseProcess.stdin.write(message + '\n');
+      }
       resolve({ sent: true, message });
     });
   }
