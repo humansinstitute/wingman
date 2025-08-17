@@ -335,7 +335,8 @@
             width: 100%;
         }
         
-        .input-container input {
+        .input-container input,
+        .input-container textarea {
             flex: 1;
             padding: 0.75rem;
             border: 1px solid var(--border-secondary);
@@ -345,9 +346,14 @@
             font-size: 0.875rem;
             font-family: inherit;
             transition: all 0.2s ease;
+            resize: none;
+            min-height: 3rem;
+            max-height: calc(5 * 1.5em + 1.5rem);
+            line-height: 1.5;
         }
         
-        .input-container input:focus {
+        .input-container input:focus,
+        .input-container textarea:focus {
             outline: none;
             border-color: var(--accent-primary);
             background: var(--bg-primary);
@@ -1216,9 +1222,14 @@
                 display: none;
             }
 
-            /* Hide send button on mobile */
+            /* Re-enable send button on mobile */
             .input-container button#sendBtn {
-                display: none;
+                display: block;
+            }
+
+            /* Mobile textarea height limit (3 lines) */
+            .input-container textarea {
+                max-height: calc(3 * 1.5em + 1.5rem);
             }
 
             /* Adjust chat container padding */
@@ -1427,7 +1438,7 @@
         
         <div class="input-container">
             <div class="input-row">
-                <input type="text" id="messageInput" placeholder="Type your message to Goose..." maxlength="2000">
+                <textarea id="messageInput" placeholder="Type your message to Goose... (Shift+Enter for new line)" maxlength="2000" rows="1"></textarea>
                 <button id="sendBtn">Send</button>
             </div>
         </div>
@@ -1906,6 +1917,11 @@
                     }
                 });
                 
+                // Auto-resize textarea
+                this.messageInput.addEventListener('input', () => {
+                    this.resizeTextarea(this.messageInput);
+                });
+                
                 this.commandInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2101,11 +2117,26 @@
                     .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
             }
             
+            resizeTextarea(textarea) {
+                // Reset height to auto to get the scroll height
+                textarea.style.height = 'auto';
+                
+                // Calculate the new height based on scroll height
+                const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
+                const padding = parseFloat(getComputedStyle(textarea).paddingTop) + parseFloat(getComputedStyle(textarea).paddingBottom);
+                const maxLines = window.innerWidth <= 768 ? 3 : 5; // 3 lines on mobile, 5 on desktop
+                const maxHeight = (lineHeight * maxLines) + padding;
+                
+                const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+                textarea.style.height = newHeight + 'px';
+            }
+            
             async sendMessage() {
                 const content = this.messageInput.value.trim();
                 if (!content) return;
                 
                 this.messageInput.value = '';
+                this.resizeTextarea(this.messageInput);
                 this.sendBtn.disabled = true;
                 this.loading.style.display = 'block';
                 
