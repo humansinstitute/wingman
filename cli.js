@@ -2,6 +2,7 @@ const readline = require('readline');
 const chalk = require('chalk');
 const io = require('socket.io-client');
 const conversationManager = require('./shared-state');
+const ScheduleEngine = require('./schedule-engine');
 
 class GooseCLIInterface {
   constructor() {
@@ -10,6 +11,9 @@ class GooseCLIInterface {
       output: process.stdout,
       prompt: chalk.blue('You: ')
     });
+
+    // Initialize schedule engine
+    this.scheduleEngine = new ScheduleEngine();
 
     // Connect to the web server if it's running
     this.socket = io('http://localhost:3000', {
@@ -160,6 +164,61 @@ class GooseCLIInterface {
         this.rl.prompt();
         return;
       }
+
+      // Schedule management commands
+      if (trimmedInput.startsWith('/schedule-create')) {
+        await this.handleScheduleCreate(trimmedInput);
+        this.rl.prompt();
+        return;
+      }
+
+      if (trimmedInput.startsWith('/schedule-list')) {
+        await this.handleScheduleList(trimmedInput);
+        this.rl.prompt();
+        return;
+      }
+
+      if (trimmedInput.startsWith('/schedule-show ')) {
+        await this.handleScheduleShow(trimmedInput.substring(15));
+        this.rl.prompt();
+        return;
+      }
+
+      if (trimmedInput.startsWith('/schedule-pause ')) {
+        await this.handleSchedulePause(trimmedInput.substring(16));
+        this.rl.prompt();
+        return;
+      }
+
+      if (trimmedInput.startsWith('/schedule-resume ')) {
+        await this.handleScheduleResume(trimmedInput.substring(17));
+        this.rl.prompt();
+        return;
+      }
+
+      if (trimmedInput.startsWith('/schedule-delete ')) {
+        await this.handleScheduleDelete(trimmedInput.substring(17));
+        this.rl.prompt();
+        return;
+      }
+
+      if (trimmedInput.startsWith('/schedule-run ')) {
+        await this.handleScheduleRun(trimmedInput.substring(14));
+        this.rl.prompt();
+        return;
+      }
+
+      if (trimmedInput.startsWith('/schedule-history')) {
+        await this.handleScheduleHistory(trimmedInput);
+        this.rl.prompt();
+        return;
+      }
+
+      if (trimmedInput.startsWith('/schedule-status')) {
+        await this.handleScheduleStatus();
+        this.rl.prompt();
+        return;
+      }
       
 
       if (trimmedInput) {
@@ -189,6 +248,17 @@ class GooseCLIInterface {
     console.log(chalk.magenta('  /goose-sessions               - List all Goose sessions'));
     console.log(chalk.magenta('  /goose-status                 - Show Goose session status'));
     console.log(chalk.magenta('  /goose-cmd <command>          - Send slash command to Goose'));
+    
+    console.log(chalk.blue('\n=== Schedule Management ==='));
+    console.log(chalk.blue('  /schedule-create              - Create new schedule'));
+    console.log(chalk.blue('  /schedule-list                - List all schedules'));
+    console.log(chalk.blue('  /schedule-show <id>           - Show schedule details'));
+    console.log(chalk.blue('  /schedule-pause <id>          - Pause a schedule'));
+    console.log(chalk.blue('  /schedule-resume <id>         - Resume a paused schedule'));
+    console.log(chalk.blue('  /schedule-delete <id>         - Delete a schedule'));
+    console.log(chalk.blue('  /schedule-run <id>            - Run schedule immediately'));
+    console.log(chalk.blue('  /schedule-history [id]        - Show execution history'));
+    console.log(chalk.blue('  /schedule-status              - Show schedule engine status'));
     
     console.log(chalk.yellow('\n=== Example Goose Commands ==='));
     console.log(chalk.yellow('  /goose-cmd /help              - Show Goose help'));
@@ -405,6 +475,193 @@ class GooseCLIInterface {
       process.stdout.write('\r' + ' '.repeat(20) + '\r');
       console.log(chalk.red(`\nError communicating with Goose: ${error.message}`));
     }
+  }
+
+  // Schedule management handlers
+  async handleScheduleCreate(input) {
+    console.log(chalk.cyan('\n=== Create New Schedule ==='));
+    
+    try {
+      const config = {};
+      
+      // Interactive schedule creation
+      config.name = await this.askQuestion('Schedule name: ');
+      config.description = await this.askQuestion('Description (optional): ');
+      config.recipeId = await this.askQuestion('Recipe ID: ');
+      config.cronExpression = await this.askQuestion('Cron expression (e.g., "30 6 * * 1-5"): ');
+      
+      const parametersInput = await this.askQuestion('Parameters (JSON, optional): ');
+      if (parametersInput.trim()) {
+        try {
+          config.parameters = JSON.parse(parametersInput);
+        } catch (error) {
+          console.log(chalk.red('Invalid JSON parameters, using empty object'));
+          config.parameters = {};
+        }
+      }
+
+      const schedule = await this.scheduleEngine.createSchedule(config);
+      console.log(chalk.green(`✓ Schedule created: ${schedule.id}`));
+      console.log(`Next execution: ${schedule.nextExecution}`);
+    } catch (error) {
+      console.log(chalk.red(`✗ Failed to create schedule: ${error.message}`));
+    }
+  }
+
+  async handleScheduleList(input) {
+    try {
+      const schedules = await this.scheduleEngine.getAllSchedules();
+      
+      if (schedules.length === 0) {
+        console.log(chalk.yellow('\nNo schedules found'));
+        return;
+      }
+      
+      console.log(chalk.cyan('\n=== Scheduled Jobs ==='));
+      console.log('─'.repeat(80));
+      
+      for (const schedule of schedules) {
+        const status = schedule.enabled ? chalk.green('●') : chalk.red('○');
+        const nextRun = schedule.nextExecution ? 
+          new Date(schedule.nextExecution).toLocaleString() : 'N/A';
+        
+        console.log(`${status} ${chalk.bold(schedule.name)} (${schedule.id})`);
+        console.log(`   Recipe: ${schedule.recipeId}`);
+        console.log(`   Schedule: ${schedule.cronExpression}`);
+        console.log(`   Next run: ${nextRun}`);
+        console.log(`   Executions: ${schedule.executionCount} (${schedule.failureCount} failed)`);
+        console.log('');
+      }
+    } catch (error) {
+      console.log(chalk.red(`Error listing schedules: ${error.message}`));
+    }
+  }
+
+  async handleScheduleShow(scheduleId) {
+    try {
+      const schedule = await this.scheduleEngine.getSchedule(scheduleId);
+      if (!schedule) {
+        console.log(chalk.red(`Schedule not found: ${scheduleId}`));
+        return;
+      }
+
+      console.log(chalk.cyan('\n=== Schedule Details ==='));
+      console.log(`${chalk.bold('ID:')} ${schedule.id}`);
+      console.log(`${chalk.bold('Name:')} ${schedule.name}`);
+      console.log(`${chalk.bold('Description:')} ${schedule.description || 'None'}`);
+      console.log(`${chalk.bold('Recipe:')} ${schedule.recipeId}`);
+      console.log(`${chalk.bold('Schedule:')} ${schedule.cronExpression}`);
+      console.log(`${chalk.bold('Timezone:')} ${schedule.timezone}`);
+      console.log(`${chalk.bold('Status:')} ${schedule.enabled ? chalk.green('Enabled') : chalk.red('Disabled')}`);
+      console.log(`${chalk.bold('Created:')} ${new Date(schedule.createdAt).toLocaleString()}`);
+      console.log(`${chalk.bold('Next run:')} ${schedule.nextExecution ? new Date(schedule.nextExecution).toLocaleString() : 'N/A'}`);
+      console.log(`${chalk.bold('Last run:')} ${schedule.lastExecuted ? new Date(schedule.lastExecuted).toLocaleString() : 'Never'}`);
+      console.log(`${chalk.bold('Executions:')} ${schedule.executionCount} (${schedule.failureCount} failed)`);
+      
+      if (Object.keys(schedule.parameters).length > 0) {
+        console.log(`${chalk.bold('Parameters:')}`);
+        console.log(JSON.stringify(schedule.parameters, null, 2));
+      }
+    } catch (error) {
+      console.log(chalk.red(`Error showing schedule: ${error.message}`));
+    }
+  }
+
+  async handleSchedulePause(scheduleId) {
+    try {
+      await this.scheduleEngine.pauseSchedule(scheduleId);
+      console.log(chalk.green(`✓ Schedule paused: ${scheduleId}`));
+    } catch (error) {
+      console.log(chalk.red(`✗ Failed to pause schedule: ${error.message}`));
+    }
+  }
+
+  async handleScheduleResume(scheduleId) {
+    try {
+      await this.scheduleEngine.resumeSchedule(scheduleId);
+      console.log(chalk.green(`✓ Schedule resumed: ${scheduleId}`));
+    } catch (error) {
+      console.log(chalk.red(`✗ Failed to resume schedule: ${error.message}`));
+    }
+  }
+
+  async handleScheduleDelete(scheduleId) {
+    try {
+      const confirm = await this.askQuestion(`Are you sure you want to delete schedule ${scheduleId}? (y/N): `);
+      if (confirm.toLowerCase() === 'y' || confirm.toLowerCase() === 'yes') {
+        await this.scheduleEngine.deleteSchedule(scheduleId);
+        console.log(chalk.green(`✓ Schedule deleted: ${scheduleId}`));
+      } else {
+        console.log(chalk.yellow('Deletion cancelled'));
+      }
+    } catch (error) {
+      console.log(chalk.red(`✗ Failed to delete schedule: ${error.message}`));
+    }
+  }
+
+  async handleScheduleRun(scheduleId) {
+    try {
+      console.log(chalk.yellow(`Running schedule: ${scheduleId}`));
+      await this.scheduleEngine.executeSchedule(scheduleId);
+      console.log(chalk.green('✓ Schedule execution started'));
+    } catch (error) {
+      console.log(chalk.red(`✗ Failed to run schedule: ${error.message}`));
+    }
+  }
+
+  async handleScheduleHistory(input) {
+    try {
+      const parts = input.trim().split(' ');
+      const scheduleId = parts.length > 1 ? parts[1] : null;
+      const limit = 10;
+
+      const history = await this.scheduleEngine.getExecutionHistory(scheduleId, limit);
+      
+      if (history.length === 0) {
+        console.log(chalk.yellow('\nNo execution history found'));
+        return;
+      }
+
+      console.log(chalk.cyan('\n=== Execution History ==='));
+      console.log('─'.repeat(80));
+
+      for (const execution of history) {
+        const status = execution.status === 'completed' ? chalk.green('✓') : 
+                      execution.status === 'failed' ? chalk.red('✗') : 
+                      chalk.yellow('●');
+        
+        const duration = execution.duration ? `${Math.round(execution.duration / 1000)}s` : 'N/A';
+        
+        console.log(`${status} ${execution.scheduleId} - ${new Date(execution.startedAt).toLocaleString()}`);
+        console.log(`   Status: ${execution.status} | Duration: ${duration}`);
+        if (execution.error) {
+          console.log(`   Error: ${execution.error}`);
+        }
+        console.log('');
+      }
+    } catch (error) {
+      console.log(chalk.red(`Error getting execution history: ${error.message}`));
+    }
+  }
+
+  async handleScheduleStatus() {
+    try {
+      const status = await this.scheduleEngine.getStatus();
+      
+      console.log(chalk.cyan('\n=== Schedule Engine Status ==='));
+      console.log(`${chalk.bold('Total schedules:')} ${status.totalSchedules}`);
+      console.log(`${chalk.bold('Active schedules:')} ${status.activeSchedules}`);
+      console.log(`${chalk.bold('Running executions:')} ${status.runningExecutions}`);
+      console.log(`${chalk.bold('Engine uptime:')} ${Math.round(status.uptime)}s`);
+    } catch (error) {
+      console.log(chalk.red(`Error getting schedule status: ${error.message}`));
+    }
+  }
+
+  askQuestion(question) {
+    return new Promise(resolve => {
+      this.rl.question(question, resolve);
+    });
   }
 }
 

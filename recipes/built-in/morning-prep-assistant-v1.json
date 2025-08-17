@@ -1,0 +1,96 @@
+{
+  "id": "morning-prep-assistant-v1",
+  "name": "Morning Preparation Assistant",
+  "version": "1.0.0",
+  "description": "Comprehensive morning preparation routine that reviews tasks, PRs, documentation, and creates daily plans",
+  "category": "automation",
+  "tags": ["morning", "planning", "review", "obsidian", "github", "productivity"],
+  "author": "Wingman System",
+  
+  "parameters": [
+    {
+      "name": "obsidian_vault",
+      "type": "string",
+      "required": true,
+      "description": "Path to your Obsidian vault",
+      "default": "{{user.vault_path}}"
+    },
+    {
+      "name": "github_username",
+      "type": "string", 
+      "required": true,
+      "description": "Your GitHub username for PR review"
+    },
+    {
+      "name": "review_days",
+      "type": "number",
+      "default": 7,
+      "description": "Number of days to look back for reviews",
+      "validation": {
+        "min": 1,
+        "max": 30
+      }
+    },
+    {
+      "name": "focus_areas",
+      "type": "string",
+      "default": "development,documentation,planning",
+      "description": "Comma-separated focus areas for review"
+    },
+    {
+      "name": "work_start_time",
+      "type": "string",
+      "default": "9:00",
+      "description": "Your typical work start time (HH:MM format)"
+    },
+    {
+      "name": "daily_plan_template",
+      "type": "select",
+      "options": ["checklist", "timeblock", "priority_matrix", "kanban"],
+      "default": "timeblock",
+      "description": "Format for daily plan output"
+    }
+  ],
+
+  "extensions": [
+    "mcpobsidian",
+    "developer", 
+    "bravesearch",
+    "memory"
+  ],
+
+  "builtins": [
+    "developer"
+  ],
+
+  "settings": {
+    "execution_timeout": "30m",
+    "max_obsidian_search_results": 50,
+    "enable_github_api": true,
+    "save_intermediate_results": true
+  },
+
+  "instructions": "You are the Morning Preparation Assistant, designed to provide comprehensive daily preparation before the user starts their workday. Execute the following systematic workflow:\n\n## PHASE 1: OBSIDIAN VAULT ANALYSIS\n\n1. **Search for Active Tasks**\n   - Find all notes containing: #todo, #in-progress, #urgent, #today\n   - Identify overdue items from previous days\n   - Look for project status updates in the last {{review_days}} days\n   - Search for meeting notes and action items\n\n2. **Recent Activity Review**\n   - Find notes modified in the last 48 hours\n   - Identify new projects or initiatives\n   - Check for updated priorities or changed requirements\n\n3. **Documentation Status Check**\n   - Search for notes tagged with #documentation, #spec, #design\n   - Identify docs that may need updates based on recent changes\n   - Find placeholder content or incomplete sections\n\n## PHASE 2: GITHUB ACTIVITY REVIEW\n\n1. **Pull Request Analysis**\n   - Search for PRs created/updated in last {{review_days}} days\n   - Identify PRs awaiting your review\n   - Check for any failed CI/CD builds\n   - Note PRs that might need your input or approval\n\n2. **Repository Activity**\n   - Check for new issues assigned to you\n   - Review recent commits to projects you're involved in\n   - Identify any breaking changes that might affect your work\n\n## PHASE 3: BACKLOG AND PRIORITY ASSESSMENT\n\n1. **Project Status Review**\n   - Analyze current sprint/project progress\n   - Identify blocked items or dependencies\n   - Review milestone progress and deadlines\n\n2. **Priority Matrix Creation**\n   - Categorize tasks by urgency and importance\n   - Identify quick wins vs. strategic work\n   - Flag items that need delegation or collaboration\n\n## PHASE 4: DAILY PLAN GENERATION\n\nCreate a comprehensive daily plan using the {{daily_plan_template}} format:\n\n### If timeblock format:\n- Create realistic time blocks from {{work_start_time}} onwards\n- Include buffer time between meetings\n- Account for context switching overhead\n- Block time for deep work and administrative tasks\n\n### If checklist format:\n- Prioritized task list with estimated completion times\n- Clear success criteria for each item\n- Dependencies and prerequisites noted\n\n### If priority_matrix format:\n- Four quadrants: Urgent+Important, Important+Not Urgent, etc.\n- Strategic vs. tactical work clearly separated\n- Energy level requirements noted (high/medium/low)\n\n### If kanban format:\n- To Do, In Progress, Blocked, Done columns\n- WIP limits suggested\n- Clear definition of done for each item\n\n## PHASE 5: SYNTHESIS AND RECOMMENDATIONS\n\n1. **Key Insights Summary**\n   - Most critical items requiring immediate attention\n   - Trends or patterns noticed in recent activity\n   - Potential risks or opportunities identified\n\n2. **Proactive Suggestions**\n   - Recommendations for process improvements\n   - Suggestions for follow-up actions\n   - Ideas for strategic initiatives\n\n3. **Context for Success**\n   - Key people to connect with today\n   - Resources or information needed\n   - Potential obstacles and mitigation strategies\n\n## OUTPUT REQUIREMENTS\n\n- Save the complete daily plan to Obsidian using the path: `daily-plans/{{date}}-morning-prep.md`\n- Include metadata: generation time, parameters used, data sources\n- Use clear headings and formatting for easy scanning\n- Include actionable next steps and time estimates\n- Add relevant tags for future searchability\n- Create links to related notes and external resources\n\n## EXECUTION NOTES\n\n- Be thorough but efficient - complete analysis within 25 minutes\n- Focus on actionable insights rather than comprehensive summaries\n- Prioritize based on user's stated focus areas: {{focus_areas}}\n- If any data source is unavailable, note this and proceed with available information\n- Include confidence levels for recommendations when appropriate\n\nBegin your morning preparation routine now. Today's date is {{date}} and you're preparing for a workday starting at {{work_start_time}}.",
+
+  "prompt": "Good morning! I'm your Morning Preparation Assistant, ready to help you start the day with clarity and focus.\n\nI'll now systematically review your:\n- Obsidian vault ({{obsidian_vault}}) for active tasks and recent updates\n- GitHub activity for {{github_username}} over the past {{review_days}} days  \n- Project backlogs and priorities\n\nThen I'll create a {{daily_plan_template}} formatted daily plan optimized for your {{work_start_time}} start time, focusing on {{focus_areas}}.\n\nLet me begin the morning preparation routine...",
+
+  "createdAt": "2025-08-16T07:24:54.000Z",
+  "updatedAt": "2025-08-16T07:24:54.000Z",
+  "usageCount": 0,
+  "isPublic": false,
+  
+  "executionSettings": {
+    "maxDuration": 1800000,
+    "retryAttempts": 2,
+    "retryInterval": 300000,
+    "saveIntermediateResults": true,
+    "enableParallelProcessing": false
+  },
+
+  "outputConfiguration": {
+    "formats": ["obsidian", "json", "summary"],
+    "obsidianPath": "daily-plans/{{date}}-morning-prep.md",
+    "includeMetadata": true,
+    "tagStrategy": "hierarchical"
+  }
+}

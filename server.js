@@ -7,6 +7,7 @@ const cors = require('cors');
 const os = require('os');
 const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
+const ScheduleEngine = require('./schedule-engine');
 
 class GooseWebServer {
   constructor(port = 3000) {
@@ -19,6 +20,9 @@ class GooseWebServer {
       }
     });
     this.port = port;
+
+    // Initialize schedule engine
+    this.scheduleEngine = new ScheduleEngine();
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -39,6 +43,10 @@ class GooseWebServer {
 
     this.app.get('/recipes', (req, res) => {
       res.sendFile(path.join(__dirname, 'public', 'recipes.html'));
+    });
+
+    this.app.get('/schedules', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'schedules.html'));
     });
 
     this.app.get('/api/conversation', (req, res) => {
@@ -363,6 +371,117 @@ class GooseWebServer {
           currentPath: resolvedPath,
           directories: result
         });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Schedule Management Routes
+    this.app.get('/api/schedules', async (req, res) => {
+      try {
+        const schedules = await this.scheduleEngine.getAllSchedules();
+        res.json(schedules);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.post('/api/schedules', async (req, res) => {
+      try {
+        const schedule = await this.scheduleEngine.createSchedule(req.body);
+        res.status(201).json(schedule);
+      } catch (error) {
+        res.status(400).json({ error: error.message });
+      }
+    });
+
+    this.app.get('/api/schedules/:id', async (req, res) => {
+      try {
+        const schedule = await this.scheduleEngine.getSchedule(req.params.id);
+        if (!schedule) {
+          return res.status(404).json({ error: 'Schedule not found' });
+        }
+        res.json(schedule);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.put('/api/schedules/:id', async (req, res) => {
+      try {
+        const schedule = await this.scheduleEngine.updateSchedule(req.params.id, req.body);
+        res.json(schedule);
+      } catch (error) {
+        if (error.message.includes('not found')) {
+          res.status(404).json({ error: error.message });
+        } else {
+          res.status(400).json({ error: error.message });
+        }
+      }
+    });
+
+    this.app.delete('/api/schedules/:id', async (req, res) => {
+      try {
+        await this.scheduleEngine.deleteSchedule(req.params.id);
+        res.json({ success: true });
+      } catch (error) {
+        if (error.message.includes('not found')) {
+          res.status(404).json({ error: error.message });
+        } else {
+          res.status(400).json({ error: error.message });
+        }
+      }
+    });
+
+    this.app.post('/api/schedules/:id/execute', async (req, res) => {
+      try {
+        await this.scheduleEngine.executeSchedule(req.params.id);
+        res.json({ message: 'Schedule execution started' });
+      } catch (error) {
+        res.status(400).json({ error: error.message });
+      }
+    });
+
+    this.app.post('/api/schedules/:id/pause', async (req, res) => {
+      try {
+        const schedule = await this.scheduleEngine.pauseSchedule(req.params.id);
+        res.json(schedule);
+      } catch (error) {
+        if (error.message.includes('not found')) {
+          res.status(404).json({ error: error.message });
+        } else {
+          res.status(400).json({ error: error.message });
+        }
+      }
+    });
+
+    this.app.post('/api/schedules/:id/resume', async (req, res) => {
+      try {
+        const schedule = await this.scheduleEngine.resumeSchedule(req.params.id);
+        res.json(schedule);
+      } catch (error) {
+        if (error.message.includes('not found')) {
+          res.status(404).json({ error: error.message });
+        } else {
+          res.status(400).json({ error: error.message });
+        }
+      }
+    });
+
+    this.app.get('/api/schedules/:id/history', async (req, res) => {
+      try {
+        const limit = parseInt(req.query.limit) || 50;
+        const history = await this.scheduleEngine.getExecutionHistory(req.params.id, limit);
+        res.json(history);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.get('/api/schedule-status', async (req, res) => {
+      try {
+        const status = await this.scheduleEngine.getStatus();
+        res.json(status);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }

@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule Management - Wingman</title>
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png" id="favicon-light">
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png" id="favicon-dark" disabled>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS Variables for theming - matching main app */
+        :root {
+            /* Light theme (default) */
+            --bg-gradient-start: #f9f9f9;
+            --bg-gradient-end: #f5f5f0;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafaf9;
+            --bg-tertiary: #f5f5f4;
+            --text-primary: #1c1917;
+            --text-secondary: #44403c;
+            --text-tertiary: #57534e;
+            --text-muted: #78716c;
+            --text-disabled: #a8a29e;
+            --border-primary: #e7e5e4;
+            --border-secondary: #d6d3d1;
+            --accent-primary: #059669;
+            --accent-secondary: #047857;
+            --accent-tertiary: #065f46;
+            --accent-light: #d1fae5;
+            --accent-bg: #f0fdf4;
+            --code-bg: #1c1917;
+            --code-text: #f5f5f4;
+            --inline-code-bg: #f5f5f4;
+            --inline-code-text: #dc2626;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 2px 4px rgba(5, 150, 105, 0.2);
+            --shadow-lg: 0 4px 8px rgba(5, 150, 105, 0.3);
+        }
+
+        /* Dark theme */
+        body.dark-theme {
+            --bg-gradient-start: #0a0a0a;
+            --bg-gradient-end: #1c1917;
+            --bg-primary: #1c1917;
+            --bg-secondary: #292524;
+            --bg-tertiary: #44403c;
+            --text-primary: #f5f5f4;
+            --text-secondary: #e7e5e4;
+            --text-tertiary: #d6d3d1;
+            --text-muted: #a8a29e;
+            --text-disabled: #78716c;
+            --border-primary: #44403c;
+            --border-secondary: #57534e;
+            --accent-primary: #10b981;
+            --accent-secondary: #059669;
+            --accent-tertiary: #34d399;
+            --accent-light: #064e3b;
+            --accent-bg: #022c22;
+            --code-bg: #000000;
+            --code-text: #f5f5f4;
+            --inline-code-bg: #292524;
+            --inline-code-text: #34d399;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 2px 4px rgba(16, 185, 129, 0.2);
+            --shadow-lg: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(to bottom, var(--bg-gradient-start), var(--bg-gradient-end));
+            color: var(--text-tertiary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            line-height: 1.5;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        
+        .header {
+            background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+        
+        .header h1 {
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .logo {
+            height: 32px;
+            width: auto;
+        }
+        
+        .logo-light {
+            display: block;
+        }
+        
+        .logo-dark {
+            display: none;
+        }
+        
+        body.dark-theme .logo-light {
+            display: none;
+        }
+        
+        body.dark-theme .logo-dark {
+            display: block;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--accent-primary);
+        }
+        
+        .nav-links a.active {
+            color: var(--accent-primary);
+        }
+        
+        .theme-toggle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+        
+        .theme-toggle:hover {
+            background: var(--bg-tertiary);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .theme-icon-light {
+            display: inline;
+        }
+        
+        .theme-icon-dark {
+            display: none;
+        }
+        
+        body.dark-theme .theme-icon-light {
+            display: none;
+        }
+        
+        body.dark-theme .theme-icon-dark {
+            display: inline;
+        }
+        
+        .container {
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .actions {
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .btn:hover {
+            background: var(--accent-secondary);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--border-primary);
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+        
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 13px;
+        }
+        
+        .status-info {
+            margin-left: auto;
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            border: 1px solid var(--border-primary);
+        }
+        
+        .schedules-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        }
+        
+        .schedule-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .schedule-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+            border-color: var(--accent-light);
+        }
+        
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .schedule-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .schedule-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, monospace;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: var(--accent-bg);
+            color: var(--accent-primary);
+            border: 1px solid var(--accent-light);
+        }
+        
+        .status-paused {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        body.dark-theme .status-paused {
+            background: #450a0a;
+            border-color: #7f1d1d;
+        }
+        
+        .schedule-details {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+        
+        .schedule-details div {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+        
+        .schedule-details strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .schedule-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal-content {
+            background: var(--bg-primary);
+            margin: 3% auto;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .modal h2 {
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+        
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, monospace;
+        }
+        
+        .form-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+        
+        .close {
+            color: var(--text-muted);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .close:hover {
+            color: var(--text-primary);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+        }
+        
+        .empty-state p {
+            color: var(--text-muted);
+        }
+        
+        .error-message {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #fecaca;
+            margin-bottom: 1rem;
+        }
+        
+        body.dark-theme .error-message {
+            background: #450a0a;
+            border-color: #7f1d1d;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .schedules-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .status-info {
+                margin-left: 0;
+                text-align: center;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+                padding: 1.5rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <img src="Wingman_Goose_Logo_Light.png" alt="Wingman" class="logo logo-light">
+            <img src="Wingman_Goose_Logo_Dark.png" alt="Wingman" class="logo logo-dark">
+            Schedule Management
+        </h1>
+        <div class="header-right">
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/recipes">Recipes</a>
+                <a href="/schedules" class="active">Schedules</a>
+            </div>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+                <span class="theme-icon-light">☀️</span>
+                <span class="theme-icon-dark">🌙</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="actions">
+            <button class="btn" onclick="showCreateModal()">Create Schedule</button>
+            <button class="btn btn-secondary" onclick="loadSchedules()">Refresh</button>
+            <div class="status-info" id="status-info">
+                Loading...
+            </div>
+        </div>
+        
+        <div id="schedules-container">
+            <div class="loading">Loading schedules...</div>
+        </div>
+    </div>
+
+    <!-- Create Schedule Modal -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('createModal')">&times;</span>
+            <h2>Create New Schedule</h2>
+            <form id="createScheduleForm">
+                <div class="form-group">
+                    <label for="scheduleName">Schedule Name</label>
+                    <input type="text" id="scheduleName" required placeholder="e.g., Morning Preparation">
+                </div>
+                
+                <div class="form-group">
+                    <label for="scheduleDescription">Description</label>
+                    <textarea id="scheduleDescription" placeholder="Optional description of what this schedule does"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="recipeId">Recipe ID</label>
+                    <input type="text" id="recipeId" required placeholder="e.g., morning-prep-assistant-v1">
+                    <small>Enter the ID of the recipe to run on schedule</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cronExpression">Cron Expression</label>
+                    <input type="text" id="cronExpression" required placeholder="e.g., 30 6 * * 1-5">
+                    <small>Format: minute hour day month weekday. Use <a href="https://crontab.guru" target="_blank" style="color: var(--accent-primary);">crontab.guru</a> for help</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="timezone">Timezone</label>
+                    <input type="text" id="timezone" placeholder="UTC" value="UTC">
+                    <small>e.g., America/New_York, Europe/London, UTC</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="parameters">Parameters (JSON)</label>
+                    <textarea id="parameters" placeholder='{"obsidian_vault": "/path/to/vault", "github_username": "your-username"}'></textarea>
+                    <small>Recipe-specific parameters in JSON format</small>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancel</button>
+                    <button type="submit" class="btn">Create Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let schedules = [];
+        
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                updateFavicon(true);
+            }
+        }
+        
+        function updateFavicon(isDark) {
+            const lightFavicon = document.getElementById('favicon-light');
+            const darkFavicon = document.getElementById('favicon-dark');
+            
+            if (isDark) {
+                lightFavicon.setAttribute('disabled', 'disabled');
+                darkFavicon.removeAttribute('disabled');
+            } else {
+                darkFavicon.setAttribute('disabled', 'disabled');
+                lightFavicon.removeAttribute('disabled');
+            }
+        }
+        
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            document.body.classList.toggle('dark-theme');
+            const isDark = document.body.classList.contains('dark-theme');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateFavicon(isDark);
+        });
+        
+        // Load schedules on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+            loadSchedules();
+            loadStatus();
+            
+            // Refresh status every 30 seconds
+            setInterval(loadStatus, 30000);
+        });
+        
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/schedules');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                schedules = await response.json();
+                renderSchedules();
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+                document.getElementById('schedules-container').innerHTML = 
+                    '<div class="error-message">Error loading schedules: ' + error.message + '</div>';
+            }
+        }
+        
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/schedule-status');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const status = await response.json();
+                document.getElementById('status-info').innerHTML = 
+                    `Active: ${status.activeSchedules}/${status.totalSchedules} | Running: ${status.runningExecutions}`;
+            } catch (error) {
+                console.error('Error loading status:', error);
+                document.getElementById('status-info').innerHTML = 'Status unavailable';
+            }
+        }
+        
+        function renderSchedules() {
+            const container = document.getElementById('schedules-container');
+            
+            if (!Array.isArray(schedules) || schedules.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No schedules found</h3>
+                        <p>Create your first schedule to automate your Wingman workflows</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const grid = document.createElement('div');
+            grid.className = 'schedules-grid';
+            
+            schedules.forEach(schedule => {
+                const card = createScheduleCard(schedule);
+                grid.appendChild(card);
+            });
+            
+            container.innerHTML = '';
+            container.appendChild(grid);
+        }
+        
+        function createScheduleCard(schedule) {
+            const card = document.createElement('div');
+            card.className = 'schedule-card';
+            
+            const statusClass = schedule.enabled ? 'status-active' : 'status-paused';
+            const statusText = schedule.enabled ? 'Active' : 'Paused';
+            
+            const nextRun = schedule.nextExecution ? 
+                new Date(schedule.nextExecution).toLocaleString() : 'N/A';
+            const lastRun = schedule.lastExecuted ? 
+                new Date(schedule.lastExecuted).toLocaleString() : 'Never';
+            
+            card.innerHTML = `
+                <div class="schedule-header">
+                    <div>
+                        <div class="schedule-title">${escapeHtml(schedule.name)}</div>
+                        <div class="schedule-meta">${schedule.id}</div>
+                    </div>
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+                
+                <div class="schedule-details">
+                    <div><strong>Recipe:</strong> ${escapeHtml(schedule.recipeId)}</div>
+                    <div><strong>Schedule:</strong> ${escapeHtml(schedule.cronExpression)}</div>
+                    <div><strong>Next run:</strong> ${nextRun}</div>
+                    <div><strong>Last run:</strong> ${lastRun}</div>
+                    <div><strong>Executions:</strong> ${schedule.executionCount} (${schedule.failureCount} failed)</div>
+                    ${schedule.description ? `<div><strong>Description:</strong> ${escapeHtml(schedule.description)}</div>` : ''}
+                </div>
+                
+                <div class="schedule-actions">
+                    <button class="btn btn-sm" onclick="runSchedule('${schedule.id}')">Run Now</button>
+                    ${schedule.enabled ? 
+                        `<button class="btn btn-sm btn-secondary" onclick="pauseSchedule('${schedule.id}')">Pause</button>` :
+                        `<button class="btn btn-sm" onclick="resumeSchedule('${schedule.id}')">Resume</button>`
+                    }
+                    <button class="btn btn-sm btn-secondary" onclick="showScheduleDetails('${schedule.id}')">Details</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSchedule('${schedule.id}')">Delete</button>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        function showCreateModal() {
+            document.getElementById('createModal').style.display = 'block';
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        document.getElementById('createScheduleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const data = {
+                name: document.getElementById('scheduleName').value,
+                description: document.getElementById('scheduleDescription').value,
+                recipeId: document.getElementById('recipeId').value,
+                cronExpression: document.getElementById('cronExpression').value,
+                timezone: document.getElementById('timezone').value || 'UTC'
+            };
+            
+            const parametersText = document.getElementById('parameters').value;
+            if (parametersText.trim()) {
+                try {
+                    data.parameters = JSON.parse(parametersText);
+                } catch (error) {
+                    alert('Invalid JSON in parameters field');
+                    return;
+                }
+            }
+            
+            try {
+                const response = await fetch('/api/schedules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('createModal');
+                    document.getElementById('createScheduleForm').reset();
+                    loadSchedules();
+                    loadStatus();
+                } else {
+                    const error = await response.json();
+                    alert('Error creating schedule: ' + error.error);
+                }
+            } catch (error) {
+                alert('Error creating schedule: ' + error.message);
+            }
+        });
+        
+        async function runSchedule(id) {
+            if (!confirm('Run this schedule now?')) return;
+            
+            try {
+                const response = await fetch(`/api/schedules/${id}/execute`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    alert('Schedule execution started');
+                    loadStatus();
+                } else {
+                    const error = await response.json();
+                    alert('Error running schedule: ' + error.error);
+                }
+            } catch (error) {
+                alert('Error running schedule: ' + error.message);
+            }
+        }
+        
+        async function pauseSchedule(id) {
+            try {
+                const response = await fetch(`/api/schedules/${id}/pause`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    loadSchedules();
+                    loadStatus();
+                } else {
+                    const error = await response.json();
+                    alert('Error pausing schedule: ' + error.error);
+                }
+            } catch (error) {
+                alert('Error pausing schedule: ' + error.message);
+            }
+        }
+        
+        async function resumeSchedule(id) {
+            try {
+                const response = await fetch(`/api/schedules/${id}/resume`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    loadSchedules();
+                    loadStatus();
+                } else {
+                    const error = await response.json();
+                    alert('Error resuming schedule: ' + error.error);
+                }
+            } catch (error) {
+                alert('Error resuming schedule: ' + error.message);
+            }
+        }
+        
+        async function deleteSchedule(id) {
+            if (!confirm('Are you sure you want to delete this schedule?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/schedules/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadSchedules();
+                    loadStatus();
+                } else {
+                    const error = await response.json();
+                    alert('Error deleting schedule: ' + error.error);
+                }
+            } catch (error) {
+                alert('Error deleting schedule: ' + error.message);
+            }
+        }
+        
+        async function showScheduleDetails(id) {
+            try {
+                const response = await fetch(`/api/schedules/${id}`);
+                const schedule = await response.json();
+                
+                let details = `Schedule Details:\n\n`;
+                details += `ID: ${schedule.id}\n`;
+                details += `Name: ${schedule.name}\n`;
+                details += `Recipe: ${schedule.recipeId}\n`;
+                details += `Schedule: ${schedule.cronExpression}\n`;
+                details += `Timezone: ${schedule.timezone}\n`;
+                details += `Status: ${schedule.enabled ? 'Enabled' : 'Disabled'}\n`;
+                details += `Created: ${new Date(schedule.createdAt).toLocaleString()}\n`;
+                details += `Next run: ${schedule.nextExecution ? new Date(schedule.nextExecution).toLocaleString() : 'N/A'}\n`;
+                details += `Executions: ${schedule.executionCount} (${schedule.failureCount} failed)\n`;
+                
+                if (schedule.parameters && Object.keys(schedule.parameters).length > 0) {
+                    details += `\nParameters:\n${JSON.stringify(schedule.parameters, null, 2)}`;
+                }
+                
+                alert(details);
+            } catch (error) {
+                alert('Error loading schedule details: ' + error.message);
+            }
+        }
+        
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let modal of modals) {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
