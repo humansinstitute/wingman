@@ -1,0 +1,44 @@
+{
+  "name": "Wingman Idea Workflow",
+  "description": "Complete workflow for recording ideas, classification, and automated project setup",
+  "category": "development",
+  "tags": ["workflow", "idea-management", "project-setup", "obsidian", "git"],
+  "steps": [
+    {
+      "name": "Idea Recording",
+      "description": "Capture and classify the new idea",
+      "action": "Ask the user to describe their idea, then create structured documentation in Obsidian"
+    },
+    {
+      "name": "Classification",
+      "description": "Determine if this is a new product or feature for existing product",
+      "action": "Analyze the idea and classify it appropriately"
+    },
+    {
+      "name": "Environment Setup", 
+      "description": "Setup appropriate development environment based on classification",
+      "action": "Execute setup scripts and create necessary structures"
+    },
+    {
+      "name": "Documentation Creation",
+      "description": "Create comprehensive project documentation",
+      "action": "Setup Obsidian structure with templates and cross-references"
+    },
+    {
+      "name": "Development Planning",
+      "description": "Create initial development roadmap and tasks",
+      "action": "Generate project plan and development checklist"
+    }
+  ],
+  "outputs": [
+    "Obsidian documentation structure",
+    "Git worktree (for features) or new product structure",
+    "Project roadmap and planning documents",
+    "Development environment ready for coding"
+  ],
+  "requirements": [
+    "Obsidian MCP extension",
+    "Git repository with worktree support",
+    "Project setup scripts"
+  ]
+}

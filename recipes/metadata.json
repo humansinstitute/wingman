@@ -14,15 +14,19 @@
   },
   "usage": {
     "7c7583b29306b0cee9edb8bcda89e9d2": {
-      "count": 1,
+      "count": 2,
       "sessions": [
         {
           "sessionId": "recipe-Planner-1755577954767",
           "timestamp": "2025-08-19T04:32:34.778Z"
+        },
+        {
+          "sessionId": "Wingman-Idea",
+          "timestamp": "2025-08-19T04:38:16.994Z"
         }
       ],
       "firstUsed": "2025-08-19T04:32:34.778Z",
-      "lastUsed": "2025-08-19T04:32:34.778Z"
+      "lastUsed": "2025-08-19T04:38:16.994Z"
     }
   },
   "lastUpdated": "2025-08-16T05:54:11.930Z"
