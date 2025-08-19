@@ -199,18 +199,18 @@ class MultiSessionManager extends EventEmitter {
     
     wrapper.on('streamContent', (data) => {
       const message = {
-        role: 'assistant',
+        role: data.role || 'assistant', // Use role from data if provided, default to assistant
         content: data.content,
         timestamp: data.timestamp,
         source: data.source
       };
       
-      // Store assistant message in database
+      // Store message in database
       if (this.dbInitialized) {
         const metadata = this.sessionMetadata.get(sessionId);
         if (metadata) {
           this.db.addMessage(metadata.sessionName, message).catch(error => {
-            console.error('Error storing assistant message:', error);
+            console.error('Error storing message:', error);
           });
         }
       }

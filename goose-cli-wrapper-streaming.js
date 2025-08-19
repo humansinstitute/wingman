@@ -114,6 +114,58 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       }
     }
     
+    // Check for tool usage indicators (emit immediately as system messages)
+    // Process line by line to catch tool indicators mixed with other content
+    const lines = cleanData.split('\n');
+    let hasToolIndicator = false;
+    let nonToolContent = '';
+    
+    for (const line of lines) {
+      if (this.isToolIndicator(line)) {
+        // Flush any accumulated non-tool content first
+        if (nonToolContent.trim()) {
+          this.contentBuffer += nonToolContent;
+          this.resetFlushTimer(timestamp);
+          nonToolContent = '';
+        }
+        
+        // Flush current buffer
+        this.flushBuffer(timestamp);
+        
+        // Emit tool indicator as system message
+        this.emit('streamContent', {
+          content: line.trim(),
+          timestamp: timestamp,
+          source: 'goose-tool-system',
+          role: 'system'
+        });
+        hasToolIndicator = true;
+      } else if (line.trim()) {
+        nonToolContent += line + '\n';
+      }
+    }
+    
+    // If we processed tool indicators, handle any remaining content
+    if (hasToolIndicator) {
+      if (nonToolContent.trim()) {
+        this.contentBuffer += nonToolContent;
+        this.resetFlushTimer(timestamp);
+      }
+      return;
+    }
+    
+    // Check for status messages (emit immediately as system messages)
+    if (this.isStatusMessage(cleanData)) {
+      this.flushBuffer(timestamp); // Flush any pending content first
+      this.emit('streamContent', {
+        content: cleanData.trim(),
+        timestamp: timestamp,
+        source: 'goose-status-system',
+        role: 'system'
+      });
+      return;
+    }
+    
     // Skip context indicators - they're not part of the actual response
     if (cleanData.includes('Context: ')) {
       // Flush any buffered content when we see context (response end marker)
@@ -121,7 +173,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       return;
     }
     
-    // Add to buffer for continuous streaming
+    // Add to buffer for continuous streaming (assistant content)
     this.contentBuffer += cleanData;
     
     // Set/reset flush timer - emit content after brief pause
@@ -203,6 +255,48 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     ];
     
     return readyPatterns.some(pattern => pattern.test(data.trim()));
+  }
+
+  isToolIndicator(data) {
+    // Detect tool usage indicators that should be single-line system messages
+    const toolPatterns = [
+      /^─{3,}.*─{3,}$/,                          // Tool separators like ─── shell | developer ───
+      /^─{3,}.*\|.*─{3,}$/,                     // Tool separators with pipe
+      /^\[\d{2}:\d{2}:\d{2}\s+\w+\]\s+─{3,}/,   // Timestamped tool indicators
+      /^command:\s*/,                           // Command execution indicators  
+      /^🔧/,                                    // Tool emoji indicators
+      /^Running:/,                              // Running indicators
+      /^Executing:/,                            // Execution indicators
+      /^filepath:\s*/,                          // File path indicators for tools
+      /^dirpath:\s*/,                          // Directory path indicators for tools
+    ];
+    
+    const trimmed = data.trim();
+    if (!trimmed) return false;
+    
+    // Debug logging to see what we're trying to match
+    const isMatch = toolPatterns.some(pattern => pattern.test(trimmed));
+    if (trimmed.includes('─') || trimmed.includes('obsidian')) {
+      console.log(`Tool indicator check: "${trimmed.substring(0, 100)}..." -> ${isMatch}`);
+    }
+    
+    return isMatch;
+  }
+
+  isStatusMessage(data) {
+    // Detect status messages that should be single-line system messages
+    const statusPatterns = [
+      /^✅/,                     // Success indicators
+      /^⚠️/,                      // Warning indicators
+      /^❌/,                     // Error indicators
+      /^Switched to session:/,   // Session switch messages
+      /^Session started:/,       // Session start messages
+      /^Started new session:/,   // New session messages
+      /^No upstream or no unpushed commits$/,  // Git status messages
+    ];
+    
+    const trimmed = data.trim();
+    return trimmed && statusPatterns.some(pattern => pattern.test(trimmed));
   }
 
   stripAnsiCodes(text) {
