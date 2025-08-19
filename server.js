@@ -34,19 +34,13 @@ class GooseWebServer {
   setupMultiSessionEvents() {
     // Handle multi-session events and broadcast to clients
     this.multiSessionManager.on('sessionMessage', (data) => {
-      // Add message to conversation manager for UI compatibility
-      try {
-        conversationManager.addMessage(data.message);
-      } catch (error) {
-        console.error('Error adding message to conversation manager:', error);
-      }
-      
-      // Broadcast to clients
+      // Only broadcast to clients - don't add to conversationManager to avoid double emission
+      // The MultiSessionManager already handles database storage and caching
       this.io.emit('newMessage', data.message);
     });
 
     this.multiSessionManager.on('sessionSwitched', (data) => {
-      // Update conversation manager with new conversation
+      // Update conversation manager immediately (may be empty initially)
       try {
         conversationManager.conversation = data.conversation;
         conversationManager.emit('conversationHistory', data.conversation);
@@ -59,6 +53,19 @@ class GooseWebServer {
         sessionId: data.toSessionId,
         conversation: data.conversation
       });
+      this.io.emit('conversationHistory', data.conversation);
+    });
+
+    this.multiSessionManager.on('conversationLoaded', (data) => {
+      // Update conversation manager with full conversation
+      try {
+        conversationManager.conversation = data.conversation;
+        conversationManager.emit('conversationHistory', data.conversation);
+      } catch (error) {
+        console.error('Error updating conversation manager with loaded data:', error);
+      }
+      
+      // Broadcast the loaded conversation
       this.io.emit('conversationHistory', data.conversation);
     });
 
@@ -137,8 +144,8 @@ class GooseWebServer {
         
         await this.multiSessionManager.startSession(sessionResult.sessionId);
         
-        // Set as active session
-        this.multiSessionManager.activeSessionId = sessionResult.sessionId;
+        // Switch to the new session (this will clear UI and set as active)
+        await this.multiSessionManager.switchSession(sessionResult.sessionId);
         
         // Broadcast session update to all clients
         this.io.emit('sessionsUpdate', {
@@ -188,8 +195,8 @@ class GooseWebServer {
         const result = await this.multiSessionManager.resumeSession(sessionName);
         
         if (result.success) {
-          // Set as active session
-          this.multiSessionManager.activeSessionId = result.sessionId;
+          // Switch to the resumed session (this will load conversation and set as active)
+          await this.multiSessionManager.switchSession(result.sessionId);
           
           // Broadcast session update to all clients
           this.io.emit('sessionsUpdate', {

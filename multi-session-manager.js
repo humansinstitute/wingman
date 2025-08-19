@@ -101,6 +101,7 @@ class MultiSessionManager extends EventEmitter {
     this.sessions = new Map(); // sessionId -> SessionAwareGooseCLIWrapper instance
     this.activeSessionId = null;
     this.sessionMetadata = new Map(); // sessionId -> metadata
+    this.conversationCache = new Map(); // sessionId -> cached conversation
     this.analytics = new SimplifiedSessionAnalytics();
     this.db = getDatabase();
     this.dbInitialized = false;
@@ -159,6 +160,8 @@ class MultiSessionManager extends EventEmitter {
     const sessionId = this.generateSessionId();
     const sessionName = options.sessionName || sessionId;
     
+    console.log(`Creating new session: ${sessionId} (${sessionName})`);
+    
     const wrapper = new SessionAwareGooseCLIWrapper({
       ...options,
       sessionId,
@@ -171,6 +174,10 @@ class MultiSessionManager extends EventEmitter {
     // Store session
     this.sessions.set(sessionId, wrapper);
     await this.saveSessionMetadata(sessionId, options);
+    
+    // Initialize empty conversation cache for new session
+    this.conversationCache.set(sessionId, []);
+    console.log(`Initialized empty conversation cache for session ${sessionId}`);
     
     return { sessionId, wrapper, sessionName };
   }
@@ -191,15 +198,32 @@ class MultiSessionManager extends EventEmitter {
     });
     
     wrapper.on('streamContent', (data) => {
+      const message = {
+        role: 'assistant',
+        content: data.content,
+        timestamp: data.timestamp,
+        source: data.source
+      };
+      
+      // Store assistant message in database
+      if (this.dbInitialized) {
+        const metadata = this.sessionMetadata.get(sessionId);
+        if (metadata) {
+          this.db.addMessage(metadata.sessionName, message).catch(error => {
+            console.error('Error storing assistant message:', error);
+          });
+        }
+      }
+      
+      // Update conversation cache
+      this.updateConversationCache(sessionId, message);
+      
       // Only emit for active session to avoid UI confusion
       if (sessionId === this.activeSessionId) {
         this.emit('sessionMessage', {
           sessionId,
           message: {
-            role: 'assistant',
-            content: data.content,
-            timestamp: data.timestamp,
-            source: data.source,
+            ...message,
             sessionId
           }
         });
@@ -399,34 +423,86 @@ class MultiSessionManager extends EventEmitter {
     const previousId = this.activeSessionId;
     this.activeSessionId = sessionId;
     
-    // Get conversation history for the session
+    console.log(`Switching from session ${previousId} to session ${sessionId}`);
+    
+    // Get conversation history for the session - fetch in parallel for speed
     const metadata = this.sessionMetadata.get(sessionId);
     let conversation = [];
     
     if (this.dbInitialized && metadata) {
       try {
-        const messages = await this.db.getMessages(metadata.sessionName);
-        conversation = messages.map(msg => ({
-          id: msg.message_id || msg.id.toString(),
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp,
-          source: msg.source
-        }));
+        // Check cache first
+        conversation = this.conversationCache.get(sessionId) || [];
+        
+        // Immediately emit the switch event with cached conversation
+        this.emit('sessionSwitched', {
+          fromSessionId: previousId,
+          toSessionId: sessionId,
+          conversation: conversation,
+          metadata: metadata
+        });
+        
+        // Load fresh conversation asynchronously if not cached or cache is stale
+        if (!this.conversationCache.has(sessionId)) {
+          console.log(`Loading conversation from database for session ${sessionId} (${metadata.sessionName})`);
+          const messages = await this.db.getMessages(metadata.sessionName);
+          console.log(`Found ${messages.length} messages in database for session ${metadata.sessionName}`);
+          
+          conversation = messages.map(msg => ({
+            id: msg.message_id || msg.id.toString(),
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            source: msg.source
+          }));
+          
+          // Cache the conversation
+          this.conversationCache.set(sessionId, conversation);
+          
+          // Emit conversation history separately if it's different from cache
+          if (conversation.length > 0) {
+            console.log(`Emitting conversationLoaded with ${conversation.length} messages`);
+            this.emit('conversationLoaded', {
+              sessionId,
+              conversation
+            });
+          }
+        }
+        
       } catch (error) {
         console.error('Error loading conversation for session switch:', error);
       }
+    } else {
+      // Emit switch event immediately
+      this.emit('sessionSwitched', {
+        fromSessionId: previousId,
+        toSessionId: sessionId,
+        conversation,
+        metadata: metadata
+      });
     }
     
-    // Emit switch event with conversation history
-    this.emit('sessionSwitched', {
-      fromSessionId: previousId,
-      toSessionId: sessionId,
-      conversation,
-      metadata: metadata
+    return { success: true, sessionId, conversation };
+  }
+  
+  updateConversationCache(sessionId, message) {
+    if (!this.conversationCache.has(sessionId)) {
+      this.conversationCache.set(sessionId, []);
+    }
+    
+    const conversation = this.conversationCache.get(sessionId);
+    conversation.push({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp,
+      source: message.source
     });
     
-    return { success: true, sessionId, conversation };
+    // Keep cache size reasonable (last 100 messages)
+    if (conversation.length > 100) {
+      conversation.splice(0, conversation.length - 100);
+    }
   }
   
   async sendMessageToActiveSession(message) {
@@ -439,14 +515,31 @@ class MultiSessionManager extends EventEmitter {
       throw new Error('Active session not found');
     }
     
+    const userMessage = {
+      role: 'user',
+      content: message,
+      timestamp: new Date().toISOString(),
+      source: 'web-interface'
+    };
+    
+    // Store user message in database
+    const metadata = this.sessionMetadata.get(this.activeSessionId);
+    if (this.dbInitialized && metadata) {
+      try {
+        await this.db.addMessage(metadata.sessionName, userMessage);
+      } catch (error) {
+        console.error('Error storing user message:', error);
+      }
+    }
+    
+    // Update conversation cache with user message
+    this.updateConversationCache(this.activeSessionId, userMessage);
+    
     // Emit user message immediately
     this.emit('sessionMessage', {
       sessionId: this.activeSessionId,
       message: {
-        role: 'user',
-        content: message,
-        timestamp: new Date().toISOString(),
-        source: 'web-interface',
+        ...userMessage,
         sessionId: this.activeSessionId
       }
     });

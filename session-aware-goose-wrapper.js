@@ -1,7 +1,7 @@
-const GooseCLIWrapper = require('./goose-cli-wrapper');
+const StreamingGooseCLIWrapper = require('./goose-cli-wrapper-streaming');
 const EventEmitter = require('events');
 
-class SessionAwareGooseCLIWrapper extends GooseCLIWrapper {
+class SessionAwareGooseCLIWrapper extends StreamingGooseCLIWrapper {
   constructor(options = {}) {
     super(options);
     
@@ -131,6 +131,15 @@ class SessionAwareGooseCLIWrapper extends GooseCLIWrapper {
         timestamp: Date.now()
       });
     }
+  }
+
+  isToolUsage(output) {
+    // Detect when Goose is using tools
+    return output.includes('🔧') || 
+           output.includes('Tool:') || 
+           output.includes('Running:') ||
+           output.includes('Executing:') ||
+           output.startsWith('[');
   }
 
   extractToolName(output) {
