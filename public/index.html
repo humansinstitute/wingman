@@ -171,6 +171,14 @@
             box-shadow: var(--shadow-md);
         }
         
+        .session-count-badge {
+            color: var(--text-secondary);
+            font-size: inherit;
+            margin-left: 4px;
+            font-weight: normal;
+            display: inline;
+        }
+        
         .status-active {
             background: var(--accent-primary);
             color: white;
@@ -1298,7 +1306,8 @@
         </h1>
         <div class="header-right">
             <div id="gooseStatus" class="goose-status status-inactive">
-                No Session Active
+                <span id="sessionNameDisplay">No Session Active</span>
+                <span id="sessionCountBadge" class="session-count-badge" style="display: none;"></span>
             </div>
             <button id="mobileMenuToggle" class="mobile-menu-toggle" aria-label="Open menu">
                 ☰
@@ -1585,6 +1594,8 @@
                 this.loading = document.getElementById('loading');
                 this.connectionBar = document.getElementById('connectionBar');
                 this.gooseStatus = document.getElementById('gooseStatus');
+                this.sessionNameDisplay = document.getElementById('sessionNameDisplay');
+                this.sessionCountBadge = document.getElementById('sessionCountBadge');
                 
                 this.sessionNameInput = document.getElementById('sessionNameInput');
                 this.startSessionBtn = document.getElementById('startSessionBtn');
@@ -1718,6 +1729,8 @@
                 // Auto-show session modal if no active session after initial load
                 setTimeout(() => {
                     this.checkForAutoSessionModal();
+                    // Also update active session status from MultiSessionManager
+                    this.updateActiveSessionFromRunning();
                 }, 1000);
             }
             
@@ -1999,6 +2012,93 @@
                     this.appendText(`❌ Goose Error: ${error}\\n`, 'system-message');
                     this.scrollToBottom();
                 });
+                
+                // Multi-session event listeners
+                this.socket.on('sessionsUpdate', (update) => {
+                    this.handleSessionsUpdate(update);
+                });
+                
+                this.socket.on('sessionError', (error) => {
+                    this.appendText(`❌ Session Error: ${error.error}\\n`, 'system-message');
+                    this.scrollToBottom();
+                });
+            }
+            
+            handleSessionsUpdate(update) {
+                switch (update.type) {
+                    case 'sessionStarted':
+                        this.appendText(`✅ Session started: ${update.sessionName}\\n`, 'system-message');
+                        this.loadRunningSessions();
+                        // Update status to show the new active session
+                        this.updateGooseStatus({
+                            active: true,
+                            sessionName: update.sessionName,
+                            ready: true
+                        });
+                        break;
+                    case 'sessionStopped':
+                        this.appendText(`⏹️ Session stopped: ${update.message}\\n`, 'system-message');
+                        this.loadRunningSessions();
+                        // If this was the active session, clear the status
+                        if (this.sessionNameDisplay.textContent.includes(update.sessionName)) {
+                            this.updateGooseStatus({
+                                active: false,
+                                sessionName: null,
+                                ready: false
+                            });
+                        }
+                        break;
+                    case 'sessionSwitched':
+                        this.appendText(`🔄 Switched to session\\n`, 'system-message');
+                        this.loadRunningSessions();
+                        // Find the active session name from the conversation if available
+                        this.updateActiveSessionFromRunning();
+                        break;
+                    case 'sessionResumed':
+                        this.appendText(`▶️ Session resumed: ${update.sessionName}\\n`, 'system-message');
+                        this.loadRunningSessions();
+                        // Update status to show the resumed session as active
+                        this.updateGooseStatus({
+                            active: true,
+                            sessionName: update.sessionName,
+                            ready: true
+                        });
+                        break;
+                    case 'sessionReady':
+                        this.loadRunningSessions();
+                        break;
+                    case 'sessionClosed':
+                        this.appendText(`❌ Session closed unexpectedly\\n`, 'system-message');
+                        this.loadRunningSessions();
+                        break;
+                }
+                this.scrollToBottom();
+            }
+            
+            async updateActiveSessionFromRunning() {
+                try {
+                    const response = await fetch('/api/sessions/running');
+                    const runningSessions = await response.json();
+                    
+                    // Find the active session
+                    const activeSession = runningSessions.find(session => session.isActive);
+                    
+                    if (activeSession) {
+                        this.updateGooseStatus({
+                            active: true,
+                            sessionName: activeSession.sessionName,
+                            ready: true
+                        });
+                    } else {
+                        this.updateGooseStatus({
+                            active: false,
+                            sessionName: null,
+                            ready: false
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error updating active session status:', error);
+                }
             }
             
             updateGooseStatus(status) {
@@ -2006,25 +2106,49 @@
                 const mobileStatusEl = this.mobileGooseStatus;
                 
                 if (status.active) {
-                    const statusText = `Active (${status.sessionName || 'Unknown'})`;
                     const statusClass = 'goose-status status-active';
                     
-                    statusEl.textContent = statusText;
+                    // Just show the session name without "Active"
+                    this.sessionNameDisplay.textContent = status.sessionName || 'Unknown Session';
                     statusEl.className = statusClass;
-                    mobileStatusEl.textContent = statusText;
+                    mobileStatusEl.textContent = status.sessionName || 'Unknown Session';
                     mobileStatusEl.className = statusClass;
                 } else {
                     const statusText = 'No Session Active';
                     const statusClass = 'goose-status status-inactive';
                     
-                    statusEl.textContent = statusText;
+                    // Update session name display
+                    this.sessionNameDisplay.textContent = statusText;
                     statusEl.className = statusClass;
                     mobileStatusEl.textContent = statusText;
                     mobileStatusEl.className = statusClass;
                 }
                 
+                // Load and update running sessions count
+                this.loadRunningSessions();
+                
                 this.updateGooseControls(status.active);
                 this.currentGooseStatus = status;
+            }
+            
+            async loadRunningSessions() {
+                try {
+                    const response = await fetch('/api/sessions/running');
+                    const runningSessions = await response.json();
+                    this.updateSessionCountBadge(runningSessions.length);
+                } catch (error) {
+                    console.error('Failed to load running sessions:', error);
+                    this.updateSessionCountBadge(0);
+                }
+            }
+            
+            updateSessionCountBadge(sessionCount) {
+                if (sessionCount > 0) {
+                    this.sessionCountBadge.textContent = ` - (${sessionCount})`;
+                    this.sessionCountBadge.style.display = 'inline';
+                } else {
+                    this.sessionCountBadge.style.display = 'none';
+                }
             }
             
             checkForAutoSessionModal() {
@@ -2309,11 +2433,17 @@
             
             async showSessionModal() {
                 try {
-                    // Fetch available sessions
-                    const response = await fetch('/api/goose/sessions');
-                    const sessions = await response.json();
+                    // Fetch both running and available sessions
+                    const [runningResponse, availableResponse] = await Promise.all([
+                        fetch('/api/sessions/running'),
+                        fetch('/api/sessions/available')
+                    ]);
                     
-                    this.populateSessionList(sessions);
+                    const runningSessions = await runningResponse.json();
+                    const availableSessions = await availableResponse.json();
+                    
+                    
+                    this.populateEnhancedSessionList(runningSessions, availableSessions);
                     this.sessionModal.classList.add('show');
                 } catch (error) {
                     console.error('Error fetching sessions:', error);
@@ -2477,6 +2607,331 @@
                     
                     this.sessionList.appendChild(sessionItem);
                 });
+            }
+            
+            populateEnhancedSessionList(runningSessions, availableSessions) {
+                this.sessionList.innerHTML = '';
+                
+                let content = '';
+                
+                // Add running sessions section
+                if (runningSessions.length > 0) {
+                    content += `
+                        <div class="modal-section">
+                            <h4>Running Sessions</h4>
+                            ${runningSessions.map(session => `
+                                <div class="session-item ${session.isActive ? 'active-session' : ''}" data-session-id="${session.sessionId}">
+                                    <div class="session-info">
+                                        <div class="session-name">${session.sessionName}</div>
+                                        <div class="session-meta">
+                                            <span class="session-status">(running)</span>
+                                            <span class="session-timestamp">${new Date(session.createdAt).toLocaleString()}</span>
+                                            <div class="session-directory">${session.workingDirectory || ''}</div>
+                                        </div>
+                                    </div>
+                                    <div class="session-actions">
+                                        ${!session.isActive ? `
+                                            <button class="btn btn-primary btn-switch" data-session-id="${session.sessionId}">
+                                                Switch To
+                                            </button>
+                                        ` : ''}
+                                        <button class="btn btn-danger btn-stop" data-session-id="${session.sessionId}">
+                                            Stop
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                // Add available sessions section
+                if (availableSessions.length > 0) {
+                    content += `
+                        <div class="modal-section">
+                            <h4>Available Sessions</h4>
+                            ${availableSessions.map(session => {
+                                const sessionName = session.id || session.name || 'Unnamed Session';
+                                const sessionDate = session.modified ? new Date(session.modified).toLocaleString() : 'Unknown date';
+                                return `
+                                    <div class="session-item available-session">
+                                        <div class="session-info">
+                                            <div class="session-name">${sessionName}</div>
+                                            <div class="session-date">${sessionDate}</div>
+                                        </div>
+                                        <div class="session-actions">
+                                            <button class="btn btn-primary btn-resume" data-session="${sessionName}">Resume</button>
+                                            <button class="btn btn-danger btn-delete" data-session="${sessionName}">Delete</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+                
+                if (runningSessions.length === 0 && availableSessions.length === 0) {
+                    content = '<div class="empty-sessions">No sessions found</div>';
+                }
+                
+                this.sessionList.innerHTML = content;
+                
+                // Add styles for enhanced session modal
+                this.addSessionModalStyles();
+                
+                // Add event listeners for session actions
+                this.addSessionActionListeners();
+            }
+            
+            addSessionModalStyles() {
+                if (document.getElementById('session-modal-styles')) return;
+                
+                const style = document.createElement('style');
+                style.id = 'session-modal-styles';
+                style.textContent = `
+                    .session-item.active-session {
+                        border: 2px solid var(--accent-primary) !important;
+                        border-radius: 6px;
+                        background-color: var(--accent-light);
+                    }
+                    
+                    .session-item {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 12px;
+                        border: 1px solid var(--border-primary);
+                        border-radius: 4px;
+                        margin: 8px 0;
+                        background: var(--bg-primary);
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                    }
+                    
+                    .session-item:hover:not(.active-session) {
+                        background: var(--bg-secondary);
+                        border-color: var(--accent-primary);
+                        transform: translateY(-1px);
+                        box-shadow: var(--shadow-sm);
+                    }
+                    
+                    .session-item.active-session {
+                        cursor: default;
+                    }
+                    
+                    .session-info {
+                        flex-grow: 1;
+                    }
+                    
+                    .session-name {
+                        font-weight: bold;
+                        margin-bottom: 4px;
+                        color: var(--text-primary);
+                    }
+                    
+                    .session-meta {
+                        font-size: 0.9em;
+                        color: var(--text-muted);
+                    }
+                    
+                    .session-status {
+                        color: var(--accent-primary);
+                        font-weight: bold;
+                        margin-right: 12px;
+                    }
+                    
+                    .session-directory {
+                        font-style: italic;
+                        margin-top: 2px;
+                    }
+                    
+                    .session-actions {
+                        display: flex;
+                        gap: 8px;
+                        flex-shrink: 0;
+                    }
+                    
+                    .session-actions .btn {
+                        padding: 8px 16px;
+                        min-height: 36px;
+                        font-size: 0.875rem;
+                        border-radius: 4px;
+                        border: none;
+                        cursor: pointer;
+                        font-weight: 500;
+                        transition: all 0.2s ease;
+                    }
+                    
+                    .session-actions .btn-primary {
+                        background: var(--accent-primary);
+                        color: white;
+                    }
+                    
+                    .session-actions .btn-primary:hover {
+                        background: var(--accent-secondary);
+                        transform: translateY(-1px);
+                    }
+                    
+                    .session-actions .btn-danger {
+                        background: #dc2626;
+                        color: white;
+                    }
+                    
+                    .session-actions .btn-danger:hover {
+                        background: #b91c1c;
+                        transform: translateY(-1px);
+                    }
+                    
+                    .modal-section {
+                        margin-bottom: 20px;
+                    }
+                    
+                    .modal-section h4 {
+                        color: var(--text-primary);
+                        margin-bottom: 12px;
+                        padding-bottom: 4px;
+                        border-bottom: 1px solid var(--border-primary);
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            addSessionActionListeners() {
+                // Click to switch/resume session functionality
+                document.querySelectorAll('.session-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        // Don't trigger if clicking on a button
+                        if (e.target.tagName === 'BUTTON') {
+                            return;
+                        }
+                        
+                        const sessionId = item.dataset.sessionId;
+                        const sessionName = item.querySelector('.session-name').textContent;
+                        
+                        if (item.classList.contains('available-session')) {
+                            // Resume available session
+                            this.resumeSession(sessionName);
+                        } else if (sessionId && !item.classList.contains('active-session')) {
+                            // Switch to running session (if not already active)
+                            this.switchToSession(sessionId);
+                        }
+                        // Do nothing if clicking on already active session
+                    });
+                });
+                
+                // Switch session functionality
+                document.querySelectorAll('.btn-switch').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        await this.switchToSession(btn.dataset.sessionId);
+                    });
+                });
+                
+                // Stop session functionality with subprocess termination
+                document.querySelectorAll('.btn-stop').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        
+                        const sessionItem = btn.closest('.session-item');
+                        const sessionName = sessionItem.querySelector('.session-name').textContent;
+                        
+                        if (confirm(`Stop session "${sessionName}"? This will terminate the subprocess. You can resume the session later using the usual process.`)) {
+                            await this.stopSession(btn.dataset.sessionId);
+                        }
+                    });
+                });
+                
+                // Resume session functionality (for available sessions)
+                document.querySelectorAll('.btn-resume').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.resumeSession(btn.dataset.session);
+                    });
+                });
+                
+                // Delete session functionality (for available sessions)
+                document.querySelectorAll('.btn-delete').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.deleteSession(btn.dataset.session);
+                    });
+                });
+            }
+            
+            async switchToSession(sessionId) {
+                try {
+                    // Get session name before switching for better feedback
+                    const sessionItem = document.querySelector(`[data-session-id="${sessionId}"]`);
+                    const sessionName = sessionItem ? sessionItem.querySelector('.session-name').textContent : 'Unknown';
+                    
+                    const response = await fetch(`/api/sessions/switch/${sessionId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        
+                        // Hide modal and update UI
+                        this.hideSessionModal();
+                        this.appendText(`✅ Switched to session: ${sessionName}\\n`, 'system-message');
+                        
+                        // Update status immediately
+                        this.updateGooseStatus({
+                            active: true,
+                            sessionName: sessionName,
+                            ready: true
+                        });
+                        
+                        // Refresh session modal data
+                        this.loadRunningSessions();
+                        
+                    } else {
+                        throw new Error('Failed to switch session');
+                    }
+                } catch (error) {
+                    console.error('Error switching session:', error);
+                    this.appendText(`❌ Error switching session: ${error.message}\\n`, 'system-message');
+                }
+            }
+            
+            async stopSession(sessionId) {
+                try {
+                    // Get session name and check if it's active before stopping
+                    const sessionItem = document.querySelector(`[data-session-id="${sessionId}"]`);
+                    const sessionName = sessionItem ? sessionItem.querySelector('.session-name').textContent : 'Unknown';
+                    const isActiveSession = sessionItem ? sessionItem.classList.contains('active-session') : false;
+                    
+                    const response = await fetch(`/api/sessions/stop/${sessionId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        
+                        // Update UI
+                        this.appendText(`✅ Session stopped: ${sessionName}. Can be resumed later.\\n`, 'system-message');
+                        
+                        // If we stopped the active session, update status
+                        if (isActiveSession) {
+                            this.updateGooseStatus({
+                                active: false,
+                                sessionName: null,
+                                ready: false
+                            });
+                        }
+                        
+                        // Refresh the session modal
+                        this.showSessionModal();
+                        
+                    } else {
+                        throw new Error('Failed to stop session');
+                    }
+                } catch (error) {
+                    console.error('Error stopping session:', error);
+                    this.appendText(`❌ Error stopping session: ${error.message}\\n`, 'system-message');
+                }
             }
             
             async resumeSession(sessionName) {

@@ -7,6 +7,7 @@ const cors = require('cors');
 const os = require('os');
 const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
+const MultiSessionManager = require('./multi-session-manager');
 
 class GooseWebServer {
   constructor(port = 3000) {
@@ -20,10 +21,68 @@ class GooseWebServer {
     });
     this.port = port;
 
+    // Initialize multi-session manager
+    this.multiSessionManager = new MultiSessionManager();
+    this.setupMultiSessionEvents();
+
     this.setupMiddleware();
     this.setupRoutes();
     this.setupSocketHandlers();
     this.setupConversationSync();
+  }
+
+  setupMultiSessionEvents() {
+    // Handle multi-session events and broadcast to clients
+    this.multiSessionManager.on('sessionMessage', (data) => {
+      // Add message to conversation manager for UI compatibility
+      try {
+        conversationManager.addMessage(data.message);
+      } catch (error) {
+        console.error('Error adding message to conversation manager:', error);
+      }
+      
+      // Broadcast to clients
+      this.io.emit('newMessage', data.message);
+    });
+
+    this.multiSessionManager.on('sessionSwitched', (data) => {
+      // Update conversation manager with new conversation
+      try {
+        conversationManager.conversation = data.conversation;
+        conversationManager.emit('conversationHistory', data.conversation);
+      } catch (error) {
+        console.error('Error updating conversation manager:', error);
+      }
+      
+      this.io.emit('sessionsUpdate', {
+        type: 'sessionSwitched',
+        sessionId: data.toSessionId,
+        conversation: data.conversation
+      });
+      this.io.emit('conversationHistory', data.conversation);
+    });
+
+    this.multiSessionManager.on('sessionReady', (data) => {
+      this.io.emit('sessionsUpdate', {
+        type: 'sessionReady',
+        sessionId: data.sessionId
+      });
+    });
+
+    this.multiSessionManager.on('sessionError', (data) => {
+      this.io.emit('sessionError', {
+        sessionId: data.sessionId,
+        error: data.error
+      });
+    });
+
+    this.multiSessionManager.on('sessionClosed', (data) => {
+      this.io.emit('sessionsUpdate', {
+        type: 'sessionClosed',
+        sessionId: data.sessionId,
+        code: data.code
+      });
+    });
   }
 
   setupMiddleware() {
@@ -68,20 +127,38 @@ class GooseWebServer {
       try {
         const { sessionName, debug, extensions, builtins, workingDirectory } = req.body;
         
-        const result = await conversationManager.startGooseSession({
+        const sessionResult = await this.multiSessionManager.createSession({
           sessionName: sessionName || `web-session-${Date.now()}`,
           debug: debug || false,
           extensions: extensions || [],
           builtins: builtins || ['developer'],
-          workingDirectory: workingDirectory
+          workingDirectory: workingDirectory || process.cwd()
         });
         
-        if (result.success) {
-          // Broadcast status update to all clients
-          this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
-        }
+        await this.multiSessionManager.startSession(sessionResult.sessionId);
         
-        res.json(result);
+        // Set as active session
+        this.multiSessionManager.activeSessionId = sessionResult.sessionId;
+        
+        // Broadcast session update to all clients
+        this.io.emit('sessionsUpdate', {
+          type: 'sessionStarted',
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName
+        });
+        
+        // Also emit gooseStatusUpdate for backward compatibility
+        this.io.emit('gooseStatusUpdate', {
+          active: true,
+          sessionName: sessionResult.sessionName,
+          ready: true
+        });
+        
+        res.json({ 
+          success: true, 
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName
+        });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -108,12 +185,25 @@ class GooseWebServer {
           return res.status(400).json({ error: 'Session name is required' });
         }
         
-        const result = await conversationManager.resumeGooseSession(sessionName);
+        const result = await this.multiSessionManager.resumeSession(sessionName);
         
         if (result.success) {
-          // Broadcast status update to all clients
-          this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
-          // Note: conversationHistory is now emitted from the conversationManager itself
+          // Set as active session
+          this.multiSessionManager.activeSessionId = result.sessionId;
+          
+          // Broadcast session update to all clients
+          this.io.emit('sessionsUpdate', {
+            type: 'sessionResumed',
+            sessionId: result.sessionId,
+            sessionName: sessionName
+          });
+          
+          // Also emit gooseStatusUpdate for backward compatibility
+          this.io.emit('gooseStatusUpdate', {
+            active: true,
+            sessionName: sessionName,
+            ready: true
+          });
         }
         
         res.json(result);
@@ -164,17 +254,18 @@ class GooseWebServer {
         console.log('Raw content:', JSON.stringify(content));
         console.log('==================================');
         
-        const status = conversationManager.getGooseStatus();
-        if (!status.active) {
+        // Check if we have an active session in MultiSessionManager
+        const activeSession = this.multiSessionManager.getActiveSession();
+        if (!activeSession) {
           return res.status(400).json({ 
             error: 'No active Goose session. Please start a session first.' 
           });
         }
         
-        // Send message to Goose
-        const userMessage = await conversationManager.sendToGoose(content);
+        // Send message to active session
+        const result = await this.multiSessionManager.sendMessageToActiveSession(content);
         
-        res.json({ success: true, userMessage });
+        res.json({ success: true, result });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -377,6 +468,233 @@ class GooseWebServer {
           currentPath: resolvedPath,
           directories: result
         });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Multi-Session Management API Endpoints
+    this.app.get('/api/sessions/running', (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          console.log('MultiSessionManager not available, returning empty array');
+          return res.json([]);
+        }
+        
+        const runningSessions = this.multiSessionManager.getRunningSessions();
+        console.log('API /api/sessions/running: Found', runningSessions.length, 'running sessions:', runningSessions);
+        res.json(runningSessions);
+      } catch (error) {
+        console.error('Error in /api/sessions/running:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.get('/api/sessions/available', async (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          // Fallback to existing method
+          const sessions = await conversationManager.listGooseSessions();
+          return res.json(sessions);
+        }
+        
+        const availableSessions = await this.multiSessionManager.getAvailableSessions();
+        res.json(availableSessions);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.post('/api/sessions/start', async (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const { sessionName, debug, extensions, builtins, workingDirectory } = req.body;
+        
+        const sessionResult = await this.multiSessionManager.createSession({
+          sessionName: sessionName || `web-session-${Date.now()}`,
+          debug: debug || false,
+          extensions: extensions || [],
+          builtins: builtins || ['developer'],
+          workingDirectory: workingDirectory || process.cwd()
+        });
+        
+        await this.multiSessionManager.startSession(sessionResult.sessionId);
+        
+        // Broadcast session update to all clients
+        this.io.emit('sessionsUpdate', {
+          type: 'sessionStarted',
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName
+        });
+        
+        res.json({ 
+          success: true, 
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.post('/api/sessions/resume/:name', async (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const sessionName = req.params.name;
+        
+        const result = await this.multiSessionManager.resumeSession(sessionName);
+        
+        // Broadcast session update to all clients
+        this.io.emit('sessionsUpdate', {
+          type: 'sessionResumed',
+          sessionId: result.sessionId,
+          sessionName: sessionName
+        });
+        
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.post('/api/sessions/stop/:id', async (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const sessionId = req.params.id;
+        
+        const result = await this.multiSessionManager.stopSession(sessionId);
+        
+        // Broadcast session stop to all clients
+        this.io.emit('sessionsUpdate', {
+          type: 'sessionStopped',
+          sessionId: sessionId,
+          message: 'Session subprocess terminated'
+        });
+        
+        res.json(result);
+      } catch (error) {
+        res.status(400).json({ error: error.message });
+      }
+    });
+
+    this.app.post('/api/sessions/switch/:id', async (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const sessionId = req.params.id;
+        
+        const result = await this.multiSessionManager.switchSession(sessionId);
+        
+        // Broadcast session switch to all clients
+        this.io.emit('sessionsUpdate', {
+          type: 'sessionSwitched',
+          sessionId: sessionId,
+          conversation: result.conversation
+        });
+        
+        // Update conversation display
+        this.io.emit('conversationHistory', result.conversation);
+        
+        res.json(result);
+      } catch (error) {
+        res.status(400).json({ error: error.message });
+      }
+    });
+
+    this.app.get('/api/sessions/:id/conversation', async (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const sessionId = req.params.id;
+        const session = this.multiSessionManager.sessions.get(sessionId);
+        
+        if (!session) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        
+        // Get conversation from database
+        const metadata = this.multiSessionManager.sessionMetadata.get(sessionId);
+        if (metadata && this.multiSessionManager.dbInitialized) {
+          const messages = await this.multiSessionManager.db.getMessages(metadata.sessionName);
+          const conversation = messages.map(msg => ({
+            id: msg.message_id || msg.id.toString(),
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            source: msg.source
+          }));
+          res.json(conversation);
+        } else {
+          res.json([]);
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.post('/api/sessions/:id/message', async (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const sessionId = req.params.id;
+        const { content } = req.body;
+        
+        if (!content) {
+          return res.status(400).json({ error: 'Message content is required' });
+        }
+        
+        // Switch to session if not already active
+        if (this.multiSessionManager.activeSessionId !== sessionId) {
+          await this.multiSessionManager.switchSession(sessionId);
+        }
+        
+        // Send message to active session
+        const result = await this.multiSessionManager.sendMessageToActiveSession(content);
+        
+        res.json({ success: true, result });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Session Analytics Endpoints
+    this.app.get('/api/sessions/:id/stats', (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const sessionId = req.params.id;
+        const stats = this.multiSessionManager.getSessionStats(sessionId);
+        res.json(stats || { error: 'Session not found' });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.get('/api/sessions/analysis', (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const analysis = this.multiSessionManager.getCrossSessionAnalysis();
+        res.json(analysis);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
