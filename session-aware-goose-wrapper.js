@@ -112,10 +112,10 @@ class SessionAwareGooseCLIWrapper extends StreamingGooseCLIWrapper {
   }
 
   handleOutput(data) {
-    // Call parent method
+    // Call parent method first
     super.handleOutput(data);
     
-    // Check for tool usage patterns
+    // Check for tool usage patterns for analytics
     const output = data.toString();
     if (this.isToolUsage(output)) {
       this.recordMetric('tool_used', { 
