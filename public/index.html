@@ -777,6 +777,12 @@
             transform: translateY(-1px);
         }
 
+        .session-item.active {
+            border-color: var(--accent-primary);
+            border-width: 2px;
+            box-shadow: 0 0 0 1px var(--accent-primary);
+        }
+
         .session-info {
             flex: 1;
         }
@@ -814,6 +820,16 @@
 
         .btn-resume:hover {
             background: var(--accent-secondary);
+            transform: translateY(-1px);
+        }
+
+        .btn-stop {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #c0392b;
             transform: translateY(-1px);
         }
 
@@ -1270,6 +1286,43 @@
             min-height: 48px;
         }
 
+        .working-dir-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-secondary);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .info-value {
+            font-family: 'Courier New', monospace;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            background: var(--background-secondary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         /* Mobile hamburger menu */
         .mobile-menu-toggle {
             display: none;
@@ -1444,30 +1497,7 @@
             Wingman: Goose
         </h1>
         <div class="header-right">
-            <!-- Session Switcher -->
-            <div class="session-switcher">
-                <div class="session-dropdown" id="sessionDropdown">
-                    <button class="session-dropdown-toggle" id="sessionDropdownToggle">
-                        <span id="sessionDropdownText">No Active Session</span>
-                        <span class="session-count" id="sessionCount" style="display: none;">0</span>
-                        <span class="session-dropdown-arrow">▼</span>
-                    </button>
-                    <div class="session-dropdown-menu" id="sessionDropdownMenu">
-                        <div class="session-dropdown-header">
-                            <span>Active Sessions</span>
-                            <span class="session-count" id="headerSessionCount">0</span>
-                        </div>
-                        <div id="runningSessionsList">
-                            <!-- Running sessions will be populated here -->
-                        </div>
-                        <div class="session-dropdown-item new-session-item" id="newSessionFromDropdown">
-                            <span>+ New Session</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="gooseStatus" class="goose-status status-inactive">
+            <div id="gooseStatus" class="goose-status status-inactive" style="cursor: pointer;">
                 No Session Active
             </div>
             <button id="mobileMenuToggle" class="mobile-menu-toggle" aria-label="Open menu">
@@ -1639,6 +1669,20 @@
                 <div class="command-controls">
                     <input type="text" id="commandInput" class="goose-command-input" placeholder="Goose command (e.g., /help, /mode chat, /plan task)">
                     <button id="sendCommandBtn" class="btn-secondary">Send Command</button>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4 class="settings-title">Working Directory</h4>
+                <div class="working-dir-info">
+                    <div class="info-row">
+                        <span class="info-label">Current Directory:</span>
+                        <span class="info-value" id="current-working-dir">Loading...</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Active Session:</span>
+                        <span class="info-value" id="active-session-name">None</span>
+                    </div>
                 </div>
             </div>
             
@@ -1939,7 +1983,7 @@
                 safeAddEventListener(this.sendCommandBtn, 'sendCommandBtn', 'click', () => this.sendGooseCommand());
                 
                 // Modal event listeners
-                safeAddEventListener(this.gooseStatus, 'gooseStatus', 'click', () => this.showSessionModal());
+                // Note: gooseStatus click listener is set up later with contextmenu handling
                 safeAddEventListener(this.closeModal, 'closeModal', 'click', () => this.hideSessionModal());
                 safeAddEventListener(this.createNewSessionBtn, 'createNewSessionBtn', 'click', () => this.startSessionWizard());
                 
@@ -2055,22 +2099,15 @@
                 this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
                 this.closeSettingsModal.addEventListener('click', () => this.hideSettingsModal());
                 
-                // Session switcher event listeners
-                this.sessionDropdown = document.getElementById('sessionDropdown');
-                this.sessionDropdownToggle = document.getElementById('sessionDropdownToggle');
-                this.sessionDropdownMenu = document.getElementById('sessionDropdownMenu');
-                this.sessionDropdownText = document.getElementById('sessionDropdownText');
-                this.sessionCount = document.getElementById('sessionCount');
-                this.headerSessionCount = document.getElementById('headerSessionCount');
-                this.runningSessionsList = document.getElementById('runningSessionsList');
-                this.newSessionFromDropdown = document.getElementById('newSessionFromDropdown');
+                // Make gooseStatus clickable to open session modal, right-click for quick actions
+                this.gooseStatus.addEventListener('click', () => {
+                    this.showSessionModal();
+                });
                 
-                // Initialize session switcher state
-                this.runningSessions = [];
-                this.setupSessionSwitcher();
-                
-                // Load initial running sessions
-                this.loadRunningSessions();
+                this.gooseStatus.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    this.showQuickSessionActions(e);
+                });
                 
                 // Close modals when clicking overlay
                 this.sessionModal.addEventListener('click', (e) => {
@@ -2156,8 +2193,8 @@
                     this.messagesDiv.innerHTML = '';
                 });
                 
-                this.socket.on('gooseStatusUpdate', (status) => {
-                    this.updateGooseStatus(status);
+                this.socket.on('gooseStatusUpdate', async (status) => {
+                    await this.updateGooseStatus(status);
                 });
                 
                 this.socket.on('gooseError', (error) => {
@@ -2166,25 +2203,37 @@
                 });
             }
             
-            updateGooseStatus(status) {
+            async updateGooseStatus(status) {
                 const statusEl = this.gooseStatus;
                 const mobileStatusEl = this.mobileGooseStatus;
+                
+                // Get running sessions count
+                let runningCount = 0;
+                try {
+                    const response = await fetch('/api/goose/running-sessions');
+                    const sessions = await response.json();
+                    runningCount = sessions.length;
+                } catch (error) {
+                    console.error('Error fetching running sessions count:', error);
+                }
                 
                 if (status.active) {
                     const statusText = `Active (${status.sessionName || 'Unknown'})`;
                     const statusClass = 'goose-status status-active';
+                    const countBadge = runningCount > 0 ? ` <span style="background: var(--accent-primary); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.85em; margin-left: 8px;">${runningCount}</span>` : '';
                     
-                    statusEl.textContent = statusText;
+                    statusEl.innerHTML = statusText + countBadge;
                     statusEl.className = statusClass;
-                    mobileStatusEl.textContent = statusText;
+                    mobileStatusEl.innerHTML = statusText + countBadge;
                     mobileStatusEl.className = statusClass;
                 } else {
                     const statusText = 'No Session Active';
                     const statusClass = 'goose-status status-inactive';
+                    const countBadge = runningCount > 0 ? ` <span style="background: var(--accent-primary); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.85em; margin-left: 8px;">${runningCount}</span>` : '';
                     
-                    statusEl.textContent = statusText;
+                    statusEl.innerHTML = statusText + countBadge;
                     statusEl.className = statusClass;
-                    mobileStatusEl.textContent = statusText;
+                    mobileStatusEl.innerHTML = statusText + countBadge;
                     mobileStatusEl.className = statusClass;
                 }
                 
@@ -2372,6 +2421,9 @@
                     if (response.ok) {
                         this.appendText('⏹ Stopped Goose session\\n', 'system-message');
                         this.scrollToBottom();
+                        // Update session switcher immediately
+                        await this.loadRunningSessions();
+                        this.updateSessionSwitcher();
                     }
                     
                 } catch (error) {
@@ -2455,7 +2507,7 @@
                     const response = await fetch('/api/goose/sessions');
                     const sessions = await response.json();
                     
-                    this.populateSessionList(sessions);
+                    await this.populateSessionList(sessions);
                     this.sessionModal.classList.add('show');
                 } catch (error) {
                     console.error('Error fetching sessions:', error);
@@ -2552,8 +2604,38 @@
                 }
             }
             
-            showSettingsModal() {
+            async showSettingsModal() {
                 this.settingsModal.classList.add('show');
+                
+                // Fetch and display working directory information
+                try {
+                    const response = await fetch('/api/goose/working-directory');
+                    const data = await response.json();
+                    
+                    const workingDirElement = document.getElementById('current-working-dir');
+                    const sessionNameElement = document.getElementById('active-session-name');
+                    
+                    if (workingDirElement) {
+                        workingDirElement.textContent = data.workingDirectory || 'Unknown';
+                        workingDirElement.title = data.workingDirectory || 'Unknown'; // Full path on hover
+                    }
+                    
+                    if (sessionNameElement) {
+                        sessionNameElement.textContent = data.sessionName || 'None';
+                    }
+                } catch (error) {
+                    console.error('Error fetching working directory:', error);
+                    const workingDirElement = document.getElementById('current-working-dir');
+                    const sessionNameElement = document.getElementById('active-session-name');
+                    
+                    if (workingDirElement) {
+                        workingDirElement.textContent = 'Error loading';
+                    }
+                    
+                    if (sessionNameElement) {
+                        sessionNameElement.textContent = 'Error loading';
+                    }
+                }
             }
             
             hideSettingsModal() {
@@ -2572,7 +2654,7 @@
                 document.body.style.overflow = '';
             }
             
-            populateSessionList(sessions) {
+            async populateSessionList(sessions) {
                 this.sessionList.innerHTML = '';
                 
                 if (sessions.length === 0) {
@@ -2580,20 +2662,54 @@
                     return;
                 }
                 
-                sessions.forEach(session => {
+                // Get running sessions to check status
+                let runningSessions = [];
+                try {
+                    const response = await fetch('/api/goose/running-sessions');
+                    runningSessions = await response.json();
+                } catch (error) {
+                    console.error('Error fetching running sessions:', error);
+                }
+                
+                // Deduplicate sessions based on name
+                const seenNames = new Set();
+                const uniqueSessions = sessions.filter(session => {
+                    const sessionName = session.id || session.name || 'Unnamed Session';
+                    if (seenNames.has(sessionName)) {
+                        return false;
+                    }
+                    seenNames.add(sessionName);
+                    return true;
+                });
+                
+                uniqueSessions.forEach(session => {
                     const sessionItem = document.createElement('div');
                     sessionItem.className = 'session-item';
                     
                     const sessionName = session.id || session.name || 'Unnamed Session';
                     const sessionDate = session.modified ? new Date(session.modified).toLocaleString() : 'Unknown date';
                     
+                    // Check if session is running
+                    const runningSession = runningSessions.find(s => s.sessionName === sessionName);
+                    const isRunning = !!runningSession;
+                    const isActive = runningSession?.isActive;
+                    
+                    // Add active class for the currently active session
+                    if (isActive) {
+                        sessionItem.classList.add('active');
+                    }
+                    
                     sessionItem.innerHTML = `
                         <div class="session-info">
-                            <div class="session-name">${sessionName}</div>
+                            <div class="session-name">
+                                ${sessionName}
+                                ${isRunning ? '<span style="color: var(--accent-primary); margin-left: 8px; font-weight: bold;">(running)</span>' : ''}
+                            </div>
                             <div class="session-date">${sessionDate}</div>
                         </div>
                         <div class="session-actions">
-                            <button class="btn-small btn-resume" data-session="${sessionName}">Resume</button>
+                            <button class="btn-small btn-resume" data-session="${sessionName}" data-session-id="${runningSession?.sessionId || ''}">Resume</button>
+                            ${isRunning ? '<button class="btn-small btn-stop" data-session-id="' + runningSession.sessionId + '" style="background: #e74c3c; color: white;">Stop</button>' : ''}
                             <button class="btn-small btn-delete" data-session="${sessionName}">Delete</button>
                         </div>
                     `;
@@ -2602,8 +2718,23 @@
                     const resumeBtn = sessionItem.querySelector('.btn-resume');
                     resumeBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        this.resumeSession(sessionName);
+                        if (isRunning) {
+                            // If running, switch to it
+                            this.switchToSessionFromModal(runningSession.sessionId);
+                        } else {
+                            // If not running, resume it
+                            this.resumeSession(sessionName);
+                        }
                     });
+                    
+                    // Add click handler for stop button (if exists)
+                    const stopBtn = sessionItem.querySelector('.btn-stop');
+                    if (stopBtn) {
+                        stopBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.stopSession(stopBtn.dataset.sessionId, sessionName);
+                        });
+                    }
                     
                     // Add click handler for delete button
                     const deleteBtn = sessionItem.querySelector('.btn-delete');
@@ -2614,11 +2745,20 @@
                     
                     // Add click handler for the entire item
                     sessionItem.addEventListener('click', () => {
-                        this.resumeSession(sessionName);
+                        if (isRunning) {
+                            this.switchToSessionFromModal(runningSession.sessionId);
+                        } else {
+                            this.resumeSession(sessionName);
+                        }
                     });
                     
                     this.sessionList.appendChild(sessionItem);
                 });
+            }
+            
+            async switchToSessionFromModal(sessionId) {
+                this.hideSessionModal();
+                await this.switchToSession(sessionId);
             }
             
             async resumeSession(sessionName) {
@@ -2980,6 +3120,149 @@
                 } catch (error) {
                     console.error('Error starting session with recipe:', error);
                     this.appendText(`❌ Failed to start session with recipe: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async showQuickSessionActions(e) {
+                // Get current status to see if we have an active session
+                try {
+                    const response = await fetch('/api/goose/status');
+                    const status = await response.json();
+                    
+                    if (!status.active) {
+                        this.showSessionModal();
+                        return;
+                    }
+                    
+                    // Show context menu with quick actions
+                    const menu = document.createElement('div');
+                    menu.style.cssText = `
+                        position: fixed;
+                        top: ${e.clientY}px;
+                        left: ${e.clientX}px;
+                        background: var(--bg-primary);
+                        border: 1px solid var(--border-primary);
+                        border-radius: 8px;
+                        box-shadow: var(--shadow-lg);
+                        z-index: 2000;
+                        min-width: 150px;
+                    `;
+                    
+                    menu.innerHTML = `
+                        <div class="context-menu-item" data-action="stop-active" style="padding: 0.5rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border-primary);">
+                            ⏹ Stop Active Session
+                        </div>
+                        <div class="context-menu-item" data-action="open-modal" style="padding: 0.5rem 1rem; cursor: pointer;">
+                            📋 Manage All Sessions
+                        </div>
+                    `;
+                    
+                    // Add hover effects
+                    menu.querySelectorAll('.context-menu-item').forEach(item => {
+                        item.addEventListener('mouseenter', () => {
+                            item.style.backgroundColor = 'var(--accent-light)';
+                        });
+                        item.addEventListener('mouseleave', () => {
+                            item.style.backgroundColor = 'transparent';
+                        });
+                        item.addEventListener('click', async (event) => {
+                            const action = event.target.dataset.action;
+                            document.body.removeChild(menu);
+                            
+                            if (action === 'stop-active') {
+                                await this.stopActiveSession(status.sessionId, status.sessionName);
+                            } else if (action === 'open-modal') {
+                                this.showSessionModal();
+                            }
+                        });
+                    });
+                    
+                    document.body.appendChild(menu);
+                    
+                    // Remove menu when clicking elsewhere
+                    setTimeout(() => {
+                        const removeMenu = () => {
+                            if (menu.parentNode) {
+                                document.body.removeChild(menu);
+                            }
+                            document.removeEventListener('click', removeMenu);
+                        };
+                        document.addEventListener('click', removeMenu);
+                    }, 10);
+                    
+                } catch (error) {
+                    console.error('Error showing quick actions:', error);
+                    this.showSessionModal();
+                }
+            }
+            
+            async stopActiveSession(sessionId, sessionName) {
+                // Confirm stopping active session
+                if (!confirm(`Are you sure you want to stop the active session "${sessionName}"?`)) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/goose/stop-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sessionId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`⏹ Stopped active session: ${sessionName}\\n`, 'system-message');
+                        this.scrollToBottom();
+                        // Update session switcher immediately
+                        await this.loadRunningSessions();
+                        this.updateSessionSwitcher();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error stopping active session:', error);
+                    this.appendText(`❌ Failed to stop active session: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+            
+            async stopSession(sessionId, sessionName) {
+                // Confirm stopping
+                if (!confirm(`Are you sure you want to stop session "${sessionName}"?`)) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/goose/stop-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ sessionId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.appendText(`⏹ Stopped session: ${sessionName}\\n`, 'system-message');
+                        this.scrollToBottom();
+                        // Refresh the session list and update session switcher immediately
+                        await this.loadRunningSessions();
+                        this.updateSessionSwitcher();
+                        this.hideSessionModal();
+                        setTimeout(() => this.showSessionModal(), 500);
+                    } else {
+                        throw new Error(result.error);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error stopping session:', error);
+                    this.appendText(`❌ Failed to stop session: ${error.message}\\n`, 'system-message');
                     this.scrollToBottom();
                 }
             }
@@ -3386,9 +3669,9 @@
                 }
             }
             
-            // === SESSION SWITCHER METHODS ===
+            // === SESSION SWITCHER METHODS (DISABLED - Using unified modal) ===
             
-            setupSessionSwitcher() {
+            /* setupSessionSwitcher() {
                 // Session dropdown toggle
                 this.sessionDropdownToggle.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -3523,9 +3806,11 @@
                 });
             }
             
+            */
+            
+            // Keep switchToSession for modal use
             async switchToSession(sessionId) {
                 try {
-                    this.hideSessionDropdown();
                     
                     const response = await fetch('/api/goose/switch-session', {
                         method: 'POST',
@@ -3540,7 +3825,6 @@
                     if (result.success) {
                         this.appendText(`🔄 Switched to session: ${sessionId}\n`, 'system-message');
                         this.scrollToBottom();
-                        this.loadRunningSessions(); // Refresh the list
                     } else {
                         throw new Error(result.error);
                     }
@@ -3552,7 +3836,7 @@
                 }
             }
             
-            async stopSession(sessionId) {
+            /* async stopSession(sessionId) {
                 try {
                     const session = this.runningSessions.find(s => s.sessionId === sessionId);
                     const sessionName = session ? session.sessionName : sessionId;
@@ -3584,7 +3868,7 @@
                     this.appendText(`❌ Failed to stop session: ${error.message}\n`, 'system-message');
                     this.scrollToBottom();
                 }
-            }
+            } */
             
             // === END SESSION SWITCHER METHODS ===
         }

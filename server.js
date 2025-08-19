@@ -460,6 +460,28 @@ class GooseWebServer {
       }
     });
 
+    // Get current working directory for active session
+    this.app.get('/api/goose/working-directory', (req, res) => {
+      try {
+        const activeSession = conversationManager.getActiveSession();
+        if (activeSession) {
+          res.json({
+            workingDirectory: activeSession.workingDirectory,
+            sessionName: activeSession.sessionName,
+            sessionId: activeSession.sessionId
+          });
+        } else {
+          res.json({
+            workingDirectory: process.cwd(),
+            sessionName: null,
+            sessionId: null
+          });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Directory browsing API
     this.app.get('/api/directories', async (req, res) => {
       try {
@@ -597,7 +619,8 @@ class GooseWebServer {
 
 // Start web server if run directly
 if (require.main === module) {
-  const server = new GooseWebServer();
+  const port = parseInt(process.env.PORT) || 3000;
+  const server = new GooseWebServer(port);
   server.start();
 }
 
