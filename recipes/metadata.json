@@ -1,48 +1,28 @@
 {
   "recipes": {
-    "4688dcf1cdbb9324041e430d915447de": {
-      "name": "Tech Co-Founder",
-      "path": "/Users/mini/code/wingman/.worktrees/recipe/recipes/user/4688dcf1cdbb9324041e430d915447de.json",
-      "createdAt": "2025-08-16T06:02:10.323Z",
-      "updatedAt": "2025-08-16T12:23:24.988Z"
-    },
     "772e2f6e7d048c68d44ece141143ea32": {
       "name": "Code Review",
       "path": "/Users/mini/code/wingman/recipes/user/772e2f6e7d048c68d44ece141143ea32.json",
       "createdAt": "2025-08-19T02:17:40.577Z"
+    },
+    "7c7583b29306b0cee9edb8bcda89e9d2": {
+      "name": "Planner",
+      "path": "/Users/mini/code/wingman/recipes/user/7c7583b29306b0cee9edb8bcda89e9d2.json",
+      "createdAt": "2025-08-19T04:31:15.392Z",
+      "updatedAt": "2025-08-19T04:33:19.190Z"
     }
   },
   "usage": {
-    "4688dcf1cdbb9324041e430d915447de": {
-      "count": 6,
+    "7c7583b29306b0cee9edb8bcda89e9d2": {
+      "count": 1,
       "sessions": [
         {
-          "sessionId": "recipe2",
-          "timestamp": "2025-08-16T06:09:49.466Z"
-        },
-        {
-          "sessionId": "Scheduled Starts",
-          "timestamp": "2025-08-16T07:24:54.285Z"
-        },
-        {
-          "sessionId": "liner",
-          "timestamp": "2025-08-16T08:54:07.079Z"
-        },
-        {
-          "sessionId": "Pipeliner",
-          "timestamp": "2025-08-16T10:09:15.931Z"
-        },
-        {
-          "sessionId": "Test Restoriation",
-          "timestamp": "2025-08-16T12:17:59.469Z"
-        },
-        {
-          "sessionId": "Multi-session-1",
-          "timestamp": "2025-08-19T02:20:55.087Z"
+          "sessionId": "recipe-Planner-1755577954767",
+          "timestamp": "2025-08-19T04:32:34.778Z"
         }
       ],
-      "firstUsed": "2025-08-16T06:09:49.466Z",
-      "lastUsed": "2025-08-19T02:20:55.087Z"
+      "firstUsed": "2025-08-19T04:32:34.778Z",
+      "lastUsed": "2025-08-19T04:32:34.778Z"
     }
   },
   "lastUpdated": "2025-08-16T05:54:11.930Z"
