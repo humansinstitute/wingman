@@ -9,7 +9,7 @@
   },
   "usage": {
     "4688dcf1cdbb9324041e430d915447de": {
-      "count": 5,
+      "count": 6,
       "sessions": [
         {
           "sessionId": "recipe2",
@@ -30,10 +30,14 @@
         {
           "sessionId": "Test Restoriation",
           "timestamp": "2025-08-16T12:17:59.469Z"
+        },
+        {
+          "sessionId": "Multi-session-1",
+          "timestamp": "2025-08-19T02:20:55.087Z"
         }
       ],
       "firstUsed": "2025-08-16T06:09:49.466Z",
-      "lastUsed": "2025-08-16T12:17:59.469Z"
+      "lastUsed": "2025-08-19T02:20:55.087Z"
     }
   },
   "lastUpdated": "2025-08-16T05:54:11.930Z"
