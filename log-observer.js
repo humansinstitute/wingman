@@ -11,7 +11,7 @@ class GooseLogObserver {
       'goose-output.log',
       'goose-output-improved.log', 
       'goose-claude-output.log',
-      'goose-cli-wrapper-streaming.js'
+      'goose-streaming-output.log'
     ];
     this.activeLogFile = null;
     this.tailProcess = null;
