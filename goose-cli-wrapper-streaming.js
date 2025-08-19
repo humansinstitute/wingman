@@ -12,6 +12,8 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       maxTurns: options.maxTurns || 1000,
       extensions: options.extensions || [],
       builtins: options.builtins || [],
+      recipeConfig: options.recipeConfig || null,
+      recipePath: options.recipePath || null,
       ...options
     };
     
@@ -24,8 +26,38 @@ class StreamingGooseCLIWrapper extends EventEmitter {
   }
 
   async start() {
-    return new Promise((resolve, reject) => {
-      const args = ['session', '--name', this.options.sessionName];
+    return new Promise(async (resolve, reject) => {
+      let args;
+      let command;
+      
+      // If we have a recipe, use 'goose run' instead of 'goose session'
+      if (this.options.recipeConfig || this.options.recipePath) {
+        command = 'run';
+        args = [];
+        
+        let recipePath = this.options.recipePath;
+        
+        // If we have recipe config but no path, create a temp file
+        if (this.options.recipeConfig && !recipePath) {
+          recipePath = await this.createTempRecipeFile(this.options.recipeConfig);
+        }
+        
+        if (recipePath) {
+          args.push('--recipe', recipePath);
+        }
+        
+        // Add interactive flag to continue in chat mode
+        args.push('--interactive');
+        
+        // Add session name
+        args.push('--name', this.options.sessionName);
+        
+        // Note: We can't use --text with --recipe, so we'll send the prompt after startup
+      } else {
+        // Regular session without recipe
+        command = 'session';
+        args = ['--name', this.options.sessionName];
+      }
       
       if (this.options.debug) {
         args.push('--debug');
@@ -35,19 +67,23 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         args.push('--max-turns', this.options.maxTurns.toString());
       }
       
-      this.options.extensions.forEach(ext => {
-        args.push('--with-extension', ext);
-      });
-      
-      this.options.builtins.forEach(builtin => {
-        args.push('--with-builtin', builtin);
-      });
+      // Only add extensions and builtins if not using a recipe
+      // When using recipes, extensions and builtins are defined in the recipe file
+      if (!this.options.recipeConfig && !this.options.recipePath) {
+        this.options.extensions.forEach(ext => {
+          args.push('--with-extension', ext);
+        });
+        
+        this.options.builtins.forEach(builtin => {
+          args.push('--with-builtin', builtin);
+        });
+      }
       
       const workingDir = this.options.workingDirectory || process.cwd();
-      console.log(`Starting Goose session: goose ${args.join(' ')}`);
+      console.log(`Starting Goose ${command}: goose ${command} ${args.join(' ')}`);
       console.log(`Working directory: ${workingDir}`);
       
-      this.gooseProcess = spawn('goose', args, {
+      this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: workingDir
       });
@@ -61,20 +97,37 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         this.emit('error', data.toString());
       });
 
+      let processExited = false;
+      
       this.gooseProcess.on('close', (code) => {
         console.log(`Goose process exited with code ${code}`);
+        this.isReady = false;
+        processExited = true;
         this.emit('close', code);
+        
+        // If process exits with non-zero code during startup, reject
+        if (code !== 0) {
+          reject(new Error(`Goose process exited with code ${code}`));
+        }
       });
 
       this.gooseProcess.on('error', (error) => {
         console.error('Failed to start Goose:', error);
+        this.isReady = false;
+        processExited = true;
         reject(error);
       });
 
+      // Wait for Goose to be ready, but check if process is still alive
       setTimeout(() => {
-        this.isReady = true;
-        this.emit('ready');
-        resolve();
+        if (!processExited && this.gooseProcess && !this.gooseProcess.killed) {
+          this.isReady = true;
+          this.emit('ready');
+          resolve();
+        } else if (!processExited) {
+          reject(new Error('Goose process terminated before ready'));
+        }
+        // If processExited is true, we already rejected above
       }, 2000);
     });
   }
@@ -93,6 +146,21 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       return;
     }
     
+    // Check if session is ready for input (for both new and resumed sessions)
+    if (this.isSessionReady(cleanData)) {
+      if (!this.isReady) {
+        console.log('🎯 Detected Goose is ready for input!');
+        this.isReady = true;
+        this.emit('ready');
+      }
+      
+      if (this.isResuming && !this.initialHistoryLoaded) {
+        this.initialHistoryLoaded = true;
+        this.isResuming = false;
+        return;
+      }
+    }
+    
     // When resuming, check if we're getting conversation history
     if (this.isResuming && !this.initialHistoryLoaded) {
       // Look for patterns that indicate we're getting conversation history
@@ -103,13 +171,6 @@ class StreamingGooseCLIWrapper extends EventEmitter {
           timestamp: timestamp,
           source: 'goose-history'
         });
-        return;
-      }
-      
-      // Mark history as loaded when we see a prompt or ready indicator
-      if (this.isSessionReady(cleanData)) {
-        this.initialHistoryLoaded = true;
-        this.isResuming = false;
         return;
       }
     }
@@ -249,12 +310,17 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     // Detect when session is ready for new input
     const readyPatterns = [
       /^>$/,                    // Command prompt
-      /^Enter your message:/,   // Input prompt
+      /^Enter your message:/,   // Input prompt  
       /ready for input/i,       // Ready indicator
       /What would you like/i,   // Question prompt
+      /^How can I help/i,       // Goose greeting
+      /^I can be your wingman/i, // Recipe greeting
+      /^Hello!/i,               // Generic greeting
+      /^\d+>\s*$/,              // Numbered prompt
     ];
     
-    return readyPatterns.some(pattern => pattern.test(data.trim()));
+    const trimmed = data.trim();
+    return readyPatterns.some(pattern => pattern.test(trimmed));
   }
 
   isToolIndicator(data) {
@@ -399,15 +465,61 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     // Try to load conversation history from session file before starting
     await this.loadSessionHistory(sessionName);
     
-    const args = ['session', '--resume', '--name', sessionName];
+    return new Promise(async (resolve, reject) => {
+      // Always resume using 'goose session --resume'
+      // The recipe instructions/settings are already baked into the session
+      const command = 'session';
+      const args = ['--resume', '--name', sessionName];
+      
+      if (this.options.debug) {
+        args.push('--debug');
+      }
+      
+      const workingDir = this.options.workingDirectory || process.cwd();
+      console.log(`Resuming Goose ${command}: goose ${command} ${args.join(' ')}`);
+      console.log(`Working directory: ${workingDir}`);
+      
+      this.gooseProcess = spawn('goose', [command, ...args], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: workingDir
+      });
+
+      this.gooseProcess.stdout.on('data', (data) => {
+        this.handleOutput(data.toString());
+      });
+
+      this.gooseProcess.stderr.on('data', (data) => {
+        console.error('Goose stderr:', data.toString());
+        this.emit('error', data.toString());
+      });
+
+      this.gooseProcess.on('close', (code) => {
+        console.log(`Goose process exited with code ${code}`);
+        this.emit('close', code);
+      });
+
+      this.gooseProcess.on('error', (error) => {
+        console.error('Failed to resume Goose:', error);
+        reject(error);
+      });
+
+      // Wait for Goose to be ready
+      setTimeout(() => {
+        this.isReady = true;
+        this.emit('ready');
+        resolve();
+      }, 2000);
+    });
+  }
+  
+  async createTempRecipeFile(recipe) {
+    const tempDir = path.join(__dirname, 'temp');
+    await fs.mkdir(tempDir, { recursive: true });
     
-    if (this.options.debug) {
-      args.push('--debug');
-    }
+    const tempFilePath = path.join(tempDir, `recipe-${Date.now()}.json`);
+    await fs.writeFile(tempFilePath, JSON.stringify(recipe, null, 2));
     
-    console.log(`Resuming Goose session: goose ${args.join(' ')}`);
-    
-    return this.start();
+    return tempFilePath;
   }
 
   async loadSessionHistory(sessionName) {

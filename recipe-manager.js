@@ -175,15 +175,16 @@ class RecipeManager extends EventEmitter {
   async createRecipe(recipeData) {
     const recipe = {
       id: recipeData.id || crypto.randomBytes(16).toString('hex'),
+      version: recipeData.version || '1.0.0',
+      title: recipeData.title || recipeData.name || 'Untitled Recipe',
       name: recipeData.name || 'Untitled Recipe',
       description: recipeData.description || '',
-      version: recipeData.version || '1.0.0',
       category: recipeData.category || 'custom',
       tags: recipeData.tags || [],
-      author: recipeData.author || 'unknown',
+      author: recipeData.author || { name: 'Unknown', email: 'unknown@example.com' },
       instructions: recipeData.instructions,
       prompt: recipeData.prompt,
-      extensions: recipeData.extensions || [],
+      extensions: this.normalizeExtensions(recipeData.extensions || []),
       builtins: recipeData.builtins || [],
       settings: recipeData.settings || {},
       parameters: recipeData.parameters || [],
@@ -332,6 +333,10 @@ class RecipeManager extends EventEmitter {
     const errors = [];
 
     // Required fields
+    if (!recipeData.title) {
+      errors.push('Recipe title is required');
+    }
+
     if (!recipeData.name) {
       errors.push('Recipe name is required');
     }
@@ -516,6 +521,11 @@ class RecipeManager extends EventEmitter {
       
       const recipe = JSON.parse(data);
       
+      // Normalize extensions to proper format
+      if (recipe.extensions) {
+        recipe.extensions = this.normalizeExtensions(recipe.extensions);
+      }
+      
       // Add usage stats from metadata
       if (this.metadata.usage && this.metadata.usage[recipe.id]) {
         recipe.usageCount = this.metadata.usage[recipe.id].count || 0;
@@ -607,6 +617,34 @@ class RecipeManager extends EventEmitter {
   // Get all categories
   async getCategories() {
     return this.categories;
+  }
+
+  // Convert simple string extensions to proper extension objects
+  normalizeExtensions(extensions) {
+    if (!extensions || !Array.isArray(extensions)) {
+      return [];
+    }
+    
+    return extensions.map(ext => {
+      if (typeof ext === 'string') {
+        // Convert simple string to proper extension format
+        return {
+          type: 'stdio',
+          name: ext,
+          cmd: ext,
+          args: []
+        };
+      } else {
+        // Already in proper format
+        return ext;
+      }
+    });
+  }
+
+  // Clear cache to force reload from disk
+  clearCache() {
+    this.cache.clear();
+    console.log('Recipe cache cleared');
   }
 }
 

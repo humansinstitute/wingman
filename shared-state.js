@@ -218,7 +218,7 @@ class GooseConversationManager extends EventEmitter {
       extensions: [...(recipe.extensions || []), ...(options.extensions || [])],
       builtins: [...(recipe.builtins || []), ...(options.builtins || [])],
       recipePath: recipePath,
-      recipe: processedRecipe,
+      recipeConfig: processedRecipe,
       parameters: options.parameters || {},
       workingDirectory: options.workingDirectory || process.cwd()
     });
@@ -283,7 +283,11 @@ class GooseConversationManager extends EventEmitter {
       // Send initial prompt if specified in recipe
       if (processedRecipe.prompt) {
         setTimeout(() => {
-          this.sendToGoose(processedRecipe.prompt);
+          try {
+            this.sendToGoose(processedRecipe.prompt);
+          } catch (error) {
+            console.error('Error sending initial recipe prompt:', error);
+          }
         }, 3000); // Wait a bit for Goose to be fully ready
       }
 
@@ -334,6 +338,14 @@ class GooseConversationManager extends EventEmitter {
     if (!this.gooseWrapper) {
       throw new Error('No active Goose session');
     }
+    
+    // Additional debugging
+    console.log('=== GOOSE WRAPPER STATE ===');
+    console.log('Wrapper exists:', !!this.gooseWrapper);
+    console.log('Wrapper isReady:', this.gooseWrapper.isReady);
+    console.log('Wrapper gooseProcess exists:', !!this.gooseWrapper.gooseProcess);
+    console.log('Wrapper gooseProcess killed:', this.gooseWrapper.gooseProcess?.killed);
+    console.log('============================');
 
     // Debug logging for conversation manager
     console.log('=== CONVERSATION MANAGER SEND ===');
