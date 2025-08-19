@@ -9,6 +9,10 @@ const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
 const MultiSessionManager = require('./multi-session-manager');
 
+// Clear recipe cache on server startup to ensure fresh data
+recipeManager.clearCache();
+console.log('🔄 Recipe cache cleared - recipes will use updated format');
+
 class GooseWebServer {
   constructor(port = 3000) {
     this.app = express();
@@ -396,17 +400,58 @@ class GooseWebServer {
           return res.status(400).json({ error: 'Recipe ID is required' });
         }
         
-        const result = await conversationManager.startGooseSessionWithRecipe(
-          recipeId, 
-          { sessionName, parameters, workingDirectory }
-        );
-        
-        if (result.success) {
-          // Broadcast status update to all clients
-          this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+        // Get recipe details
+        const recipe = await recipeManager.getRecipe(recipeId);
+        if (!recipe) {
+          return res.status(404).json({ error: 'Recipe not found' });
         }
         
-        res.json(result);
+        // Process recipe with parameters
+        const processedRecipe = await recipeManager.processTemplate(recipe, parameters || {});
+        
+        // Create session with recipe using MultiSessionManager
+        const sessionResult = await this.multiSessionManager.createSession({
+          sessionName: sessionName || `recipe-${recipe.name}-${Date.now()}`,
+          workingDirectory: workingDirectory || process.cwd(),
+          extensions: [], // Extensions are defined in the recipe file
+          builtins: [], // Builtins are defined in the recipe file
+          recipeId: recipeId,
+          recipeConfig: processedRecipe
+        });
+        
+        // Start the session 
+        await sessionResult.wrapper.start();
+        
+        // Switch to the new session (this will clear UI and set as active)
+        await this.multiSessionManager.switchSession(sessionResult.sessionId);
+        
+        // Track recipe usage
+        await recipeManager.trackUsage(recipeId, sessionResult.sessionName);
+        
+        // Broadcast session update to all clients
+        this.io.emit('sessionsUpdate', {
+          type: 'sessionStarted',
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName
+        });
+        
+        // Also emit gooseStatusUpdate for backward compatibility
+        this.io.emit('gooseStatusUpdate', {
+          active: true,
+          sessionName: sessionResult.sessionName,
+          ready: true
+        });
+        
+        res.json({ 
+          success: true, 
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName,
+          recipe: {
+            id: recipe.id,
+            name: recipe.name,
+            description: recipe.description
+          }
+        });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }

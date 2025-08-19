@@ -26,8 +26,38 @@ class GooseCLIWrapper extends EventEmitter {
   }
 
   async start() {
-    return new Promise((resolve, reject) => {
-      const args = ['session', '--name', this.options.sessionName];
+    return new Promise(async (resolve, reject) => {
+      let args;
+      let command;
+      
+      // If we have a recipe, use 'goose run' instead of 'goose session'
+      if (this.options.recipeConfig || this.options.recipePath) {
+        command = 'run';
+        args = [];
+        
+        let recipePath = this.options.recipePath;
+        
+        // If we have recipe config but no path, create a temp file
+        if (this.options.recipeConfig && !recipePath) {
+          recipePath = await this.createTempRecipeFile(this.options.recipeConfig);
+        }
+        
+        if (recipePath) {
+          args.push('--recipe', recipePath);
+        }
+        
+        // Add interactive flag to continue in chat mode
+        args.push('--interactive');
+        
+        // Add session name
+        args.push('--name', this.options.sessionName);
+        
+        // Note: We can't use --text with --recipe, so we'll send the prompt after startup
+      } else {
+        // Regular session without recipe
+        command = 'session';
+        args = ['--name', this.options.sessionName];
+      }
       
       if (this.options.debug) {
         args.push('--debug');
@@ -37,24 +67,21 @@ class GooseCLIWrapper extends EventEmitter {
         args.push('--max-turns', this.options.maxTurns.toString());
       }
       
-      // Add recipe if specified
-      if (this.options.recipePath) {
-        args.push('--recipe', this.options.recipePath);
+      // Only add extensions and builtins if not using a recipe
+      // When using recipes, extensions and builtins are defined in the recipe file
+      if (!this.options.recipeConfig && !this.options.recipePath) {
+        this.options.extensions.forEach(ext => {
+          args.push('--with-extension', ext);
+        });
+        
+        this.options.builtins.forEach(builtin => {
+          args.push('--with-builtin', builtin);
+        });
       }
       
-      // Add extensions (if not using recipe or as additional)
-      this.options.extensions.forEach(ext => {
-        args.push('--with-extension', ext);
-      });
+      console.log(`Starting Goose ${command}: goose ${command} ${args.join(' ')}`);
       
-      // Add built-in extensions (if not using recipe or as additional)
-      this.options.builtins.forEach(builtin => {
-        args.push('--with-builtin', builtin);
-      });
-      
-      console.log(`Starting Goose session: goose ${args.join(' ')}`);
-      
-      this.gooseProcess = spawn('goose', args, {
+      this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: this.options.workingDirectory
       });
@@ -68,21 +95,37 @@ class GooseCLIWrapper extends EventEmitter {
         this.emit('error', data.toString());
       });
 
+      let processExited = false;
+      
       this.gooseProcess.on('close', (code) => {
         console.log(`Goose process exited with code ${code}`);
+        this.isReady = false;
+        processExited = true;
         this.emit('close', code);
+        
+        // If process exits with non-zero code during startup, reject
+        if (code !== 0) {
+          reject(new Error(`Goose process exited with code ${code}`));
+        }
       });
 
       this.gooseProcess.on('error', (error) => {
         console.error('Failed to start Goose:', error);
+        this.isReady = false;
+        processExited = true;
         reject(error);
       });
 
-      // Wait for Goose to be ready
+      // Wait for Goose to be ready, but check if process is still alive
       setTimeout(() => {
-        this.isReady = true;
-        this.emit('ready');
-        resolve();
+        if (!processExited && this.gooseProcess && !this.gooseProcess.killed) {
+          this.isReady = true;
+          this.emit('ready');
+          resolve();
+        } else if (!processExited) {
+          reject(new Error('Goose process terminated before ready'));
+        }
+        // If processExited is true, we already rejected above
       }, 2000);
     });
   }
@@ -233,15 +276,49 @@ class GooseCLIWrapper extends EventEmitter {
   async resumeSession(sessionName) {
     this.options.sessionName = sessionName;
     
-    const args = ['session', '--resume', '--name', sessionName];
-    
-    if (this.options.debug) {
-      args.push('--debug');
-    }
-    
-    console.log(`Resuming Goose session: goose ${args.join(' ')}`);
-    
-    return this.start();
+    return new Promise(async (resolve, reject) => {
+      // Always resume using 'goose session --resume'
+      // The recipe instructions/settings are already baked into the session
+      const command = 'session';
+      const args = ['--resume', '--name', sessionName];
+      
+      if (this.options.debug) {
+        args.push('--debug');
+      }
+      
+      console.log(`Resuming Goose ${command}: goose ${command} ${args.join(' ')}`);
+      
+      this.gooseProcess = spawn('goose', [command, ...args], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: this.options.workingDirectory || process.cwd()
+      });
+
+      this.gooseProcess.stdout.on('data', (data) => {
+        this.handleOutput(data.toString());
+      });
+
+      this.gooseProcess.stderr.on('data', (data) => {
+        console.error('Goose stderr:', data.toString());
+        this.emit('error', data.toString());
+      });
+
+      this.gooseProcess.on('close', (code) => {
+        console.log(`Goose process exited with code ${code}`);
+        this.emit('close', code);
+      });
+
+      this.gooseProcess.on('error', (error) => {
+        console.error('Failed to resume Goose:', error);
+        reject(error);
+      });
+
+      // Wait for Goose to be ready
+      setTimeout(() => {
+        this.isReady = true;
+        this.emit('ready');
+        resolve();
+      }, 2000);
+    });
   }
 }
 

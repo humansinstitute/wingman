@@ -1,5 +1,6 @@
 {
   "id": "772e2f6e7d048c68d44ece141143ea32",
+  "title": "Code Review",
   "name": "Code Review",
   "description": "Your role is to pull all my latest github PRs from the last 24 hours and review for bugs, then write the output to the relevant Obsidian Vault.",
   "version": "1.0.0",
@@ -8,7 +9,7 @@
     "github",
     "code-review"
   ],
-  "author": "unknown",
+  "author": { "name": "Unknown", "email": "unknown@example.com" },
   "instructions": "Your role is to pull all my latest github PRs from the last 24 hours and review for bugs, then write the output to the relevant Obsidian Vault.",
   "prompt": "Please identify your current working project, review the latest commits from the last 24 hours and review for any bugs or issues. \n\nPlease write the output to Obsidian Vault in the directory: \"<Project Name>/Review/DD_MM_YY_Code-Review.md\"\n\nThis should detail the commits / PRs reviewed. Any issues found and appropriate resolutions identified for these issues. \n\nPlease structure the markdown as appropriate.",
   "extensions": [],

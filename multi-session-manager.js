@@ -365,27 +365,41 @@ class MultiSessionManager extends EventEmitter {
     
     // Create new session for resume
     const sessionId = this.generateSessionId();
-    const wrapper = new SessionAwareGooseCLIWrapper({
+    const wrapperOptions = {
       sessionId,
       sessionName,
       workingDirectory: sessionContext.workingDirectory || process.cwd(),
       debug: sessionContext.debug || false,
       extensions: sessionContext.extensions || [],
       builtins: sessionContext.builtins || []
-    });
+    };
+    
+    // Include recipe config if session was started with a recipe
+    if (sessionContext.recipeConfig) {
+      wrapperOptions.recipeConfig = sessionContext.recipeConfig;
+    }
+    
+    const wrapper = new SessionAwareGooseCLIWrapper(wrapperOptions);
     
     // Set up events and store session
     this.setupSessionEvents(sessionId, wrapper);
     this.sessions.set(sessionId, wrapper);
     
     // Create metadata
-    await this.saveSessionMetadata(sessionId, {
+    const metadataOptions = {
       sessionName,
       workingDirectory: sessionContext.workingDirectory,
       debug: sessionContext.debug,
       extensions: sessionContext.extensions,
       builtins: sessionContext.builtins
-    });
+    };
+    
+    // Include recipe ID if session was started with a recipe
+    if (sessionContext.recipeId) {
+      metadataOptions.recipeId = sessionContext.recipeId;
+    }
+    
+    await this.saveSessionMetadata(sessionId, metadataOptions);
     
     try {
       // Resume using wrapper's resume method
