@@ -422,11 +422,25 @@ class GooseWebServer {
         // Start the session 
         await sessionResult.wrapper.start();
         
+        // Switch to the new session (this will clear UI and set as active)
+        await this.multiSessionManager.switchSession(sessionResult.sessionId);
+        
         // Track recipe usage
         await recipeManager.trackUsage(recipeId, sessionResult.sessionName);
         
-        // Set as active session
-        this.multiSessionManager.activeSessionId = sessionResult.sessionId;
+        // Broadcast session update to all clients
+        this.io.emit('sessionsUpdate', {
+          type: 'sessionStarted',
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName
+        });
+        
+        // Also emit gooseStatusUpdate for backward compatibility
+        this.io.emit('gooseStatusUpdate', {
+          active: true,
+          sessionName: sessionResult.sessionName,
+          ready: true
+        });
         
         res.json({ 
           success: true, 

@@ -9,17 +9,12 @@
       "name": "Planner",
       "path": "/Users/mini/code/wingman/recipes/user/7c7583b29306b0cee9edb8bcda89e9d2.json",
       "createdAt": "2025-08-19T04:31:15.392Z",
-      "updatedAt": "2025-08-19T07:33:30.197Z"
-    },
-    "76b7444d2a354632e36185e7c972754d": {
-      "name": "NEW",
-      "path": "/Users/mini/code/wingman/.worktrees/rcp/recipes/user/76b7444d2a354632e36185e7c972754d.json",
-      "createdAt": "2025-08-19T07:08:10.018Z"
+      "updatedAt": "2025-08-19T08:52:37.398Z"
     }
   },
   "usage": {
     "7c7583b29306b0cee9edb8bcda89e9d2": {
-      "count": 9,
+      "count": 15,
       "sessions": [
         {
           "sessionId": "recipe-Planner-1755577954767",
@@ -56,10 +51,34 @@
         {
           "sessionId": "New Recipe Planner",
           "timestamp": "2025-08-19T07:50:30.477Z"
+        },
+        {
+          "sessionId": "readonly and obsidian",
+          "timestamp": "2025-08-19T07:56:46.398Z"
+        },
+        {
+          "sessionId": "new session with git",
+          "timestamp": "2025-08-19T08:05:29.325Z"
+        },
+        {
+          "sessionId": "Test File System Reader",
+          "timestamp": "2025-08-19T08:13:06.438Z"
+        },
+        {
+          "sessionId": "Read only plan",
+          "timestamp": "2025-08-19T08:48:13.429Z"
+        },
+        {
+          "sessionId": "Planning: Fat Controller",
+          "timestamp": "2025-08-19T08:53:32.109Z"
+        },
+        {
+          "sessionId": "New Feature Test",
+          "timestamp": "2025-08-19T09:05:43.002Z"
         }
       ],
       "firstUsed": "2025-08-19T04:32:34.778Z",
-      "lastUsed": "2025-08-19T07:50:30.477Z"
+      "lastUsed": "2025-08-19T09:05:43.002Z"
     },
     "772e2f6e7d048c68d44ece141143ea32": {
       "count": 1,
@@ -71,21 +90,6 @@
       ],
       "firstUsed": "2025-08-19T06:53:05.889Z",
       "lastUsed": "2025-08-19T06:53:05.889Z"
-    },
-    "76b7444d2a354632e36185e7c972754d": {
-      "count": 2,
-      "sessions": [
-        {
-          "sessionId": "NEW",
-          "timestamp": "2025-08-19T07:08:42.752Z"
-        },
-        {
-          "sessionId": "recipe",
-          "timestamp": "2025-08-19T07:16:37.745Z"
-        }
-      ],
-      "firstUsed": "2025-08-19T07:08:42.752Z",
-      "lastUsed": "2025-08-19T07:16:37.745Z"
     }
   },
   "lastUpdated": "2025-08-16T05:54:11.930Z"

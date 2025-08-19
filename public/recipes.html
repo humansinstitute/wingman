@@ -180,6 +180,22 @@
             background: var(--bg-tertiary);
             color: var(--text-primary);
         }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--accent-primary);
+            color: var(--accent-primary);
+        }
+        .btn-outline:hover {
+            background: var(--accent-primary);
+            color: white;
+        }
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
 
         .filters {
             display: flex;
@@ -415,6 +431,69 @@
             min-height: 100px;
             resize: vertical;
         }
+        
+        .extensions-container {
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            background: var(--bg-secondary);
+        }
+        
+        .extensions-list {
+            margin-bottom: 1rem;
+        }
+        
+        .extension-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .extension-details {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .extension-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .extension-cmd {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--inline-code-bg);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .extension-args {
+            grid-column: 1 / -1;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        .extension-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-small {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            border-radius: 4px;
+        }
 
         .parameter-inputs {
             border: 1px solid var(--border-primary);
@@ -549,8 +628,13 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="recipeExtensions">Extensions (comma-separated)</label>
-                    <input type="text" id="recipeExtensions" class="form-input" placeholder="e.g., browser, editor">
+                    <label class="form-label">MCP Extensions</label>
+                    <div class="extensions-container">
+                        <div id="extensionsList" class="extensions-list">
+                            <!-- Extension items will be added here -->
+                        </div>
+                        <button type="button" id="addExtensionBtn" class="btn btn-outline">+ Add MCP Extension</button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -585,6 +669,48 @@
             </div>
         </div>
     </div>
+    
+    <!-- MCP Extension Configuration Modal -->
+    <div id="extensionModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="extensionModalTitle">Add MCP Extension</h3>
+                <button class="modal-close" id="closeExtensionModal">×</button>
+            </div>
+            
+            <form id="extensionForm">
+                <div class="form-group">
+                    <label class="form-label" for="extName">Extension Name</label>
+                    <input type="text" id="extName" class="form-input" placeholder="e.g., mcpobsidian, gitmcp, filesread" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="extCmd">Command</label>
+                    <input type="text" id="extCmd" class="form-input" placeholder="e.g., uvx, npx" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="extArgs">Arguments (one per line)</label>
+                    <textarea id="extArgs" class="form-textarea" rows="4" placeholder="e.g.&#10;-y&#10;mcp-obsidian"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="extTimeout">Timeout (seconds)</label>
+                    <input type="number" id="extTimeout" class="form-input" value="300" min="1">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="extEnvKeys">Environment Keys (one per line)</label>
+                    <textarea id="extEnvKeys" class="form-textarea" rows="3" placeholder="e.g.&#10;OBSIDIAN_API_KEY&#10;GITHUB_TOKEN"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Save Extension</button>
+                    <button type="button" id="cancelExtensionBtn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
         class RecipeManager {
@@ -617,8 +743,26 @@
                 this.recipeTags = document.getElementById('recipeTags');
                 this.recipeInstructions = document.getElementById('recipeInstructions');
                 this.recipePrompt = document.getElementById('recipePrompt');
-                this.recipeExtensions = document.getElementById('recipeExtensions');
                 this.recipeBuiltins = document.getElementById('recipeBuiltins');
+                
+                // Extension UI elements
+                this.extensionsList = document.getElementById('extensionsList');
+                this.addExtensionBtn = document.getElementById('addExtensionBtn');
+                
+                // Extension modal elements
+                this.extensionModal = document.getElementById('extensionModal');
+                this.extensionModalTitle = document.getElementById('extensionModalTitle');
+                this.extensionForm = document.getElementById('extensionForm');
+                this.extName = document.getElementById('extName');
+                this.extCmd = document.getElementById('extCmd');
+                this.extArgs = document.getElementById('extArgs');
+                this.extTimeout = document.getElementById('extTimeout');
+                this.extEnvKeys = document.getElementById('extEnvKeys');
+                
+                // Check if extension modal elements exist
+                if (!this.extensionModal || !this.extensionForm) {
+                    console.error('Extension modal elements not found!');
+                }
                 
                 // Buttons
                 this.createRecipeBtn = document.getElementById('createRecipeBtn');
@@ -641,6 +785,30 @@
                 this.cancelRecipeBtn.addEventListener('click', () => this.hideRecipeModal());
                 this.importBtn.addEventListener('click', () => this.importRecipe());
                 this.cancelImportBtn.addEventListener('click', () => this.hideImportModal());
+                
+                // Extension event listeners
+                this.addExtensionBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Add extension button clicked');
+                    this.showExtensionModal();
+                });
+                this.extensionForm.addEventListener('submit', (e) => {
+                    console.log('Extension form submitted');
+                    this.saveExtension(e);
+                });
+                document.getElementById('cancelExtensionBtn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Cancel extension button clicked');
+                    this.hideExtensionModal();
+                });
+                document.getElementById('closeExtensionModal').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Close extension modal clicked');
+                    this.hideExtensionModal();
+                });
                 
                 this.searchInput.addEventListener('input', () => this.filterRecipes());
                 this.categoryFilter.addEventListener('change', () => this.filterRecipes());
@@ -806,6 +974,11 @@
                 this.modalTitle.textContent = 'Create New Recipe';
                 this.recipeForm.reset();
                 this.recipeBuiltins.value = 'developer';
+                
+                // Initialize extension system for new recipe
+                this.currentRecipeExtensions = [];
+                this.renderExtensions();
+                
                 this.recipeModal.classList.add('show');
             }
             
@@ -819,8 +992,11 @@
                 this.recipeTags.value = recipe.tags.join(', ');
                 this.recipeInstructions.value = recipe.instructions || '';
                 this.recipePrompt.value = recipe.prompt || '';
-                this.recipeExtensions.value = recipe.extensions?.join(', ') || '';
                 this.recipeBuiltins.value = recipe.builtins?.join(', ') || '';
+                
+                // Load extensions into the new system
+                this.currentRecipeExtensions = recipe.extensions ? [...recipe.extensions] : [];
+                this.renderExtensions();
                 
                 this.recipeModal.classList.add('show');
             }
@@ -828,6 +1004,30 @@
             hideRecipeModal() {
                 this.recipeModal.classList.remove('show');
                 this.currentRecipe = null;
+            }
+            
+            processExtensions(extensionsInput, existingExtensions = []) {
+                const inputExtensions = extensionsInput.split(',').map(ext => ext.trim()).filter(ext => ext);
+                const result = [];
+                
+                // Process each input extension
+                for (const inputExt of inputExtensions) {
+                    // First, try to find existing extension by name
+                    const existing = existingExtensions?.find(ext => 
+                        (typeof ext === 'string' && ext === inputExt) ||
+                        (ext && ext.name === inputExt)
+                    );
+                    
+                    if (existing) {
+                        // Use existing extension configuration
+                        result.push(existing);
+                    } else {
+                        // New extension - create simple string (will be normalized by backend)
+                        result.push(inputExt);
+                    }
+                }
+                
+                return result;
             }
             
             showImportModal() {
@@ -839,6 +1039,148 @@
                 this.importUrl.value = '';
             }
             
+            // Extension Management Methods
+            showExtensionModal(extension = null) {
+                try {
+                    console.log('showExtensionModal called with:', extension);
+                    this.currentExtension = extension;
+                    
+                    if (extension) {
+                        console.log('Editing extension:', extension);
+                        this.extensionModalTitle.textContent = 'Edit MCP Extension';
+                        this.extName.value = extension.name || '';
+                        this.extCmd.value = extension.cmd || '';
+                        this.extArgs.value = (extension.args || []).join('\n');
+                        this.extTimeout.value = extension.timeout || 300;
+                        this.extEnvKeys.value = (extension.env_keys || []).join('\n');
+                    } else {
+                        console.log('Adding new extension');
+                        this.extensionModalTitle.textContent = 'Add MCP Extension';
+                        this.extensionForm.reset();
+                        this.extTimeout.value = 300;
+                    }
+                    
+                    console.log('Opening extension modal');
+                    this.extensionModal.classList.add('show');
+                } catch (error) {
+                    console.error('Error in showExtensionModal:', error);
+                    alert('Error opening extension modal: ' + error.message);
+                }
+            }
+            
+            hideExtensionModal() {
+                console.log('Hiding extension modal');
+                this.extensionModal.classList.remove('show');
+                this.currentExtension = null;
+                this.extensionForm.reset();
+            }
+            
+            saveExtension(e) {
+                try {
+                    console.log('saveExtension called');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const extension = {
+                        type: 'stdio',
+                        name: this.extName.value.trim(),
+                        cmd: this.extCmd.value.trim(),
+                        args: this.extArgs.value.split('\n').map(arg => arg.trim()).filter(arg => arg),
+                        timeout: parseInt(this.extTimeout.value) || 300,
+                        env_keys: this.extEnvKeys.value.split('\n').map(key => key.trim()).filter(key => key)
+                    };
+                    
+                    console.log('Extension data:', extension);
+                    
+                    if (!extension.name || !extension.cmd) {
+                        alert('Extension name and command are required');
+                        return;
+                    }
+                    
+                    // Initialize extensions array if it doesn't exist
+                    if (!this.currentRecipeExtensions) {
+                        this.currentRecipeExtensions = [];
+                    }
+                    
+                    if (this.currentExtension) {
+                        console.log('Editing existing extension');
+                        // Edit existing extension
+                        const index = this.currentRecipeExtensions.findIndex(ext => ext.name === this.currentExtension.name);
+                        if (index !== -1) {
+                            this.currentRecipeExtensions[index] = extension;
+                        }
+                    } else {
+                        console.log('Adding new extension');
+                        // Add new extension
+                        this.currentRecipeExtensions.push(extension);
+                    }
+                    
+                    this.renderExtensions();
+                    this.hideExtensionModal();
+                } catch (error) {
+                    console.error('Error in saveExtension:', error);
+                    alert('Error saving extension: ' + error.message);
+                }
+            }
+            
+            removeExtension(extensionName) {
+                if (confirm(`Remove extension "${extensionName}"?`)) {
+                    this.currentRecipeExtensions = this.currentRecipeExtensions.filter(ext => ext.name !== extensionName);
+                    this.renderExtensions();
+                }
+            }
+            
+            renderExtensions() {
+                if (!this.currentRecipeExtensions) {
+                    this.currentRecipeExtensions = [];
+                }
+                
+                this.extensionsList.innerHTML = '';
+                
+                this.currentRecipeExtensions.forEach(extension => {
+                    const extensionElement = document.createElement('div');
+                    extensionElement.className = 'extension-item';
+                    
+                    const argsText = extension.args && extension.args.length > 0 
+                        ? `args: [${extension.args.join(', ')}]`
+                        : 'no args';
+                    
+                    const envText = extension.env_keys && extension.env_keys.length > 0
+                        ? ` • env: [${extension.env_keys.join(', ')}]`
+                        : '';
+                    
+                    extensionElement.innerHTML = `
+                        <div class="extension-details">
+                            <div class="extension-name">${extension.name}</div>
+                            <div class="extension-cmd">${extension.cmd}</div>
+                            <div class="extension-args">${argsText}${envText}</div>
+                        </div>
+                        <div class="extension-actions">
+                            <button class="btn btn-small btn-outline edit-extension-btn" data-extension-name="${extension.name}">Edit</button>
+                            <button class="btn btn-small btn-danger remove-extension-btn" data-extension-name="${extension.name}">Remove</button>
+                        </div>
+                    `;
+                    
+                    // Add event listeners to the buttons
+                    const editBtn = extensionElement.querySelector('.edit-extension-btn');
+                    const removeBtn = extensionElement.querySelector('.remove-extension-btn');
+                    
+                    editBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Edit button clicked for extension:', extension.name);
+                        this.showExtensionModal(extension);
+                    });
+                    removeBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.removeExtension(extension.name);
+                    });
+                    
+                    this.extensionsList.appendChild(extensionElement);
+                });
+            }
+            
             async saveRecipe() {
                 try {
                     const recipeData = {
@@ -848,7 +1190,7 @@
                         tags: this.recipeTags.value.split(',').map(tag => tag.trim()).filter(tag => tag),
                         instructions: this.recipeInstructions.value.trim() || undefined,
                         prompt: this.recipePrompt.value.trim() || undefined,
-                        extensions: this.recipeExtensions.value.split(',').map(ext => ext.trim()).filter(ext => ext),
+                        extensions: this.currentRecipeExtensions || [],
                         builtins: this.recipeBuiltins.value.split(',').map(builtin => builtin.trim()).filter(builtin => builtin)
                     };
                     
@@ -964,8 +1306,9 @@
         }
         
         // Initialize the recipe manager when the page loads
+        let recipeManager;
         document.addEventListener('DOMContentLoaded', () => {
-            new RecipeManager();
+            recipeManager = new RecipeManager();
         });
     </script>
 </body>
