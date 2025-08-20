@@ -1,0 +1,27 @@
+{
+  "id": "7e8a2c4192e8263dc0253ea1497283b7",
+  "version": "1.0.0",
+  "title": "Test Open Router",
+  "name": "Test Open Router",
+  "description": "Test Open Router",
+  "category": "development",
+  "tags": [],
+  "author": {
+    "name": "Unknown",
+    "email": "unknown@example.com"
+  },
+  "instructions": "Respond based on system prompt instructions",
+  "extensions": [],
+  "builtins": [
+    "developer"
+  ],
+  "settings": {
+    "goose_provider": "openrouter",
+    "goose_model": "openai/gpt-4o-mini"
+  },
+  "parameters": [],
+  "createdAt": "2025-08-20T01:56:03.426Z",
+  "updatedAt": "2025-08-20T01:56:03.426Z",
+  "usageCount": 0,
+  "isPublic": false
+}

@@ -171,6 +171,27 @@
             box-shadow: var(--shadow-md);
         }
         
+        .provider-model-info {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-right: 1rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .provider-model-info span {
+            font-weight: 400;
+        }
+        
+        /* Dark mode styling with green accent */
+        body.dark-theme .provider-model-info {
+            color: var(--accent-primary);
+        }
+        
+        body.dark-theme .provider-model-info span {
+            color: var(--accent-primary);
+        }
+        
         .session-count-badge {
             color: inherit;
             font-size: inherit;
@@ -1229,6 +1250,9 @@
             #gooseStatus {
                 display: none;
             }
+            #providerModelInfo {
+                display: none !important;
+            }
 
             /* Re-enable send button on mobile */
             .input-container button#sendBtn {
@@ -1305,6 +1329,9 @@
             Wingman: Goose
         </h1>
         <div class="header-right">
+            <div id="providerModelInfo" class="provider-model-info" style="display: none;">
+                <span id="providerModelText"></span>
+            </div>
             <div id="gooseStatus" class="goose-status status-inactive">
                 <span id="sessionNameDisplay">No Session Active</span>
                 <span id="sessionCountBadge" class="session-count-badge" style="display: none;"></span>
@@ -1336,6 +1363,13 @@
             <div class="mobile-menu-item session-only">
                 <div id="mobileGooseStatus" class="goose-status status-inactive">
                     No Session Active
+                </div>
+            </div>
+            
+            <!-- Provider/Model Info -->
+            <div id="mobileProviderModelInfo" class="mobile-menu-item session-only" style="display: none;">
+                <div class="provider-model-info">
+                    <span id="mobileProviderModelText"></span>
                 </div>
             </div>
             
@@ -1559,6 +1593,48 @@
                 </div>
             </div>
             
+            <!-- Step 2.5: Provider/Model Override (only shown when recipe is selected) -->
+            <div id="wizardStep2_5" class="wizard-step" style="display: none;">
+                <h4>Step 2.5: Provider/Model Override</h4>
+                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Optionally override the provider/model for this session.</p>
+                
+                <div id="recipeDefaultsDisplay" class="recipe-defaults-info" style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+                    <strong>Recipe Defaults:</strong>
+                    <p id="recipeDefaultProvider">Provider: <span>-</span></p>
+                    <p id="recipeDefaultModel">Model: <span>-</span></p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="enableProviderOverride" class="form-label">
+                        <input type="checkbox" id="enableProviderOverride" style="margin-right: 0.5rem;">
+                        Override provider/model for this session
+                    </label>
+                </div>
+                
+                <div id="providerOverrideControls" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label" for="overrideProvider">Provider</label>
+                        <select id="overrideProvider" class="form-input">
+                            <option value="">Use Recipe/Goose Default</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="overrideModelGroup" style="display: none;">
+                        <label class="form-label" for="overrideModel">Model</label>
+                        <select id="overrideModel" class="form-input">
+                            <option value="">Use Provider Default</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="wizard-buttons">
+                    <button id="wizardStep2_5Next" class="btn btn-primary">Next: Working Directory</button>
+                </div>
+                <div class="wizard-nav">
+                    <button id="wizardStep2_5Back" class="btn btn-secondary">← Back</button>
+                </div>
+            </div>
+            
             <!-- Step 3: Working Directory -->
             <div id="wizardStep3" class="wizard-step" style="display: none;">
                 <h4>Step 3: Working Directory</h4>
@@ -1597,6 +1673,12 @@
                 this.sessionNameDisplay = document.getElementById('sessionNameDisplay');
                 this.sessionCountBadge = document.getElementById('sessionCountBadge');
                 
+                // New provider/model display elements
+                this.providerModelInfo = document.getElementById('providerModelInfo');
+                this.providerModelText = document.getElementById('providerModelText');
+                this.mobileProviderModelInfo = document.getElementById('mobileProviderModelInfo');
+                this.mobileProviderModelText = document.getElementById('mobileProviderModelText');
+                
                 this.sessionNameInput = document.getElementById('sessionNameInput');
                 this.startSessionBtn = document.getElementById('startSessionBtn');
                 this.stopSessionBtn = document.getElementById('stopSessionBtn');
@@ -1619,6 +1701,7 @@
                 this.closeWizardModal = document.getElementById('closeWizardModal');
                 this.wizardStep1 = document.getElementById('wizardStep1');
                 this.wizardStep2 = document.getElementById('wizardStep2');
+                this.wizardStep2_5 = document.getElementById('wizardStep2_5');
                 this.wizardStep3 = document.getElementById('wizardStep3');
                 this.wizardSessionName = document.getElementById('wizardSessionName');
                 this.wizardWorkingDirectory = document.getElementById('wizardWorkingDirectory');
@@ -1627,12 +1710,23 @@
                 this.wizardStep1Next = document.getElementById('wizardStep1Next');
                 this.wizardStep2Back = document.getElementById('wizardStep2Back');
                 this.wizardStep2Next = document.getElementById('wizardStep2Next');
+                this.wizardStep2_5Back = document.getElementById('wizardStep2_5Back');
+                this.wizardStep2_5Next = document.getElementById('wizardStep2_5Next');
                 this.wizardStep3Back = document.getElementById('wizardStep3Back');
                 this.wizardChooseRecipeBtn = document.getElementById('wizardChooseRecipeBtn');
                 this.wizardSkipRecipeBtn = document.getElementById('wizardSkipRecipeBtn');
                 this.wizardBrowseDirectoryBtn = document.getElementById('wizardBrowseDirectoryBtn');
                 this.wizardUseCurrentDirBtn = document.getElementById('wizardUseCurrentDirBtn');
                 this.wizardCreateSessionBtn = document.getElementById('wizardCreateSessionBtn');
+                
+                // Provider/Model override elements
+                this.enableProviderOverride = document.getElementById('enableProviderOverride');
+                this.providerOverrideControls = document.getElementById('providerOverrideControls');
+                this.overrideProvider = document.getElementById('overrideProvider');
+                this.overrideModel = document.getElementById('overrideModel');
+                this.overrideModelGroup = document.getElementById('overrideModelGroup');
+                this.recipeDefaultProvider = document.getElementById('recipeDefaultProvider');
+                this.recipeDefaultModel = document.getElementById('recipeDefaultModel');
                 
                 // Wizard recipe elements
                 this.selectedRecipeWizard = document.getElementById('selectedRecipeWizard');
@@ -1702,6 +1796,10 @@
                 this.availableRecipes = [];
                 this.categories = [];
                 
+                // Provider/Model state
+                this.availableProviders = [];
+                this.currentProviderOverride = null;
+                
                 // Directory browser state
                 this.currentWorkingDirectory = null;
                 this.selectedDirectory = null;
@@ -1716,6 +1814,7 @@
                 
                 this.currentGooseStatus = null;
                 this.setupTheme();
+                this.loadProviders(); // Load provider/model options
                 this.setupEventListeners();
                 this.setupSocketListeners();
                 this.updateGooseControls(false);
@@ -1745,6 +1844,65 @@
                     console.warn('Failed to load config, using default input length:', error);
                     // Fallback to default
                     this.messageInput.maxLength = 5000;
+                }
+            }
+            
+            async loadProviders() {
+                try {
+                    const response = await fetch('/api/goose-config/providers');
+                    const data = await response.json();
+                    this.availableProviders = data.providers || [];
+                    this.populateProviderDropdowns();
+                } catch (error) {
+                    console.warn('Could not load providers:', error);
+                    this.availableProviders = [];
+                }
+            }
+            
+            populateProviderDropdowns() {
+                const dropdowns = [this.overrideProvider];
+                
+                dropdowns.forEach(dropdown => {
+                    if (dropdown) {
+                        dropdown.innerHTML = '<option value="">Use Recipe/Goose Default</option>';
+                        
+                        this.availableProviders.forEach(provider => {
+                            const option = document.createElement('option');
+                            option.value = provider.id;
+                            option.textContent = provider.name;
+                            if (!provider.configured) {
+                                option.disabled = true;
+                                option.textContent += ' (Not Configured)';
+                            }
+                            dropdown.appendChild(option);
+                        });
+                    }
+                });
+            }
+            
+            onOverrideProviderChange() {
+                const selectedProvider = this.overrideProvider.value;
+                
+                if (!selectedProvider) {
+                    this.overrideModelGroup.style.display = 'none';
+                    this.overrideModel.innerHTML = '<option value="">Use Provider Default</option>';
+                    return;
+                }
+                
+                // Load models for selected provider
+                const provider = this.availableProviders.find(p => p.id === selectedProvider);
+                if (provider && provider.models && provider.models.length > 0) {
+                    this.overrideModelGroup.style.display = 'block';
+                    this.overrideModel.innerHTML = '<option value="">Use Provider Default</option>';
+                    
+                    provider.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        this.overrideModel.appendChild(option);
+                    });
+                } else {
+                    this.overrideModelGroup.style.display = 'none';
                 }
             }
             
@@ -1807,13 +1965,19 @@
                 safeAddEventListener(this.closeWizardModal, 'closeWizardModal', 'click', () => this.hideSessionWizard());
                 safeAddEventListener(this.wizardStep1Next, 'wizardStep1Next', 'click', () => this.wizardGoToStep(2));
                 safeAddEventListener(this.wizardStep2Back, 'wizardStep2Back', 'click', () => this.wizardGoToStep(1));
-                safeAddEventListener(this.wizardStep2Next, 'wizardStep2Next', 'click', () => this.wizardGoToStep(3));
-                safeAddEventListener(this.wizardStep3Back, 'wizardStep3Back', 'click', () => this.wizardGoToStep(2));
+                safeAddEventListener(this.wizardStep2Next, 'wizardStep2Next', 'click', () => this.wizardGoToProviderStep());
+                safeAddEventListener(this.wizardStep2_5Back, 'wizardStep2_5Back', 'click', () => this.wizardGoToStep(2));
+                safeAddEventListener(this.wizardStep2_5Next, 'wizardStep2_5Next', 'click', () => this.wizardGoToStep(3));
+                safeAddEventListener(this.wizardStep3Back, 'wizardStep3Back', 'click', () => this.wizardGoToProviderStep());
                 safeAddEventListener(this.wizardChooseRecipeBtn, 'wizardChooseRecipeBtn', 'click', () => this.wizardChooseRecipe());
                 safeAddEventListener(this.wizardSkipRecipeBtn, 'wizardSkipRecipeBtn', 'click', () => this.wizardSkipRecipe());
                 safeAddEventListener(this.wizardBrowseDirectoryBtn, 'wizardBrowseDirectoryBtn', 'click', () => this.wizardBrowseDirectory());
                 safeAddEventListener(this.wizardUseCurrentDirBtn, 'wizardUseCurrentDirBtn', 'click', () => this.wizardUseCurrentDirectory());
                 safeAddEventListener(this.wizardCreateSessionBtn, 'wizardCreateSessionBtn', 'click', () => this.wizardCreateSession());
+                
+                // Provider/Model override event listeners
+                safeAddEventListener(this.enableProviderOverride, 'enableProviderOverride', 'change', () => this.toggleProviderOverride());
+                safeAddEventListener(this.overrideProvider, 'overrideProvider', 'change', () => this.onOverrideProviderChange());
                 
                 // Recipe selector modal event listeners
                 safeAddEventListener(this.selectRecipeBtn, 'selectRecipeBtn', 'click', () => this.showRecipeSelectorModal());
@@ -2127,8 +2291,67 @@
                 // Load and update running sessions count
                 this.loadRunningSessions();
                 
+                // Update provider/model display
+                if (status.active && status.sessionName) {
+                    this.updateProviderModelDisplay(status.sessionName);
+                } else {
+                    this.hideProviderModelDisplay();
+                }
+                
                 this.updateGooseControls(status.active);
                 this.currentGooseStatus = status;
+            }
+            
+            async updateProviderModelDisplay(sessionName) {
+                try {
+                    // Find the active session ID by name
+                    const runningResponse = await fetch('/api/sessions/running');
+                    const runningSessions = await runningResponse.json();
+                    
+                    const activeSession = runningSessions.find(session => 
+                        session.sessionName === sessionName && session.isActive
+                    );
+                    
+                    if (activeSession && activeSession.sessionId) {
+                        // Get detailed session info including provider/model
+                        const infoResponse = await fetch(`/api/sessions/${activeSession.sessionId}/info`);
+                        if (infoResponse.ok) {
+                            const sessionInfo = await infoResponse.json();
+                            
+                            if (sessionInfo.provider || sessionInfo.model) {
+                                const provider = sessionInfo.provider || 'Default';
+                                const model = sessionInfo.model || 'Default';
+                                
+                                this.showProviderModelDisplay(provider, model);
+                            } else {
+                                this.hideProviderModelDisplay();
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Could not load session provider/model info:', error);
+                    this.hideProviderModelDisplay();
+                }
+            }
+            
+            showProviderModelDisplay(provider, model) {
+                const displayText = `${provider} - ${model}`;
+                
+                // Update desktop display
+                this.providerModelText.textContent = displayText;
+                this.providerModelInfo.style.display = 'flex';
+                
+                // Update mobile display
+                this.mobileProviderModelText.textContent = displayText;
+                this.mobileProviderModelInfo.style.display = 'block';
+            }
+            
+            hideProviderModelDisplay() {
+                // Hide desktop display
+                this.providerModelInfo.style.display = 'none';
+                
+                // Hide mobile display
+                this.mobileProviderModelInfo.style.display = 'none';
             }
             
             async loadRunningSessions() {
@@ -3269,6 +3492,15 @@
                 this.hideSessionModal();
                 
                 try {
+                    // Collect provider override if enabled
+                    let providerOverride = null;
+                    if (this.currentProviderOverride) {
+                        providerOverride = {
+                            provider: this.currentProviderOverride.provider,
+                            model: this.currentProviderOverride.model
+                        };
+                    }
+
                     const response = await fetch('/api/goose/start-with-recipe', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -3276,7 +3508,8 @@
                             recipeId: recipeId,
                             sessionName: sessionName || undefined,
                             parameters,
-                            workingDirectory: this.currentWorkingDirectory
+                            workingDirectory: this.currentWorkingDirectory,
+                            providerOverride: providerOverride
                         })
                     });
                     
@@ -3497,6 +3730,7 @@
                 // Hide all steps
                 this.wizardStep1.style.display = 'none';
                 this.wizardStep2.style.display = 'none';
+                this.wizardStep2_5.style.display = 'none';
                 this.wizardStep3.style.display = 'none';
                 
                 // Show current step
@@ -3507,6 +3741,10 @@
                     case 2:
                         this.wizardStep2.style.display = 'block';
                         this.updateStep2State();
+                        break;
+                    case 2.5:
+                        this.wizardStep2_5.style.display = 'block';
+                        this.updateProviderStepDisplay();
                         break;
                     case 3:
                         this.wizardStep3.style.display = 'block';
@@ -3527,6 +3765,42 @@
                 }
                 
                 this.showWizardStep(step);
+            }
+            
+            wizardGoToProviderStep() {
+                // Only show provider step if recipe is selected
+                if (this.wizardData.selectedRecipe && this.wizardData.selectedRecipe !== false) {
+                    this.updateProviderStepDisplay();
+                    this.showWizardStep(2.5);
+                } else {
+                    // Skip provider step if no recipe
+                    this.wizardGoToStep(3);
+                }
+            }
+            
+            updateProviderStepDisplay() {
+                // Show recipe's default provider/model
+                const recipe = this.wizardData.selectedRecipe;
+                const recipeProvider = recipe?.settings?.goose_provider || 'Goose Default';
+                const recipeModel = recipe?.settings?.goose_model || 'Provider Default';
+                
+                this.recipeDefaultProvider.querySelector('span').textContent = recipeProvider;
+                this.recipeDefaultModel.querySelector('span').textContent = recipeModel;
+                
+                // Reset override controls
+                this.enableProviderOverride.checked = false;
+                this.toggleProviderOverride();
+            }
+            
+            toggleProviderOverride() {
+                const enabled = this.enableProviderOverride.checked;
+                this.providerOverrideControls.style.display = enabled ? 'block' : 'none';
+                
+                if (!enabled) {
+                    this.overrideProvider.value = '';
+                    this.overrideModel.value = '';
+                    this.overrideModelGroup.style.display = 'none';
+                }
             }
             
             updateStep2State() {
@@ -3571,6 +3845,20 @@
                 // Collect final data
                 this.wizardData.sessionName = this.wizardSessionName.value.trim();
                 this.wizardData.workingDirectory = this.wizardWorkingDirectory.value || this.currentWorkingDirectory;
+                
+                // Collect provider override if enabled
+                let providerOverride = null;
+                if (this.enableProviderOverride && this.enableProviderOverride.checked) {
+                    if (this.overrideProvider.value || this.overrideModel.value) {
+                        providerOverride = {
+                            provider: this.overrideProvider.value || null,
+                            model: this.overrideModel.value || null
+                        };
+                    }
+                }
+                
+                // Store provider override for use in session creation
+                this.currentProviderOverride = providerOverride;
                 
                 // Create session based on whether recipe was selected
                 if (this.wizardData.selectedRecipe && this.wizardData.selectedRecipe !== false) {
