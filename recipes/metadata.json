@@ -102,15 +102,19 @@
       "lastUsed": "2025-08-19T06:53:05.889Z"
     },
     "65eadcec94acaded045606ce8021694b": {
-      "count": 1,
+      "count": 2,
       "sessions": [
         {
           "sessionId": "Tetollama",
           "timestamp": "2025-08-20T01:56:33.535Z"
+        },
+        {
+          "sessionId": "olla",
+          "timestamp": "2025-08-20T08:36:10.147Z"
         }
       ],
       "firstUsed": "2025-08-20T01:56:33.535Z",
-      "lastUsed": "2025-08-20T01:56:33.535Z"
+      "lastUsed": "2025-08-20T08:36:10.147Z"
     },
     "7e8a2c4192e8263dc0253ea1497283b7": {
       "count": 2,

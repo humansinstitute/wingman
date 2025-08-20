@@ -192,6 +192,11 @@
             color: var(--accent-primary);
         }
         
+        /* Dark mode header with pure black background for logo compatibility */
+        body.dark-theme .header {
+            background: #000000;
+        }
+        
         .session-count-badge {
             color: inherit;
             font-size: inherit;
@@ -1375,7 +1380,7 @@
             
             <!-- Recipe Manager -->
             <div class="mobile-menu-item">
-                <a href="/recipes" class="mobile-settings-btn" style="text-decoration: none; color: inherit;">
+                <a href="/recipes" style="text-decoration: none; color: inherit; width: 100%; display: block;">
                     📋 Recipe Manager
                 </a>
             </div>
@@ -1391,9 +1396,9 @@
             
             <!-- Settings -->
             <div class="mobile-menu-item">
-                <button id="mobileSettingsBtn" class="mobile-settings-btn">
+                <span id="mobileSettingsBtn" class="mobile-settings-btn" style="cursor: pointer; color: inherit; background: none; border: none; width: 100%; text-align: left;">
                     ⚙️ Settings
-                </button>
+                </span>
             </div>
         </div>
     </div>
@@ -1495,17 +1500,6 @@
                 <button class="modal-close" id="closeSettingsModal">×</button>
             </div>
             
-            <div class="settings-section">
-                <h4 class="settings-title">Session Management</h4>
-                <div class="session-controls">
-                    <input type="text" id="sessionNameInput" class="session-name-input" placeholder="Session name (optional)">
-                    <div class="button-group">
-                        <button id="startSessionBtn" class="btn-secondary">Start Session</button>
-                        <button id="stopSessionBtn" class="btn-secondary">Stop Session</button>
-                        <button id="listSessionsBtn" class="btn-secondary">List Sessions</button>
-                    </div>
-                </div>
-            </div>
             
             <div class="settings-section">
                 <h4 class="settings-title">Goose Commands</h4>
@@ -1543,6 +1537,11 @@
                         <button id="createNewSessionBtn" class="btn btn-primary">Create New Session</button>
                     </div>
                 </div>
+            </div>
+            
+            <div class="form-group" style="margin: 1rem 0;">
+                <label class="form-label" for="sessionSearchFilter">Search Sessions</label>
+                <input type="text" id="sessionSearchFilter" class="form-input" placeholder="Type to filter sessions...">
             </div>
             
             <div class="session-list" id="sessionList">
@@ -1678,6 +1677,9 @@
                 this.providerModelText = document.getElementById('providerModelText');
                 this.mobileProviderModelInfo = document.getElementById('mobileProviderModelInfo');
                 this.mobileProviderModelText = document.getElementById('mobileProviderModelText');
+                
+                // Session search filter
+                this.sessionSearchFilter = document.getElementById('sessionSearchFilter');
                 
                 this.sessionNameInput = document.getElementById('sessionNameInput');
                 this.startSessionBtn = document.getElementById('startSessionBtn');
@@ -2074,6 +2076,13 @@
                 this.recipeSearchInput.addEventListener('input', (e) => {
                     this.searchRecipes(e.target.value);
                 });
+                
+                // Session search filter
+                if (this.sessionSearchFilter) {
+                    this.sessionSearchFilter.addEventListener('input', (e) => {
+                        this.filterSessions(e.target.value);
+                    });
+                }
                 
                 // Settings modal event listeners
                 this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
@@ -2833,6 +2842,26 @@
             }
             
             populateEnhancedSessionList(runningSessions, availableSessions) {
+                // Store data for filtering
+                this.allRunningSessions = runningSessions || [];
+                this.allAvailableSessions = availableSessions || [];
+                
+                // Filter out running sessions from available sessions to avoid duplication
+                const runningSessionNames = new Set(this.allRunningSessions.map(s => s.sessionName));
+                this.filteredAvailableSessions = this.allAvailableSessions.filter(session => {
+                    const sessionName = session.id || session.name || 'Unnamed Session';
+                    return !runningSessionNames.has(sessionName);
+                });
+                
+                // Clear search filter when repopulating
+                if (this.sessionSearchFilter) {
+                    this.sessionSearchFilter.value = '';
+                }
+                
+                this.renderSessionList(this.allRunningSessions, this.filteredAvailableSessions);
+            }
+            
+            renderSessionList(runningSessions, availableSessions) {
                 this.sessionList.innerHTML = '';
                 
                 let content = '';
@@ -2901,6 +2930,32 @@
                 
                 // Add styles for enhanced session modal
                 this.addSessionModalStyles();
+                
+                // Add event listeners for session actions
+                this.addSessionActionListeners();
+            }
+            
+            filterSessions(searchTerm) {
+                if (!searchTerm) {
+                    // Show all sessions if no search term
+                    this.renderSessionList(this.allRunningSessions, this.filteredAvailableSessions);
+                    return;
+                }
+                
+                const filterText = searchTerm.toLowerCase();
+                
+                // Filter running sessions
+                const filteredRunning = this.allRunningSessions.filter(session => 
+                    session.sessionName.toLowerCase().includes(filterText)
+                );
+                
+                // Filter available sessions
+                const filteredAvailable = this.filteredAvailableSessions.filter(session => {
+                    const sessionName = session.id || session.name || 'Unnamed Session';
+                    return sessionName.toLowerCase().includes(filterText);
+                });
+                
+                this.renderSessionList(filteredRunning, filteredAvailable);
                 
                 // Add event listeners for session actions
                 this.addSessionActionListeners();
