@@ -18,6 +18,9 @@ class RecipeManager extends EventEmitter {
     this.gooseConfig = new GooseConfigService();
     this.setupGooseConfigEvents();
     
+    // Initialize MCP Server Registry (lazy loading to avoid circular dependency)
+    this.mcpServerRegistry = null;
+    
     this.initializeStorage();
   }
 
@@ -29,6 +32,13 @@ class RecipeManager extends EventEmitter {
     this.gooseConfig.on('configError', (error) => {
       console.error('Goose config error:', error);
     });
+  }
+
+  getMCPServerRegistry() {
+    if (!this.mcpServerRegistry) {
+      this.mcpServerRegistry = require('./mcp-server-registry');
+    }
+    return this.mcpServerRegistry;
   }
 
   async initializeStorage() {
@@ -232,6 +242,9 @@ class RecipeManager extends EventEmitter {
     };
     await this.saveMetadata();
 
+    // Track MCP server usage in registry
+    await this.trackMCPServerUsage(recipe.id, recipe.extensions, 'add');
+
     // Clear cache
     this.cache.delete(recipe.id);
 
@@ -267,6 +280,10 @@ class RecipeManager extends EventEmitter {
     };
     await this.saveMetadata();
 
+    // Update MCP server usage tracking
+    await this.trackMCPServerUsage(id, existingRecipe.extensions, 'remove');
+    await this.trackMCPServerUsage(id, updatedRecipe.extensions, 'add');
+
     // Clear cache
     this.cache.delete(id);
 
@@ -293,6 +310,9 @@ class RecipeManager extends EventEmitter {
     delete this.metadata.recipes[id];
     delete this.metadata.usage[id];
     await this.saveMetadata();
+
+    // Remove MCP server usage tracking
+    await this.trackMCPServerUsage(id, recipe.extensions, 'remove');
 
     // Clear cache
     this.cache.delete(id);
@@ -726,6 +746,87 @@ class RecipeManager extends EventEmitter {
       defaultsSet: !!(providers.defaultProvider && providers.defaultModel),
       providers: providers.providers || []
     };
+  }
+
+  // Track MCP server usage in registry
+  async trackMCPServerUsage(recipeId, extensions, action) {
+    if (!extensions || !Array.isArray(extensions)) {
+      return;
+    }
+
+    try {
+      const registry = this.getMCPServerRegistry();
+      
+      for (const extension of extensions) {
+        if (!extension.name) continue;
+        
+        // Try to find existing server in registry by name and command
+        const servers = await registry.getAllServers();
+        const existingServer = servers.find(server => 
+          server.name === extension.name && 
+          server.cmd === extension.cmd
+        );
+        
+        if (existingServer) {
+          // Track usage for existing server
+          await registry.trackServerUsage(existingServer.id, recipeId, action);
+        } else if (action === 'add') {
+          // Auto-register new server when adding to recipe
+          try {
+            const serverConfig = registry.extensionToServerConfig(extension, {
+              description: `Auto-imported from recipe usage`,
+              category: 'auto-imported',
+              tags: [extension.name, 'auto-imported']
+            });
+            
+            const newServer = await registry.registerServer(serverConfig);
+            await registry.trackServerUsage(newServer.id, recipeId, action);
+          } catch (error) {
+            // Ignore registration errors (e.g., duplicates)
+            console.log(`Could not auto-register server ${extension.name}:`, error.message);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error tracking MCP server usage:', error.message);
+    }
+  }
+
+  // Resolve extensions using registry (for enhanced server info)
+  async resolveExtensionsFromRegistry(extensions) {
+    if (!extensions || !Array.isArray(extensions)) {
+      return extensions;
+    }
+
+    try {
+      const registry = this.getMCPServerRegistry();
+      const servers = await registry.getAllServers();
+      
+      return extensions.map(extension => {
+        // Find corresponding server in registry
+        const server = servers.find(s => 
+          s.name === extension.name && 
+          s.cmd === extension.cmd
+        );
+        
+        if (server) {
+          // Return enhanced extension with server info
+          return {
+            ...extension,
+            serverId: server.id,
+            description: server.description,
+            tags: server.tags,
+            category: server.category,
+            version: server.version
+          };
+        }
+        
+        return extension;
+      });
+    } catch (error) {
+      console.warn('Error resolving extensions from registry:', error.message);
+      return extensions;
+    }
   }
 }
 

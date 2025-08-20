@@ -531,6 +531,102 @@
             margin-top: 1rem;
         }
 
+        /* Server browser styles */
+        .server-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .server-item:hover {
+            border-color: var(--accent-primary);
+            background: var(--accent-bg);
+        }
+
+        .server-item.selected {
+            border-color: var(--accent-primary);
+            background: var(--accent-light);
+        }
+
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .server-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .server-category-badge {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .server-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .server-cmd-info {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: var(--inline-code-bg);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .server-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .server-tags {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .server-tag {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+        }
+
+        .server-usage {
+            font-size: 0.8rem;
+        }
+
+        .server-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .no-servers-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -674,7 +770,10 @@
                         <div id="extensionsList" class="extensions-list">
                             <!-- Extension items will be added here -->
                         </div>
-                        <button type="button" id="addExtensionBtn" class="btn btn-outline">+ Add MCP Extension</button>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button type="button" id="browseServersBtn" class="btn btn-primary">📚 Browse Servers</button>
+                            <button type="button" id="addExtensionBtn" class="btn btn-outline">+ Create New Server</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -753,6 +852,51 @@
         </div>
     </div>
 
+    <!-- Server Browser Modal -->
+    <div id="serverBrowserModal" class="modal-overlay">
+        <div class="modal" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Browse MCP Servers</h3>
+                <button class="modal-close" id="closeServerBrowserModal">×</button>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                    <div style="flex: 1;">
+                        <input type="text" id="serverSearchInput" class="form-input" placeholder="Search servers...">
+                    </div>
+                    <select id="serverCategoryFilter" class="form-select">
+                        <option value="">All Categories</option>
+                        <option value="built-in">Built-in</option>
+                        <option value="custom">Custom</option>
+                        <option value="imported">Imported</option>
+                        <option value="auto-imported">Auto-imported</option>
+                    </select>
+                    <select id="serverSortFilter" class="form-select">
+                        <option value="name">Name</option>
+                        <option value="usage">Most Used</option>
+                        <option value="recent">Recent</option>
+                    </select>
+                    <button type="button" id="refreshServersBtn" class="btn btn-secondary">🔄</button>
+                </div>
+                <div id="serverStats" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    <!-- Server statistics will be shown here -->
+                </div>
+            </div>
+            
+            <div id="serversList" style="max-height: 400px; overflow-y: auto;">
+                <div class="loading">Loading servers...</div>
+            </div>
+            
+            <div style="margin-top: 1rem; text-align: right;">
+                <button type="button" id="migrateServersBtn" class="btn btn-outline" style="margin-right: auto;">
+                    🔄 Import from Existing Recipes
+                </button>
+                <button type="button" id="closeServerBrowserBtn" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         class RecipeManager {
             constructor() {
@@ -795,6 +939,7 @@
                 // Extension UI elements
                 this.extensionsList = document.getElementById('extensionsList');
                 this.addExtensionBtn = document.getElementById('addExtensionBtn');
+                this.browseServersBtn = document.getElementById('browseServersBtn');
                 
                 // Extension modal elements
                 this.extensionModal = document.getElementById('extensionModal');
@@ -820,9 +965,21 @@
                 this.cancelImportBtn = document.getElementById('cancelImportBtn');
                 this.importUrl = document.getElementById('importUrl');
                 
+                // Server browser elements
+                this.serverBrowserModal = document.getElementById('serverBrowserModal');
+                this.serverSearchInput = document.getElementById('serverSearchInput');
+                this.serverCategoryFilter = document.getElementById('serverCategoryFilter');
+                this.serverSortFilter = document.getElementById('serverSortFilter');
+                this.serversList = document.getElementById('serversList');
+                this.serverStats = document.getElementById('serverStats');
+                this.refreshServersBtn = document.getElementById('refreshServersBtn');
+                this.migrateServersBtn = document.getElementById('migrateServersBtn');
+                this.closeServerBrowserBtn = document.getElementById('closeServerBrowserBtn');
+                
                 // Modal close buttons
                 document.getElementById('closeRecipeModal').addEventListener('click', () => this.hideRecipeModal());
                 document.getElementById('closeImportModal').addEventListener('click', () => this.hideImportModal());
+                document.getElementById('closeServerBrowserModal').addEventListener('click', () => this.hideServerBrowserModal());
             }
             
             setupEventListeners() {
@@ -834,6 +991,12 @@
                 this.cancelImportBtn.addEventListener('click', () => this.hideImportModal());
                 
                 // Extension event listeners
+                this.browseServersBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Browse servers button clicked');
+                    this.showServerBrowserModal();
+                });
                 this.addExtensionBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -856,6 +1019,14 @@
                     console.log('Close extension modal clicked');
                     this.hideExtensionModal();
                 });
+                
+                // Server browser event listeners
+                this.refreshServersBtn.addEventListener('click', () => this.loadServers());
+                this.migrateServersBtn.addEventListener('click', () => this.migrateServersFromRecipes());
+                this.closeServerBrowserBtn.addEventListener('click', () => this.hideServerBrowserModal());
+                this.serverSearchInput.addEventListener('input', () => this.filterServers());
+                this.serverCategoryFilter.addEventListener('change', () => this.filterServers());
+                this.serverSortFilter.addEventListener('change', () => this.filterServers());
                 
                 // Provider/Model event listeners
                 this.recipeProvider.addEventListener('change', () => this.onProviderChange());
@@ -1459,6 +1630,273 @@
                 // Simple error notification - could be enhanced with a toast library
                 console.error('Error:', message);
                 // Could implement a toast notification here instead of alert
+            }
+
+            // Server Browser Methods
+            async showServerBrowserModal() {
+                this.servers = [];
+                this.selectedServers = new Set();
+                await this.loadServers();
+                this.serverBrowserModal.classList.add('show');
+            }
+
+            hideServerBrowserModal() {
+                this.serverBrowserModal.classList.remove('show');
+            }
+
+            async loadServers() {
+                try {
+                    this.serversList.innerHTML = '<div class="loading">Loading servers...</div>';
+                    
+                    // Load servers and stats
+                    const [serversResponse, statsResponse] = await Promise.all([
+                        fetch('/api/mcp-servers?includeUsage=true'),
+                        fetch('/api/mcp-servers/stats')
+                    ]);
+                    
+                    if (serversResponse.ok && statsResponse.ok) {
+                        this.servers = await serversResponse.json();
+                        const stats = await statsResponse.json();
+                        
+                        this.updateServerStats(stats);
+                        this.renderServers(this.servers);
+                    } else {
+                        throw new Error('Failed to load servers');
+                    }
+                } catch (error) {
+                    console.error('Error loading servers:', error);
+                    this.serversList.innerHTML = `
+                        <div class="no-servers-message">
+                            <h3>Failed to Load Servers</h3>
+                            <p>Error: ${error.message}</p>
+                            <button onclick="this.loadServers()" class="btn btn-primary">Retry</button>
+                        </div>
+                    `;
+                }
+            }
+
+            updateServerStats(stats) {
+                this.serverStats.innerHTML = `
+                    <strong>${stats.totalServers}</strong> servers available 
+                    (${stats.builtInServers} built-in, ${stats.customServers} custom) • 
+                    <strong>${stats.totalUsage}</strong> total usages
+                `;
+            }
+
+            filterServers() {
+                const searchTerm = this.serverSearchInput.value.toLowerCase();
+                const selectedCategory = this.serverCategoryFilter.value;
+                const sortBy = this.serverSortFilter.value;
+                
+                let filtered = this.servers.filter(server => {
+                    const matchesSearch = !searchTerm || 
+                        server.name.toLowerCase().includes(searchTerm) ||
+                        server.description.toLowerCase().includes(searchTerm) ||
+                        server.tags.some(tag => tag.toLowerCase().includes(searchTerm)) ||
+                        server.cmd.toLowerCase().includes(searchTerm);
+                    
+                    const matchesCategory = !selectedCategory || server.category === selectedCategory;
+                    
+                    return matchesSearch && matchesCategory;
+                });
+                
+                // Sort servers
+                filtered.sort((a, b) => {
+                    switch (sortBy) {
+                        case 'usage':
+                            return (b.usageCount || 0) - (a.usageCount || 0);
+                        case 'recent':
+                            return new Date(b.lastUsed || 0) - new Date(a.lastUsed || 0);
+                        case 'name':
+                        default:
+                            return a.name.localeCompare(b.name);
+                    }
+                });
+                
+                this.renderServers(filtered);
+            }
+
+            renderServers(servers) {
+                if (!servers.length) {
+                    this.serversList.innerHTML = `
+                        <div class="no-servers-message">
+                            <h3>No Servers Found</h3>
+                            <p>No MCP servers match your search criteria.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                this.serversList.innerHTML = servers.map(server => this.renderServerItem(server)).join('');
+                
+                // Add event listeners to server items
+                this.serversList.querySelectorAll('.server-item').forEach(item => {
+                    const serverId = item.dataset.serverId;
+                    
+                    item.addEventListener('click', () => this.selectServer(serverId));
+                    
+                    const addBtn = item.querySelector('.add-server-btn');
+                    if (addBtn) {
+                        addBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.addServerToRecipe(serverId);
+                        });
+                    }
+                    
+                    const deleteBtn = item.querySelector('.delete-server-btn');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.deleteServer(serverId);
+                        });
+                    }
+                });
+            }
+
+            renderServerItem(server) {
+                const argsText = server.args && server.args.length > 0 ? server.args.join(' ') : 'none';
+                const envText = server.env_keys && server.env_keys.length > 0 ? ` (env: ${server.env_keys.join(', ')})` : '';
+                
+                return `
+                    <div class="server-item" data-server-id="${server.id}">
+                        <div class="server-header">
+                            <div class="server-name">${server.name}</div>
+                            <div class="server-category-badge">${server.category || 'custom'}</div>
+                        </div>
+                        <div class="server-description">${server.description || 'No description available'}</div>
+                        <div class="server-cmd-info">${server.cmd} ${argsText}${envText}</div>
+                        <div class="server-footer">
+                            <div>
+                                <div class="server-tags">
+                                    ${server.tags ? server.tags.map(tag => `<span class="server-tag">${tag}</span>`).join('') : ''}
+                                </div>
+                            </div>
+                            <div class="server-usage">Used ${server.usageCount || 0} times</div>
+                        </div>
+                        <div class="server-actions">
+                            <button class="btn btn-small btn-primary add-server-btn">+ Add to Recipe</button>
+                            ${!server.isBuiltIn ? '<button class="btn btn-small btn-danger delete-server-btn">Delete</button>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            selectServer(serverId) {
+                // Toggle selection
+                const item = this.serversList.querySelector(`[data-server-id="${serverId}"]`);
+                if (this.selectedServers.has(serverId)) {
+                    this.selectedServers.delete(serverId);
+                    item.classList.remove('selected');
+                } else {
+                    this.selectedServers.add(serverId);
+                    item.classList.add('selected');
+                }
+            }
+
+            async addServerToRecipe(serverId) {
+                try {
+                    const server = this.servers.find(s => s.id === serverId);
+                    if (!server) {
+                        throw new Error('Server not found');
+                    }
+
+                    // Convert server to extension format
+                    const extension = {
+                        type: server.type,
+                        name: server.name,
+                        cmd: server.cmd,
+                        args: server.args,
+                        timeout: server.timeout,
+                        env_keys: server.env_keys
+                    };
+
+                    // Add to current recipe extensions
+                    if (!this.currentRecipeExtensions) {
+                        this.currentRecipeExtensions = [];
+                    }
+
+                    // Check if already added
+                    const exists = this.currentRecipeExtensions.find(ext => ext.name === server.name);
+                    if (exists) {
+                        alert(`Server "${server.name}" is already added to this recipe.`);
+                        return;
+                    }
+
+                    this.currentRecipeExtensions.push(extension);
+                    this.renderExtensions();
+                    
+                    this.showSuccess(`Server "${server.name}" added to recipe`);
+                } catch (error) {
+                    console.error('Error adding server to recipe:', error);
+                    this.showError(error.message);
+                }
+            }
+
+            async deleteServer(serverId) {
+                const server = this.servers.find(s => s.id === serverId);
+                if (!server) return;
+                
+                if (!confirm(`Delete server "${server.name}"? This cannot be undone.`)) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/mcp-servers/${serverId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to delete server');
+                    }
+                    
+                    await this.loadServers(); // Refresh the list
+                    this.showSuccess('Server deleted successfully');
+                } catch (error) {
+                    console.error('Error deleting server:', error);
+                    this.showError(error.message);
+                }
+            }
+
+            async migrateServersFromRecipes() {
+                if (!confirm('Import MCP servers from existing recipes? This will scan all recipes and add their servers to the registry.')) {
+                    return;
+                }
+                
+                try {
+                    this.migrateServersBtn.disabled = true;
+                    this.migrateServersBtn.textContent = '🔄 Importing...';
+                    
+                    const response = await fetch('/api/mcp-servers/import-from-recipes', {
+                        method: 'POST'
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to import servers');
+                    }
+                    
+                    const result = await response.json();
+                    
+                    await this.loadServers(); // Refresh the list
+                    
+                    let message = `Successfully imported ${result.imported} servers from recipes.`;
+                    if (result.errors.length > 0) {
+                        message += `\n\nSome errors occurred:\n${result.errors.slice(0, 3).join('\n')}`;
+                        if (result.errors.length > 3) {
+                            message += `\n... and ${result.errors.length - 3} more.`;
+                        }
+                    }
+                    
+                    alert(message);
+                    this.showSuccess('Server migration completed');
+                } catch (error) {
+                    console.error('Error migrating servers:', error);
+                    this.showError(error.message);
+                } finally {
+                    this.migrateServersBtn.disabled = false;
+                    this.migrateServersBtn.textContent = '🔄 Import from Existing Recipes';
+                }
             }
         }
         
