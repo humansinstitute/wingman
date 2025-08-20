@@ -9,22 +9,12 @@
       "name": "Planner",
       "path": "/Users/mini/code/wingman/recipes/user/7c7583b29306b0cee9edb8bcda89e9d2.json",
       "createdAt": "2025-08-19T04:31:15.392Z",
-      "updatedAt": "2025-08-19T08:52:37.398Z"
-    },
-    "65eadcec94acaded045606ce8021694b": {
-      "name": "Test Ollama",
-      "path": "/Users/mini/code/wingman/.worktrees/prov/recipes/user/65eadcec94acaded045606ce8021694b.json",
-      "createdAt": "2025-08-20T01:55:31.480Z"
-    },
-    "7e8a2c4192e8263dc0253ea1497283b7": {
-      "name": "Test Open Router",
-      "path": "/Users/mini/code/wingman/.worktrees/prov/recipes/user/7e8a2c4192e8263dc0253ea1497283b7.json",
-      "createdAt": "2025-08-20T01:56:03.426Z"
+      "updatedAt": "2025-08-19T23:47:13.663Z"
     }
   },
   "usage": {
     "7c7583b29306b0cee9edb8bcda89e9d2": {
-      "count": 15,
+      "count": 17,
       "sessions": [
         {
           "sessionId": "recipe-Planner-1755577954767",
@@ -85,10 +75,18 @@
         {
           "sessionId": "New Feature Test",
           "timestamp": "2025-08-19T09:05:43.002Z"
+        },
+        {
+          "sessionId": "Planning: Wingman",
+          "timestamp": "2025-08-19T09:15:41.032Z"
+        },
+        {
+          "sessionId": "Fat Contoller: Plan",
+          "timestamp": "2025-08-19T13:10:23.210Z"
         }
       ],
       "firstUsed": "2025-08-19T04:32:34.778Z",
-      "lastUsed": "2025-08-19T09:05:43.002Z"
+      "lastUsed": "2025-08-19T13:10:23.210Z"
     },
     "772e2f6e7d048c68d44ece141143ea32": {
       "count": 1,
@@ -100,36 +98,6 @@
       ],
       "firstUsed": "2025-08-19T06:53:05.889Z",
       "lastUsed": "2025-08-19T06:53:05.889Z"
-    },
-    "65eadcec94acaded045606ce8021694b": {
-      "count": 2,
-      "sessions": [
-        {
-          "sessionId": "Tetollama",
-          "timestamp": "2025-08-20T01:56:33.535Z"
-        },
-        {
-          "sessionId": "olla",
-          "timestamp": "2025-08-20T08:36:10.147Z"
-        }
-      ],
-      "firstUsed": "2025-08-20T01:56:33.535Z",
-      "lastUsed": "2025-08-20T08:36:10.147Z"
-    },
-    "7e8a2c4192e8263dc0253ea1497283b7": {
-      "count": 2,
-      "sessions": [
-        {
-          "sessionId": "TestOpenrouter",
-          "timestamp": "2025-08-20T01:57:35.872Z"
-        },
-        {
-          "sessionId": "TestProviderPersistence",
-          "timestamp": "2025-08-20T02:31:56.907Z"
-        }
-      ],
-      "firstUsed": "2025-08-20T01:57:35.872Z",
-      "lastUsed": "2025-08-20T02:31:56.907Z"
     }
   },
   "lastUpdated": "2025-08-16T05:54:11.930Z"
