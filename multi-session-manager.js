@@ -162,24 +162,49 @@ class MultiSessionManager extends EventEmitter {
     
     console.log(`Creating new session: ${sessionId} (${sessionName})`);
     
+    // Extract provider/model from options
+    const { provider, model, providerOverride, ...wrapperOptions } = options;
+    
+    // Determine final provider/model
+    let finalProvider = provider;
+    let finalModel = model;
+    
+    // Handle provider override from recipe launch
+    if (providerOverride) {
+      finalProvider = providerOverride.provider;
+      finalModel = providerOverride.model;
+    }
+    
+    // Create wrapper with provider/model options
     const wrapper = new SessionAwareGooseCLIWrapper({
-      ...options,
+      ...wrapperOptions,
       sessionId,
-      sessionName
+      sessionName,
+      provider: finalProvider,
+      model: finalModel
     });
     
     // Set up event forwarding with session context
     this.setupSessionEvents(sessionId, wrapper);
     
-    // Store session
+    // Store session with provider/model metadata
     this.sessions.set(sessionId, wrapper);
-    await this.saveSessionMetadata(sessionId, options);
+    await this.saveSessionMetadata(sessionId, {
+      ...options,
+      provider: finalProvider,
+      model: finalModel
+    });
     
     // Initialize empty conversation cache for new session
     this.conversationCache.set(sessionId, []);
     console.log(`Initialized empty conversation cache for session ${sessionId}`);
     
-    return { sessionId, wrapper, sessionName };
+    return { 
+      sessionId, 
+      wrapper, 
+      sessionName,
+      metadata: this.sessionMetadata.get(sessionId)
+    };
   }
   
   setupSessionEvents(sessionId, wrapper) {
@@ -258,7 +283,9 @@ class MultiSessionManager extends EventEmitter {
       debug: options.debug || false,
       extensions: options.extensions || [],
       builtins: options.builtins || [],
-      recipeId: options.recipeId || null
+      recipeId: options.recipeId || null,
+      provider: options.provider || null,
+      model: options.model || null
     };
     
     this.sessionMetadata.set(sessionId, metadata);
@@ -272,7 +299,9 @@ class MultiSessionManager extends EventEmitter {
           extensions: metadata.extensions,
           builtins: metadata.builtins,
           debug: metadata.debug,
-          recipeId: metadata.recipeId
+          recipeId: metadata.recipeId,
+          provider: metadata.provider,
+          model: metadata.model
         });
       } catch (error) {
         console.error('Error saving session metadata to database:', error);
@@ -561,12 +590,17 @@ class MultiSessionManager extends EventEmitter {
     return session.sendMessage(message);
   }
   
-  getRunningSessions() {
+  async getRunningSessions() {
     const running = [];
     
     for (const [sessionId, session] of this.sessions.entries()) {
       const metadata = this.sessionMetadata.get(sessionId);
       if (session.isReady && metadata) {
+        // If session has null provider/model but has a recipeId, try to restore from recipe
+        if ((!metadata.provider || !metadata.model) && metadata.recipeId) {
+          await this.restoreProviderModelFromRecipe(sessionId, metadata.recipeId);
+        }
+        
         running.push({
           sessionId,
           sessionName: metadata.sessionName,
@@ -619,6 +653,71 @@ class MultiSessionManager extends EventEmitter {
       session: this.sessions.get(this.activeSessionId),
       metadata: this.sessionMetadata.get(this.activeSessionId)
     };
+  }
+
+  // New method to get session provider/model info
+  getSessionProviderModel(sessionId) {
+    const metadata = this.sessionMetadata.get(sessionId);
+    if (!metadata) {
+      return null;
+    }
+
+    return {
+      provider: metadata.provider,
+      model: metadata.model
+    };
+  }
+
+  // Enhanced session info for API responses
+  async getSessionInfo(sessionId) {
+    const session = this.sessions.get(sessionId);
+    const metadata = this.sessionMetadata.get(sessionId);
+    
+    if (!session || !metadata) {
+      return null;
+    }
+
+    // If session has null provider/model but has a recipeId, try to restore from recipe
+    if ((!metadata.provider || !metadata.model) && metadata.recipeId) {
+      await this.restoreProviderModelFromRecipe(sessionId, metadata.recipeId);
+    }
+
+    return {
+      sessionId,
+      sessionName: metadata.sessionName,
+      status: metadata.status,
+      createdAt: metadata.createdAt,
+      workingDirectory: metadata.workingDirectory,
+      provider: metadata.provider,
+      model: metadata.model,
+      recipeId: metadata.recipeId,
+      isActive: this.activeSessionId === sessionId
+    };
+  }
+
+  async restoreProviderModelFromRecipe(sessionId, recipeId) {
+    try {
+      const recipeManager = require('./recipe-manager');
+      const recipe = await recipeManager.getRecipe(recipeId);
+      
+      if (recipe && recipe.settings) {
+        const provider = recipe.settings.goose_provider;
+        const model = recipe.settings.goose_model;
+        
+        if (provider || model) {
+          const metadata = this.sessionMetadata.get(sessionId);
+          if (metadata) {
+            metadata.provider = provider || metadata.provider;
+            metadata.model = model || metadata.model;
+            this.sessionMetadata.set(sessionId, metadata);
+            
+            console.log(`Restored provider/model for session ${sessionId}: ${provider}/${model}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Could not restore provider/model for session ${sessionId}:`, error.message);
+    }
   }
 }
 

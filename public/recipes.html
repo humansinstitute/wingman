@@ -617,6 +617,30 @@
                     <input type="text" id="recipeTags" class="form-input" placeholder="e.g., javascript, react, frontend">
                 </div>
                 
+                <!-- Provider/Model Selection -->
+                <div class="form-group">
+                    <label class="form-label" for="recipeProvider">
+                        Provider 
+                        <span class="form-hint" style="font-size: 0.875rem; color: var(--text-muted);">(Optional - uses Goose default if not specified)</span>
+                    </label>
+                    <select id="recipeProvider" class="form-input">
+                        <option value="">Use Goose Default</option>
+                    </select>
+                    <button type="button" id="configHelpBtn" class="btn btn-secondary" style="margin-top: 0.5rem;" title="Configure providers">
+                        ℹ️ Configure Providers
+                    </button>
+                </div>
+                
+                <div class="form-group" id="modelGroup" style="display: none;">
+                    <label class="form-label" for="recipeModel">
+                        Model
+                        <span class="form-hint" style="font-size: 0.875rem; color: var(--text-muted);">(Optional - uses provider default if not specified)</span>
+                    </label>
+                    <select id="recipeModel" class="form-input">
+                        <option value="">Use Provider Default</option>
+                    </select>
+                </div>
+                
                 <div class="form-group">
                     <label class="form-label" for="recipeInstructions">System Instructions</label>
                     <textarea id="recipeInstructions" class="form-textarea" placeholder="Instructions for how Goose should behave with this recipe"></textarea>
@@ -745,6 +769,12 @@
                 this.recipePrompt = document.getElementById('recipePrompt');
                 this.recipeBuiltins = document.getElementById('recipeBuiltins');
                 
+                // Provider/Model elements
+                this.recipeProvider = document.getElementById('recipeProvider');
+                this.recipeModel = document.getElementById('recipeModel');
+                this.modelGroup = document.getElementById('modelGroup');
+                this.configHelpBtn = document.getElementById('configHelpBtn');
+                
                 // Extension UI elements
                 this.extensionsList = document.getElementById('extensionsList');
                 this.addExtensionBtn = document.getElementById('addExtensionBtn');
@@ -810,6 +840,10 @@
                     this.hideExtensionModal();
                 });
                 
+                // Provider/Model event listeners
+                this.recipeProvider.addEventListener('change', () => this.onProviderChange());
+                this.configHelpBtn.addEventListener('click', () => this.showConfigHelp());
+                
                 this.searchInput.addEventListener('input', () => this.filterRecipes());
                 this.categoryFilter.addEventListener('change', () => this.filterRecipes());
                 this.sortFilter.addEventListener('change', () => this.filterRecipes());
@@ -823,6 +857,9 @@
                         this.categories = await categoriesResponse.json();
                         this.populateCategoryFilter();
                     }
+                    
+                    // Load providers
+                    await this.loadProviders();
                     
                     // Load recipes
                     await this.loadRecipes();
@@ -861,6 +898,77 @@
             populateCategoryFilter() {
                 this.categoryFilter.innerHTML = '<option value="">All Categories</option>' +
                     this.categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+            }
+            
+            async loadProviders() {
+                try {
+                    const response = await fetch('/api/goose-config/providers');
+                    const data = await response.json();
+                    
+                    if (data.providers && data.providers.length > 0) {
+                        this.populateProviderDropdown(data.providers);
+                    }
+                } catch (error) {
+                    console.warn('Could not load providers:', error);
+                    // Provider selection is optional, so we don't show an error
+                }
+            }
+            
+            populateProviderDropdown(providers) {
+                this.recipeProvider.innerHTML = '<option value="">Use Goose Default</option>';
+                
+                providers.forEach(provider => {
+                    const option = document.createElement('option');
+                    option.value = provider.id;
+                    option.textContent = provider.name;
+                    if (!provider.configured) {
+                        option.disabled = true;
+                        option.textContent += ' (Not Configured)';
+                    }
+                    this.recipeProvider.appendChild(option);
+                });
+            }
+            
+            onProviderChange() {
+                const selectedProvider = this.recipeProvider.value;
+                
+                if (!selectedProvider) {
+                    this.modelGroup.style.display = 'none';
+                    this.recipeModel.innerHTML = '<option value="">Use Provider Default</option>';
+                    return;
+                }
+                
+                // Load models for selected provider
+                fetch('/api/goose-config/providers')
+                    .then(response => response.json())
+                    .then(data => {
+                        const provider = data.providers.find(p => p.id === selectedProvider);
+                        if (provider && provider.models && provider.models.length > 0) {
+                            this.modelGroup.style.display = 'block';
+                            this.populateModelDropdown(provider.models);
+                        } else {
+                            this.modelGroup.style.display = 'none';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading models:', error);
+                        this.modelGroup.style.display = 'none';
+                    });
+            }
+            
+            populateModelDropdown(models) {
+                this.recipeModel.innerHTML = '<option value="">Use Provider Default</option>';
+                
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    this.recipeModel.appendChild(option);
+                });
+            }
+            
+            showConfigHelp() {
+                alert('To add or configure providers:\n\n1. Open your terminal\n2. Run: goose configure\n3. Follow the prompts to set up API keys\n4. Refresh this page to see new providers');
             }
             
             renderRecipes(recipes) {
@@ -975,6 +1083,11 @@
                 this.recipeForm.reset();
                 this.recipeBuiltins.value = 'developer';
                 
+                // Reset provider/model fields
+                this.recipeProvider.value = '';
+                this.recipeModel.value = '';
+                this.modelGroup.style.display = 'none';
+                
                 // Initialize extension system for new recipe
                 this.currentRecipeExtensions = [];
                 this.renderExtensions();
@@ -993,6 +1106,25 @@
                 this.recipeInstructions.value = recipe.instructions || '';
                 this.recipePrompt.value = recipe.prompt || '';
                 this.recipeBuiltins.value = recipe.builtins?.join(', ') || '';
+                
+                // Load provider/model settings
+                if (recipe.settings) {
+                    this.recipeProvider.value = recipe.settings.goose_provider || '';
+                    this.recipeModel.value = recipe.settings.goose_model || '';
+                    
+                    // Trigger provider change to load models if provider is set
+                    if (recipe.settings.goose_provider) {
+                        this.onProviderChange();
+                        // Set model value after models are loaded
+                        setTimeout(() => {
+                            this.recipeModel.value = recipe.settings.goose_model || '';
+                        }, 500);
+                    }
+                } else {
+                    this.recipeProvider.value = '';
+                    this.recipeModel.value = '';
+                    this.modelGroup.style.display = 'none';
+                }
                 
                 // Load extensions into the new system
                 this.currentRecipeExtensions = recipe.extensions ? [...recipe.extensions] : [];
@@ -1193,6 +1325,14 @@
                         extensions: this.currentRecipeExtensions || [],
                         builtins: this.recipeBuiltins.value.split(',').map(builtin => builtin.trim()).filter(builtin => builtin)
                     };
+                    
+                    // Add provider/model settings if specified
+                    if (this.recipeProvider.value || this.recipeModel.value) {
+                        recipeData.settings = {
+                            goose_provider: this.recipeProvider.value || undefined,
+                            goose_model: this.recipeModel.value || undefined
+                        };
+                    }
                     
                     if (!recipeData.name || !recipeData.description) {
                         alert('Name and description are required');

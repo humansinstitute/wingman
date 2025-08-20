@@ -16,6 +16,8 @@ class GooseCLIWrapper extends EventEmitter {
       recipePath: options.recipePath || null,
       parameters: options.parameters || {},
       workingDirectory: options.workingDirectory || process.cwd(),
+      provider: options.provider || null,
+      model: options.model || null,
       ...options
     };
     
@@ -46,6 +48,15 @@ class GooseCLIWrapper extends EventEmitter {
           args.push('--recipe', recipePath);
         }
         
+        // Add provider/model flags if specified
+        if (this.options.provider) {
+          args.push('--provider', this.options.provider);
+        }
+        
+        if (this.options.model) {
+          args.push('--model', this.options.model);
+        }
+        
         // Add interactive flag to continue in chat mode
         args.push('--interactive');
         
@@ -57,6 +68,15 @@ class GooseCLIWrapper extends EventEmitter {
         // Regular session without recipe
         command = 'session';
         args = ['--name', this.options.sessionName];
+        
+        // Add provider/model flags for regular sessions too
+        if (this.options.provider) {
+          args.push('--provider', this.options.provider);
+        }
+        
+        if (this.options.model) {
+          args.push('--model', this.options.model);
+        }
       }
       
       if (this.options.debug) {
@@ -319,6 +339,20 @@ class GooseCLIWrapper extends EventEmitter {
         resolve();
       }, 2000);
     });
+  }
+
+  // New method to update provider/model for existing session
+  updateProviderModel(provider, model) {
+    this.options.provider = provider;
+    this.options.model = model;
+  }
+
+  // New method to get current provider/model
+  getProviderModel() {
+    return {
+      provider: this.options.provider,
+      model: this.options.model
+    };
   }
 }
 

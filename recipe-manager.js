@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const EventEmitter = require('events');
+const GooseConfigService = require('./goose-config-service');
 
 class RecipeManager extends EventEmitter {
   constructor() {
@@ -12,7 +13,22 @@ class RecipeManager extends EventEmitter {
     this.cache = new Map();
     this.metadata = {};
     this.categories = [];
+    
+    // Initialize Goose config service
+    this.gooseConfig = new GooseConfigService();
+    this.setupGooseConfigEvents();
+    
     this.initializeStorage();
+  }
+
+  setupGooseConfigEvents() {
+    this.gooseConfig.on('configChanged', (config) => {
+      this.emit('providersUpdated', config.providers);
+    });
+
+    this.gooseConfig.on('configError', (error) => {
+      console.error('Goose config error:', error);
+    });
   }
 
   async initializeStorage() {
@@ -22,6 +38,13 @@ class RecipeManager extends EventEmitter {
       await fs.mkdir(path.join(this.recipesDir, 'built-in'), { recursive: true });
       await fs.mkdir(path.join(this.recipesDir, 'user'), { recursive: true });
       await fs.mkdir(path.join(this.recipesDir, 'imported'), { recursive: true });
+
+      // Start watching Goose configuration
+      try {
+        await this.gooseConfig.startWatching();
+      } catch (error) {
+        console.warn('Could not initialize Goose config service:', error.message);
+      }
 
       // Load or create metadata
       try {
@@ -369,6 +392,23 @@ class RecipeManager extends EventEmitter {
       errors.push('Builtins must be an array');
     }
 
+    // Validate provider/model if specified
+    if (recipeData.settings) {
+      const { goose_provider, goose_model } = recipeData.settings;
+      
+      if (goose_provider || goose_model) {
+        try {
+          const validation = this.gooseConfig.validateProviderModel(goose_provider, goose_model);
+          if (!validation.valid) {
+            errors.push(`Provider/Model validation failed: ${validation.error}`);
+          }
+        } catch (error) {
+          // Log warning but don't fail validation if config service unavailable
+          console.warn('Could not validate provider/model:', error.message);
+        }
+      }
+    }
+
     if (errors.length > 0) {
       throw new Error(`Recipe validation failed: ${errors.join(', ')}`);
     }
@@ -645,6 +685,47 @@ class RecipeManager extends EventEmitter {
   clearCache() {
     this.cache.clear();
     console.log('Recipe cache cleared');
+  }
+
+  // New method to get available providers
+  async getAvailableProviders() {
+    try {
+      // Ensure configuration is loaded
+      if (!this.gooseConfig.configCache) {
+        await this.gooseConfig.loadConfiguration();
+      }
+      return this.gooseConfig.getProviders();
+    } catch (error) {
+      return {
+        providers: [],
+        configValid: false,
+        error: error.message
+      };
+    }
+  }
+
+  // New method to validate provider/model combination
+  async validateProviderModel(provider, model) {
+    try {
+      return this.gooseConfig.validateProviderModel(provider, model);
+    } catch (error) {
+      return {
+        valid: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Get Goose configuration status
+  async getConfigStatus() {
+    const providers = this.gooseConfig.getProviders();
+    return {
+      configFound: providers.configValid,
+      configValid: providers.configValid,
+      providersCount: providers.providers ? providers.providers.length : 0,
+      defaultsSet: !!(providers.defaultProvider && providers.defaultModel),
+      providers: providers.providers || []
+    };
   }
 }
 

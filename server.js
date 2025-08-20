@@ -14,7 +14,7 @@ recipeManager.clearCache();
 console.log('🔄 Recipe cache cleared - recipes will use updated format');
 
 class GooseWebServer {
-  constructor(port = 3000) {
+  constructor(port = process.env.PORT || 3000) {
     this.app = express();
     this.server = http.createServer(this.app);
     this.io = socketIo(this.server, {
@@ -394,7 +394,7 @@ class GooseWebServer {
     // Start session with recipe
     this.app.post('/api/goose/start-with-recipe', async (req, res) => {
       try {
-        const { recipeId, sessionName, parameters, workingDirectory } = req.body;
+        const { recipeId, sessionName, parameters, workingDirectory, providerOverride } = req.body;
         
         if (!recipeId) {
           return res.status(400).json({ error: 'Recipe ID is required' });
@@ -406,8 +406,26 @@ class GooseWebServer {
           return res.status(404).json({ error: 'Recipe not found' });
         }
         
+        // Validate provider override if provided
+        if (providerOverride) {
+          const validation = await recipeManager.validateProviderModel(
+            providerOverride.provider, 
+            providerOverride.model
+          );
+          
+          if (!validation.valid) {
+            return res.status(400).json({ 
+              error: `Provider/Model validation failed: ${validation.error}` 
+            });
+          }
+        }
+        
         // Process recipe with parameters
         const processedRecipe = await recipeManager.processTemplate(recipe, parameters || {});
+        
+        // Determine provider/model (override or recipe default)
+        const recipeProvider = recipe.settings?.goose_provider;
+        const recipeModel = recipe.settings?.goose_model;
         
         // Create session with recipe using MultiSessionManager
         const sessionResult = await this.multiSessionManager.createSession({
@@ -416,7 +434,10 @@ class GooseWebServer {
           extensions: [], // Extensions are defined in the recipe file
           builtins: [], // Builtins are defined in the recipe file
           recipeId: recipeId,
-          recipeConfig: processedRecipe
+          recipeConfig: processedRecipe,
+          provider: recipeProvider,
+          model: recipeModel,
+          providerOverride: providerOverride // This will take precedence
         });
         
         // Start the session 
@@ -450,6 +471,11 @@ class GooseWebServer {
             id: recipe.id,
             name: recipe.name,
             description: recipe.description
+          },
+          providerModel: {
+            provider: sessionResult.metadata.provider,
+            model: sessionResult.metadata.model,
+            overridden: !!providerOverride
           }
         });
       } catch (error) {
@@ -468,6 +494,57 @@ class GooseWebServer {
         res.json(recipes);
       } catch (error) {
         res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Goose Configuration API Endpoints
+    
+    // Get available providers from Goose config
+    this.app.get('/api/goose-config/providers', async (req, res) => {
+      try {
+        const providers = await recipeManager.getAvailableProviders();
+        res.json(providers);
+      } catch (error) {
+        res.status(500).json({ 
+          error: error.message,
+          providers: [],
+          configValid: false 
+        });
+      }
+    });
+
+    // Validate provider/model combination
+    this.app.post('/api/goose-config/validate', async (req, res) => {
+      try {
+        const { provider, model } = req.body;
+        
+        if (!provider) {
+          return res.status(400).json({ error: 'Provider is required' });
+        }
+        
+        const validation = await recipeManager.validateProviderModel(provider, model);
+        res.json(validation);
+      } catch (error) {
+        res.status(500).json({ 
+          valid: false, 
+          error: error.message 
+        });
+      }
+    });
+
+    // Get current Goose configuration status
+    this.app.get('/api/goose-config/status', async (req, res) => {
+      try {
+        const status = await recipeManager.getConfigStatus();
+        res.json(status);
+      } catch (error) {
+        res.status(500).json({
+          configFound: false,
+          configValid: false,
+          providersCount: 0,
+          defaultsSet: false,
+          error: error.message
+        });
       }
     });
 
@@ -526,14 +603,14 @@ class GooseWebServer {
     });
 
     // Multi-Session Management API Endpoints
-    this.app.get('/api/sessions/running', (req, res) => {
+    this.app.get('/api/sessions/running', async (req, res) => {
       try {
         if (!this.multiSessionManager) {
           console.log('MultiSessionManager not available, returning empty array');
           return res.json([]);
         }
         
-        const runningSessions = this.multiSessionManager.getRunningSessions();
+        const runningSessions = await this.multiSessionManager.getRunningSessions();
         console.log('API /api/sessions/running: Found', runningSessions.length, 'running sessions:', runningSessions);
         res.json(runningSessions);
       } catch (error) {
@@ -747,6 +824,46 @@ class GooseWebServer {
 
         const analysis = this.multiSessionManager.getCrossSessionAnalysis();
         res.json(analysis);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get session provider/model information
+    this.app.get('/api/sessions/:id/provider-model', (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const sessionId = req.params.id;
+        const providerModel = this.multiSessionManager.getSessionProviderModel(sessionId);
+        
+        if (!providerModel) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        
+        res.json(providerModel);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Enhanced session info including provider/model
+    this.app.get('/api/sessions/:id/info', async (req, res) => {
+      try {
+        if (!this.multiSessionManager) {
+          return res.status(503).json({ error: 'Multi-session manager not available' });
+        }
+
+        const sessionId = req.params.id;
+        const sessionInfo = await this.multiSessionManager.getSessionInfo(sessionId);
+        
+        if (!sessionInfo) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        
+        res.json(sessionInfo);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
