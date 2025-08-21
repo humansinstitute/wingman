@@ -943,7 +943,41 @@ class GooseWebServer {
     });
   }
 
-  start() {
+  async findAvailablePort(startPort) {
+    const net = require('net');
+
+    return new Promise((resolve) => {
+      const tryPort = (port) => {
+        const server = net.createServer();
+
+        server.once('error', () => {
+          server.close();
+          tryPort(port + 1);
+        });
+
+        server.once('listening', () => {
+          server.close(() => {
+            resolve(port);
+          });
+        });
+
+        server.listen(port, '0.0.0.0');
+      };
+
+      tryPort(startPort);
+    });
+  }
+
+  async start() {
+    const desiredPort = this.port;
+    const availablePort = await this.findAvailablePort(desiredPort);
+
+    if (availablePort !== desiredPort) {
+      console.log(`⚠️  Port ${desiredPort} is in use, using port ${availablePort} instead`);
+    }
+
+    this.port = availablePort;
+
     this.server.listen(this.port, () => {
       console.log(`🌐 Goose Web interface running at http://localhost:${this.port}`);
     });
