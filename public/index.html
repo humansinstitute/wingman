@@ -562,8 +562,12 @@
             box-shadow: none;
         }
 
+        /* Floating interrupt button overlay */
         .interrupt-btn {
-            padding: 0.75rem !important;
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem !important;
             background: var(--error-primary) !important;
             color: white !important;
             border: none !important;
@@ -571,24 +575,36 @@
             cursor: pointer !important;
             font-size: 1rem !important;
             font-weight: 500 !important;
-            width: 3rem !important;
-            height: 3rem !important;
-            display: flex !important;
+            width: 4rem !important;
+            height: 4rem !important;
+            display: none !important;
             align-items: center !important;
             justify-content: center !important;
             transition: all 0.2s ease !important;
-            box-shadow: var(--shadow-sm) !important;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+            z-index: 1000 !important;
         }
 
         .interrupt-btn:hover {
             background: #dc2626 !important;
             transform: scale(1.1) !important;
-            box-shadow: var(--shadow-md) !important;
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4) !important;
         }
 
         .interrupt-btn:active {
             transform: scale(0.95) !important;
-            box-shadow: var(--shadow-sm) !important;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3) !important;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .interrupt-btn {
+                bottom: 1rem !important;
+                right: 1rem !important;
+                width: 3.5rem !important;
+                height: 3.5rem !important;
+                padding: 0.75rem !important;
+            }
         }
 
         /* Spinner animation */
@@ -1740,12 +1756,14 @@
         <div class="messages" id="messages"></div>
         <div class="loading" id="loading">Goose is thinking...</div>
         
+        <!-- Floating interrupt button -->
+        <button id="interruptBtn" class="interrupt-btn" title="Stop current operation (Ctrl+C)" style="display: none;">
+            <span class="spinner"></span>
+        </button>
+        
         <div class="input-container">
             <div class="input-row">
                 <textarea id="messageInput" placeholder="Type your message to Goose... (Shift+Enter for new line)" maxlength="5000" rows="1"></textarea>
-                <button id="interruptBtn" class="interrupt-btn" title="Stop current operation (Ctrl+C)" style="display: none;">
-                    <span class="spinner"></span>
-                </button>
                 <button id="sendBtn">Send</button>
             </div>
         </div>
