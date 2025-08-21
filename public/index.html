@@ -2100,6 +2100,9 @@
                 // Initialize working directory to current location
                 this.initializeWorkingDirectory();
                 
+                // Initialize provider/model display with defaults
+                this.showProviderModelDisplay('Goose Default', 'Default Model');
+                
                 // Load configuration and set input length
                 this.loadConfig();
                 
@@ -2711,11 +2714,12 @@
                 // Load and update running sessions count
                 this.loadRunningSessions();
                 
-                // Update provider/model display
+                // Update provider/model display - always show, even with defaults
                 if (status.active && status.sessionName) {
                     this.updateProviderModelDisplay(status.sessionName);
                 } else {
-                    this.hideProviderModelDisplay();
+                    // Show default provider/model when no active session
+                    this.showProviderModelDisplay('Goose Default', 'Default Model');
                 }
                 
                 this.updateGooseControls(status.active);
@@ -2738,19 +2742,17 @@
                         if (infoResponse.ok) {
                             const sessionInfo = await infoResponse.json();
                             
-                            if (sessionInfo.provider || sessionInfo.model) {
-                                const provider = sessionInfo.provider || 'Default';
-                                const model = sessionInfo.model || 'Default';
-                                
-                                this.showProviderModelDisplay(provider, model);
-                            } else {
-                                this.hideProviderModelDisplay();
-                            }
+                            // Always show provider/model display, use defaults if not specified
+                            const provider = sessionInfo.provider || 'Goose Default';
+                            const model = sessionInfo.model || 'Default Model';
+                            
+                            this.showProviderModelDisplay(provider, model);
                         }
                     }
                 } catch (error) {
                     console.warn('Could not load session provider/model info:', error);
-                    this.hideProviderModelDisplay();
+                    // Show default provider/model when info unavailable
+                    this.showProviderModelDisplay('Goose Default', 'Default Model');
                 }
             }
             
