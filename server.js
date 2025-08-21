@@ -5,6 +5,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
 const os = require('os');
+const pty = require('node-pty');
 const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
 const MultiSessionManager = require('./multi-session-manager');
@@ -110,6 +111,10 @@ class GooseWebServer {
 
     this.app.get('/recipes', (req, res) => {
       res.sendFile(path.join(__dirname, 'public', 'recipes.html'));
+    });
+
+    this.app.get('/deep-dive', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'deep-dive.html'));
     });
 
     this.app.get('/api/conversation', (req, res) => {
@@ -1115,6 +1120,90 @@ class GooseWebServer {
 
       socket.on('disconnect', () => {
         console.log('Client disconnected');
+      });
+    });
+
+    // Terminal namespace for Deep Dive feature
+    this.terminalNamespace = this.io.of('/terminal');
+    this.setupTerminalHandlers();
+  }
+
+  setupTerminalHandlers() {
+    this.terminalNamespace.on('connection', (socket) => {
+      console.log('Terminal client connected');
+      
+      let ptyProcess = null;
+      let authenticated = false;
+
+      socket.on('authenticate', (pin) => {
+        const correctPin = process.env.PIN || '1234';
+        if (pin === correctPin) {
+          authenticated = true;
+          socket.emit('auth-success');
+        } else {
+          socket.emit('auth-failed', 'Invalid PIN');
+        }
+      });
+
+      socket.on('start-terminal', () => {
+        if (!authenticated) {
+          socket.emit('terminal-error', 'Not authenticated. Please enter PIN.');
+          return;
+        }
+        try {
+          // Determine shell and platform
+          const shell = os.platform() === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash';
+          
+          // Spawn terminal process with wingman command
+          ptyProcess = pty.spawn(shell, [], {
+            name: 'xterm-256color',
+            cols: 120,
+            rows: 30,
+            cwd: process.cwd(),
+            env: process.env
+          });
+
+          console.log('Terminal process started with PID:', ptyProcess.pid);
+
+          // Send terminal output to client
+          ptyProcess.onData((data) => {
+            socket.emit('terminal-output', data);
+          });
+
+          // Handle terminal exit
+          ptyProcess.onExit((exitCode) => {
+            console.log('Terminal process exited with code:', exitCode);
+            socket.emit('terminal-error', `Terminal process exited with code: ${exitCode}`);
+          });
+
+          // Immediately run the wingman command
+          ptyProcess.write('wingman\r');
+
+        } catch (error) {
+          console.error('Error starting terminal:', error);
+          socket.emit('terminal-error', error.message);
+        }
+      });
+
+      socket.on('terminal-input', (data) => {
+        if (ptyProcess) {
+          ptyProcess.write(data);
+        }
+      });
+
+      socket.on('terminal-resize', (dimensions) => {
+        if (ptyProcess) {
+          ptyProcess.resize(dimensions.cols, dimensions.rows);
+        }
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Terminal client disconnected');
+        if (ptyProcess) {
+          console.log('Killing terminal process with PID:', ptyProcess.pid);
+          ptyProcess.kill();
+          ptyProcess = null;
+        }
       });
     });
   }

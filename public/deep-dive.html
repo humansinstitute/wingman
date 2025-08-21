@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wingman: Deep Dive</title>
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- iOS specific meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Wingman">
+    <link rel="apple-touch-icon" href="Wingman_Goose_Logo_Dark.png">
+    
+    <!-- Android/Chrome -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#059669">
+    
+    <!-- Windows -->
+    <meta name="msapplication-TileColor" content="#059669">
+    <meta name="msapplication-TileImage" content="Wingman_Goose_Logo_Dark.png">
+    
+    <!-- Xterm.js CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS Variables for theming */
+        :root {
+            /* Light theme (default) */
+            --bg-gradient-start: #f9f9f9;
+            --bg-gradient-end: #f5f5f0;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafaf9;
+            --bg-tertiary: #f5f5f4;
+            --text-primary: #1c1917;
+            --text-secondary: #44403c;
+            --text-tertiary: #57534e;
+            --text-muted: #78716c;
+            --text-disabled: #a8a29e;
+            --border-primary: #e7e5e4;
+            --border-secondary: #d6d3d1;
+            --accent-primary: #059669;
+            --accent-secondary: #047857;
+            --accent-tertiary: #065f46;
+            --accent-light: #d1fae5;
+            --error-primary: #dc2626;
+            --error-light: #fef2f2;
+            --warning-primary: #d97706;
+            --warning-light: #fffbeb;
+            --success-primary: #059669;
+            --success-light: #f0fdf4;
+            --shadow-light: rgba(0, 0, 0, 0.04);
+            --shadow-medium: rgba(0, 0, 0, 0.1);
+            --shadow-strong: rgba(0, 0, 0, 0.15);
+        }
+
+        /* Dark theme */
+        body.dark-theme {
+            --bg-gradient-start: #1c1917;
+            --bg-gradient-end: #292524;
+            --bg-primary: #1c1917;
+            --bg-secondary: #292524;
+            --bg-tertiary: #44403c;
+            --text-primary: #fafaf9;
+            --text-secondary: #e7e5e4;
+            --text-tertiary: #d6d3d1;
+            --text-muted: #a8a29e;
+            --text-disabled: #78716c;
+            --border-primary: #44403c;
+            --border-secondary: #57534e;
+            --accent-primary: #10b981;
+            --accent-secondary: #059669;
+            --accent-tertiary: #047857;
+            --accent-light: #064e3b;
+            --error-primary: #ef4444;
+            --error-light: #450a0a;
+            --warning-primary: #f59e0b;
+            --warning-light: #451a03;
+            --success-primary: #10b981;
+            --success-light: #064e3b;
+            --shadow-light: rgba(0, 0, 0, 0.2);
+            --shadow-medium: rgba(0, 0, 0, 0.3);
+            --shadow-strong: rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header h1 {
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            max-width: 100%;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .terminal-wrapper {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-medium);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: 500px;
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .terminal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .terminal-container {
+            flex: 1;
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            min-height: 400px;
+        }
+        
+        /* PIN Entry Overlay */
+        .pin-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            border-radius: 8px;
+        }
+        
+        .pin-overlay.hidden {
+            display: none;
+        }
+        
+        .pin-container {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .pin-title {
+            color: #d4d4d4;
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+        
+        .pin-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        .pin-input {
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            color: #d4d4d4;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            width: 200px;
+            font-family: Monaco, Menlo, monospace;
+            letter-spacing: 0.1em;
+            text-align: center;
+        }
+        
+        .pin-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+        }
+        
+        .pin-submit {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .pin-submit:hover {
+            background: var(--accent-secondary);
+        }
+        
+        .pin-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pin-error {
+            color: var(--error-primary);
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            min-height: 1.25rem;
+        }
+
+        #terminal {
+            height: 100%;
+            width: 100%;
+            padding: 0.5rem;
+        }
+        
+        /* Override xterm.js default styles for better integration */
+        .xterm {
+            height: 100%;
+            padding: 0.5rem;
+        }
+        
+        .xterm-viewport {
+            background-color: transparent !important;
+        }
+        
+        .xterm-screen {
+            height: 100% !important;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.connected {
+            background: var(--success-light);
+            color: var(--success-primary);
+        }
+
+        .connection-status.disconnected {
+            background: var(--error-light);
+            color: var(--error-primary);
+        }
+
+        .connection-status.connecting {
+            background: var(--warning-light);
+            color: var(--warning-primary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.25rem;
+            }
+            
+            .logo {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .terminal-wrapper {
+                padding: 1rem;
+            }
+            
+            .terminal-title {
+                font-size: 1.1rem;
+            }
+            
+            .nav-link {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <img src="Wingman_Goose_Logo_Dark.png" alt="Wingman Logo" class="logo">
+            Wingman: Deep Dive
+        </h1>
+        <div class="nav-links">
+            <a href="/" class="nav-link">← Back to Chat</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="terminal-wrapper">
+            <div class="terminal-header">
+                <div class="terminal-title">
+                    🔍 Terminal Session
+                </div>
+                <div id="connection-status" class="connection-status connecting">
+                    <span class="status-dot"></span>
+                    <span>Connecting...</span>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div id="pin-overlay" class="pin-overlay">
+                    <div class="pin-container">
+                        <div class="pin-title">Enter PIN to unlock</div>
+                        <div class="pin-input-wrapper">
+                            <input 
+                                type="password" 
+                                id="pin-input" 
+                                class="pin-input" 
+                                placeholder="Enter PIN"
+                                maxlength="10"
+                                autocomplete="off"
+                            />
+                            <button id="pin-submit" class="pin-submit">Connect</button>
+                        </div>
+                        <div id="pin-error" class="pin-error"></div>
+                    </div>
+                </div>
+                <div id="terminal"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Xterm.js JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.js"></script>
+
+    <script>
+        class TerminalClient {
+            constructor() {
+                this.terminal = null;
+                this.socket = null;
+                this.connectionStatus = document.getElementById('connection-status');
+                this.pinOverlay = document.getElementById('pin-overlay');
+                this.pinInput = document.getElementById('pin-input');
+                this.pinSubmit = document.getElementById('pin-submit');
+                this.pinError = document.getElementById('pin-error');
+                this.authenticated = false;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupPinEntry();
+                this.setupTerminal();
+                this.setupSocket();
+            }
+            
+            setupPinEntry() {
+                // Handle PIN submission
+                const submitPin = () => {
+                    const pin = this.pinInput.value.trim();
+                    if (pin) {
+                        this.pinError.textContent = '';
+                        this.pinSubmit.disabled = true;
+                        this.socket.emit('authenticate', pin);
+                    }
+                };
+                
+                this.pinSubmit.addEventListener('click', submitPin);
+                
+                this.pinInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        submitPin();
+                    }
+                });
+                
+                // Focus on PIN input when page loads
+                setTimeout(() => this.pinInput.focus(), 100);
+            }
+
+            setupTerminal() {
+                // Create terminal instance
+                this.terminal = new Terminal({
+                    cursorBlink: true,
+                    theme: {
+                        background: '#1a1a1a',
+                        foreground: '#d4d4d4',
+                        cursor: '#10b981',
+                        selection: 'rgba(16, 185, 129, 0.3)',
+                        black: '#000000',
+                        red: '#dc2626',
+                        green: '#10b981',
+                        yellow: '#d97706',
+                        blue: '#3b82f6',
+                        magenta: '#a855f7',
+                        cyan: '#06b6d4',
+                        white: '#e5e5e5',
+                        brightBlack: '#737373',
+                        brightRed: '#ef4444',
+                        brightGreen: '#22c55e',
+                        brightYellow: '#f59e0b',
+                        brightBlue: '#60a5fa',
+                        brightMagenta: '#c084fc',
+                        brightCyan: '#22d3ee',
+                        brightWhite: '#ffffff'
+                    },
+                    fontSize: 14,
+                    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
+                    scrollback: 1000,
+                    convertEol: true
+                });
+
+                // Open terminal in the container
+                this.terminal.open(document.getElementById('terminal'));
+
+                // Handle user input
+                this.terminal.onData((data) => {
+                    if (this.socket && this.socket.connected && this.authenticated) {
+                        this.socket.emit('terminal-input', data);
+                    }
+                });
+
+                // Handle terminal resize
+                this.terminal.onResize((dimensions) => {
+                    if (this.socket && this.socket.connected) {
+                        this.socket.emit('terminal-resize', dimensions);
+                    }
+                });
+
+                // Auto-resize terminal on window resize
+                window.addEventListener('resize', () => {
+                    this.resizeTerminal();
+                });
+
+                // Initial resize
+                setTimeout(() => this.resizeTerminal(), 100);
+            }
+
+            resizeTerminal() {
+                const container = document.querySelector('.terminal-container');
+                if (!container) return;
+                
+                const rect = container.getBoundingClientRect();
+                
+                // Get computed styles for more accurate measurements
+                const computedStyle = window.getComputedStyle(container);
+                const paddingX = parseFloat(computedStyle.paddingLeft) + parseFloat(computedStyle.paddingRight);
+                const paddingY = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+                
+                const availableWidth = rect.width - paddingX;
+                const availableHeight = rect.height - paddingY;
+                
+                // Calculate terminal dimensions based on container size
+                // Approximate character width and height for monospace font
+                const cols = Math.floor(availableWidth / 8.4);
+                const rows = Math.floor(availableHeight / 17);
+                
+                // Ensure minimum dimensions
+                const finalCols = Math.max(80, cols);
+                const finalRows = Math.max(24, rows);
+                
+                this.terminal.resize(finalCols, finalRows);
+            }
+
+            setupSocket() {
+                // Connect to the terminal namespace
+                this.socket = io('/terminal');
+
+                this.socket.on('connect', () => {
+                    console.log('Connected to terminal socket');
+                    this.updateConnectionStatus('connecting', 'Enter PIN');
+                });
+                
+                this.socket.on('auth-success', () => {
+                    console.log('Authentication successful');
+                    this.authenticated = true;
+                    this.pinOverlay.classList.add('hidden');
+                    this.updateConnectionStatus('connected', 'Connected');
+                    
+                    // Start the terminal session with wingman command
+                    this.socket.emit('start-terminal');
+                    
+                    // Focus on terminal
+                    this.terminal.focus();
+                });
+                
+                this.socket.on('auth-failed', (message) => {
+                    console.log('Authentication failed:', message);
+                    this.pinError.textContent = message || 'Invalid PIN';
+                    this.pinSubmit.disabled = false;
+                    this.pinInput.value = '';
+                    this.pinInput.focus();
+                });
+
+                this.socket.on('disconnect', () => {
+                    console.log('Disconnected from terminal');
+                    this.updateConnectionStatus('disconnected', 'Disconnected');
+                    this.authenticated = false;
+                    
+                    // Show PIN overlay again on disconnect
+                    this.pinOverlay.classList.remove('hidden');
+                    this.pinSubmit.disabled = false;
+                    this.pinInput.value = '';
+                    this.pinError.textContent = '';
+                });
+
+                this.socket.on('terminal-output', (data) => {
+                    this.terminal.write(data);
+                });
+
+                this.socket.on('terminal-error', (error) => {
+                    this.terminal.write(`\r\n\x1b[31mError: ${error}\x1b[0m\r\n`);
+                });
+
+                this.socket.on('connect_error', (error) => {
+                    console.error('Connection error:', error);
+                    this.updateConnectionStatus('disconnected', 'Connection Error');
+                });
+            }
+
+            updateConnectionStatus(status, text) {
+                this.connectionStatus.className = `connection-status ${status}`;
+                this.connectionStatus.innerHTML = `
+                    <span class="status-dot"></span>
+                    <span>${text}</span>
+                `;
+            }
+        }
+
+        // Initialize terminal when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new TerminalClient();
+        });
+
+        // Handle dark theme based on system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.body.classList.add('dark-theme');
+        }
+
+        // Listen for theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (e.matches) {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+        });
+    </script>
+</body>
+</html>
