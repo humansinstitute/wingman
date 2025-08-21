@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wingman: Deep Dive</title>
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- iOS specific meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Wingman">
+    <link rel="apple-touch-icon" href="Wingman_Goose_Logo_Dark.png">
+    
+    <!-- Android/Chrome -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#059669">
+    
+    <!-- Windows -->
+    <meta name="msapplication-TileColor" content="#059669">
+    <meta name="msapplication-TileImage" content="Wingman_Goose_Logo_Dark.png">
+    
+    <!-- Xterm.js CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS Variables for theming */
+        :root {
+            /* Light theme (default) */
+            --bg-gradient-start: #f9f9f9;
+            --bg-gradient-end: #f5f5f0;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafaf9;
+            --bg-tertiary: #f5f5f4;
+            --text-primary: #1c1917;
+            --text-secondary: #44403c;
+            --text-tertiary: #57534e;
+            --text-muted: #78716c;
+            --text-disabled: #a8a29e;
+            --border-primary: #e7e5e4;
+            --border-secondary: #d6d3d1;
+            --accent-primary: #059669;
+            --accent-secondary: #047857;
+            --accent-tertiary: #065f46;
+            --accent-light: #d1fae5;
+            --error-primary: #dc2626;
+            --error-light: #fef2f2;
+            --warning-primary: #d97706;
+            --warning-light: #fffbeb;
+            --success-primary: #059669;
+            --success-light: #f0fdf4;
+            --shadow-light: rgba(0, 0, 0, 0.04);
+            --shadow-medium: rgba(0, 0, 0, 0.1);
+            --shadow-strong: rgba(0, 0, 0, 0.15);
+        }
+
+        /* Dark theme */
+        body.dark-theme {
+            --bg-gradient-start: #1c1917;
+            --bg-gradient-end: #292524;
+            --bg-primary: #1c1917;
+            --bg-secondary: #292524;
+            --bg-tertiary: #44403c;
+            --text-primary: #fafaf9;
+            --text-secondary: #e7e5e4;
+            --text-tertiary: #d6d3d1;
+            --text-muted: #a8a29e;
+            --text-disabled: #78716c;
+            --border-primary: #44403c;
+            --border-secondary: #57534e;
+            --accent-primary: #10b981;
+            --accent-secondary: #059669;
+            --accent-tertiary: #047857;
+            --accent-light: #064e3b;
+            --error-primary: #ef4444;
+            --error-light: #450a0a;
+            --warning-primary: #f59e0b;
+            --warning-light: #451a03;
+            --success-primary: #10b981;
+            --success-light: #064e3b;
+            --shadow-light: rgba(0, 0, 0, 0.2);
+            --shadow-medium: rgba(0, 0, 0, 0.3);
+            --shadow-strong: rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header h1 {
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            max-width: 100%;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .terminal-wrapper {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-medium);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-height: 500px;
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .terminal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        /* TMUX control buttons */
+        .tmux-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            position: relative;
+        }
+        
+        .tmux-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tmux-dropdown-btn {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+            border: 1px solid var(--accent-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+        
+        .tmux-dropdown-btn:hover {
+            background: var(--accent-primary);
+            color: white;
+        }
+        
+        .tmux-dropdown-btn::after {
+            content: '▼';
+            font-size: 0.7rem;
+        }
+        
+        .tmux-dropdown-content {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            box-shadow: var(--shadow-medium);
+            z-index: 1000;
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .tmux-dropdown.open .tmux-dropdown-content {
+            display: block;
+        }
+        
+        .tmux-cmd {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+        }
+        
+        .tmux-cmd:last-child {
+            border-bottom: none;
+        }
+        
+        .tmux-cmd:hover {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+        
+        .tmux-cmd-key {
+            font-family: Monaco, Menlo, monospace;
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        
+        .tmux-cmd-desc {
+            flex: 1;
+            margin-left: 0.75rem;
+            color: var(--text-primary);
+        }
+        
+        .tmux-btn {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-primary);
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            white-space: nowrap;
+        }
+        
+        .tmux-btn:hover {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        .tmux-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .tmux-btn.prefix {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        .tmux-btn.cancel {
+            background: var(--error-light);
+            color: var(--error-primary);
+            border-color: var(--error-primary);
+        }
+
+        .terminal-container {
+            flex: 1;
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            min-height: 400px;
+        }
+        
+        /* PIN Entry Overlay */
+        .pin-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            border-radius: 8px;
+        }
+        
+        .pin-overlay.hidden {
+            display: none;
+        }
+        
+        .pin-container {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .pin-title {
+            color: #d4d4d4;
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+        
+        .pin-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        .pin-input {
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            color: #d4d4d4;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            width: 200px;
+            font-family: Monaco, Menlo, monospace;
+            letter-spacing: 0.1em;
+            text-align: center;
+        }
+        
+        .pin-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+        }
+        
+        .pin-submit {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .pin-submit:hover {
+            background: var(--accent-secondary);
+        }
+        
+        .pin-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pin-error {
+            color: var(--error-primary);
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            min-height: 1.25rem;
+        }
+
+        #terminal {
+            height: 100%;
+            width: 100%;
+            padding: 0.5rem;
+        }
+        
+        /* Override xterm.js default styles for better integration */
+        .xterm {
+            height: 100%;
+            padding: 0.5rem;
+        }
+        
+        .xterm-viewport {
+            background-color: transparent !important;
+        }
+        
+        .xterm-screen {
+            height: 100% !important;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.connected {
+            background: var(--success-light);
+            color: var(--success-primary);
+        }
+
+        .connection-status.disconnected {
+            background: var(--error-light);
+            color: var(--error-primary);
+        }
+
+        .connection-status.connecting {
+            background: var(--warning-light);
+            color: var(--warning-primary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.1rem;
+            }
+            
+            .logo {
+                width: 24px;
+                height: 24px;
+            }
+            
+            .container {
+                padding: 0.5rem;
+            }
+            
+            .terminal-wrapper {
+                padding: 0.75rem;
+                border-radius: 8px;
+            }
+            
+            .terminal-header {
+                margin-bottom: 0.5rem;
+                padding-bottom: 0.5rem;
+                flex-wrap: wrap;
+            }
+            
+            .terminal-title {
+                display: none; /* Hide title on mobile */
+            }
+            
+            /* Show TMUX controls on mobile */
+            .tmux-controls {
+                display: flex;
+                flex-wrap: wrap;
+                width: 100%;
+                justify-content: space-between;
+                order: 1;
+            }
+            
+            .tmux-btn {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.7rem;
+                flex: 0 0 auto;
+            }
+            
+            .connection-status {
+                order: 2;
+                width: 100%;
+                margin-top: 0.5rem;
+                justify-content: center;
+            }
+            
+            .terminal-container {
+                min-height: 300px;
+                border-radius: 6px;
+            }
+            
+            #terminal {
+                padding: 0.25rem;
+            }
+            
+            .xterm {
+                padding: 0.25rem;
+            }
+            
+            .nav-link {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.8rem;
+            }
+            
+            .connection-status {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            .status-dot {
+                width: 6px;
+                height: 6px;
+            }
+            
+            /* PIN overlay adjustments for mobile */
+            .pin-container {
+                padding: 1.5rem;
+            }
+            
+            .pin-title {
+                font-size: 1.1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .pin-input-wrapper {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .pin-input {
+                width: 100%;
+                max-width: 200px;
+                font-size: 0.9rem;
+                padding: 0.625rem 0.875rem;
+            }
+            
+            .pin-submit {
+                width: 100%;
+                max-width: 200px;
+                font-size: 0.8rem;
+                padding: 0.625rem 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <img src="Wingman_Goose_Logo_Dark.png" alt="Wingman Logo" class="logo">
+            Wingman: Deep Dive
+        </h1>
+        <div class="nav-links">
+            <a href="/" class="nav-link">← Back to Chat</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="terminal-wrapper">
+            <div class="terminal-header">
+                <div class="terminal-title">
+                    🔍 Terminal Session
+                </div>
+                <div class="tmux-controls">
+                    <div class="tmux-dropdown" id="tmux-dropdown">
+                        <button class="tmux-dropdown-btn" id="tmux-dropdown-btn">
+                            <span>TMUX Commands</span>
+                        </button>
+                        <div class="tmux-dropdown-content" id="tmux-dropdown-content">
+                            <div class="tmux-cmd" data-cmd="detach">
+                                <span class="tmux-cmd-key">⌃B D</span>
+                                <span class="tmux-cmd-desc">Detach Session</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="zoom">
+                                <span class="tmux-cmd-key">⌃B Z</span>
+                                <span class="tmux-cmd-desc">Zoom Pane</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="vsplit">
+                                <span class="tmux-cmd-key">⌃B %</span>
+                                <span class="tmux-cmd-desc">Vertical Split</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="hsplit">
+                                <span class="tmux-cmd-key">⌃B "</span>
+                                <span class="tmux-cmd-desc">Horizontal Split</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="kill">
+                                <span class="tmux-cmd-key">⌃B X</span>
+                                <span class="tmux-cmd-desc">Kill Pane</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="list">
+                                <span class="tmux-cmd-key">⌃B S</span>
+                                <span class="tmux-cmd-desc">List Sessions</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="windows">
+                                <span class="tmux-cmd-key">⌃B W</span>
+                                <span class="tmux-cmd-desc">List Windows</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="newwindow">
+                                <span class="tmux-cmd-key">⌃B C</span>
+                                <span class="tmux-cmd-desc">New Window</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="nextwindow">
+                                <span class="tmux-cmd-key">⌃B N</span>
+                                <span class="tmux-cmd-desc">Next Window</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="prevwindow">
+                                <span class="tmux-cmd-key">⌃B P</span>
+                                <span class="tmux-cmd-desc">Previous Window</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="tmux-cancel" class="tmux-btn cancel" title="Send Ctrl+C (Cancel/Interrupt)">
+                        <span>⌃C</span>
+                        <span>Cancel</span>
+                    </button>
+                </div>
+                <div id="connection-status" class="connection-status connecting">
+                    <span class="status-dot"></span>
+                    <span>Connecting...</span>
+                </div>
+            </div>
+            <div class="terminal-container">
+                <div id="pin-overlay" class="pin-overlay">
+                    <div class="pin-container">
+                        <div class="pin-title">Enter PIN to unlock</div>
+                        <div class="pin-input-wrapper">
+                            <input 
+                                type="password" 
+                                id="pin-input" 
+                                class="pin-input" 
+                                placeholder="Enter PIN"
+                                maxlength="10"
+                                autocomplete="off"
+                            />
+                            <button id="pin-submit" class="pin-submit">Connect</button>
+                        </div>
+                        <div id="pin-error" class="pin-error"></div>
+                    </div>
+                </div>
+                <div id="terminal"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Xterm.js JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.js"></script>
+
+    <script>
+        class TerminalClient {
+            constructor() {
+                this.terminal = null;
+                this.socket = null;
+                this.connectionStatus = document.getElementById('connection-status');
+                this.pinOverlay = document.getElementById('pin-overlay');
+                this.pinInput = document.getElementById('pin-input');
+                this.pinSubmit = document.getElementById('pin-submit');
+                this.pinError = document.getElementById('pin-error');
+                this.authenticated = false;
+                
+                // TMUX control buttons
+                this.tmuxDropdown = document.getElementById('tmux-dropdown');
+                this.tmuxDropdownBtn = document.getElementById('tmux-dropdown-btn');
+                this.tmuxDropdownContent = document.getElementById('tmux-dropdown-content');
+                this.tmuxCancel = document.getElementById('tmux-cancel');
+                
+                this.init();
+            }
+
+            init() {
+                this.setupPinEntry();
+                this.setupTerminal();
+                this.setupSocket();
+                this.setupTmuxControls();
+            }
+            
+            setupTmuxControls() {
+                // Helper function to provide visual feedback
+                const flashButton = (button) => {
+                    const originalBg = button.style.background;
+                    const originalColor = button.style.color;
+                    button.style.background = 'var(--accent-primary)';
+                    button.style.color = 'white';
+                    setTimeout(() => {
+                        button.style.background = originalBg;
+                        button.style.color = originalColor;
+                    }, 200);
+                };
+                
+                // Dropdown toggle
+                if (this.tmuxDropdownBtn) {
+                    this.tmuxDropdownBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        console.log('Dropdown button clicked');
+                        this.tmuxDropdown.classList.toggle('open');
+                    });
+                }
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (this.tmuxDropdown && !this.tmuxDropdown.contains(e.target)) {
+                        this.tmuxDropdown.classList.remove('open');
+                    }
+                });
+                
+                // TMUX command handlers
+                if (this.tmuxDropdownContent) {
+                    this.tmuxDropdownContent.addEventListener('click', (e) => {
+                        const cmd = e.target.closest('[data-cmd]');
+                        if (cmd && this.authenticated && this.socket && this.socket.connected) {
+                            const command = cmd.dataset.cmd;
+                            console.log('TMUX command clicked:', command);
+                            this.executeTmuxCommand(command);
+                            this.tmuxDropdown.classList.remove('open');
+                        }
+                    });
+                }
+                
+                // Cancel button (Ctrl+C)
+                if (this.tmuxCancel) {
+                    this.tmuxCancel.addEventListener('click', () => {
+                        if (this.authenticated && this.socket && this.socket.connected) {
+                            flashButton(this.tmuxCancel);
+                            // Send Ctrl+C (ASCII code 3)
+                            this.socket.emit('terminal-input', '\x03');
+                        }
+                    });
+                }
+            }
+            
+            executeTmuxCommand(command) {
+                if (!this.authenticated || !this.socket || !this.socket.connected) {
+                    return;
+                }
+                
+                // Flash the dropdown button for feedback
+                this.tmuxDropdownBtn.style.background = 'var(--accent-primary)';
+                this.tmuxDropdownBtn.style.color = 'white';
+                setTimeout(() => {
+                    this.tmuxDropdownBtn.style.background = '';
+                    this.tmuxDropdownBtn.style.color = '';
+                }, 200);
+                
+                const prefix = '\\x02'; // Ctrl+B
+                
+                switch (command) {
+                    case 'detach':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', 'd'), 100);
+                        break;
+                    case 'zoom':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', 'z'), 100);
+                        break;
+                    case 'vsplit':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', '%'), 100);
+                        break;
+                    case 'hsplit':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', '"'), 100);
+                        break;
+                    case 'kill':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', 'x'), 100);
+                        break;
+                    case 'list':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', 's'), 100);
+                        break;
+                    case 'windows':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', 'w'), 100);
+                        break;
+                    case 'newwindow':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', 'c'), 100);
+                        break;
+                    case 'nextwindow':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', 'n'), 100);
+                        break;
+                    case 'prevwindow':
+                        this.socket.emit('terminal-input', prefix);
+                        setTimeout(() => this.socket.emit('terminal-input', 'p'), 100);
+                        break;
+                }
+            }
+            
+            setupPinEntry() {
+                // Handle PIN submission
+                const submitPin = () => {
+                    const pin = this.pinInput.value.trim();
+                    if (pin) {
+                        this.pinError.textContent = '';
+                        this.pinSubmit.disabled = true;
+                        this.socket.emit('authenticate', pin);
+                    }
+                };
+                
+                this.pinSubmit.addEventListener('click', submitPin);
+                
+                this.pinInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        submitPin();
+                    }
+                });
+                
+                // Focus on PIN input when page loads
+                setTimeout(() => this.pinInput.focus(), 100);
+            }
+
+            setupTerminal() {
+                // Check if mobile
+                const isMobile = window.innerWidth <= 768;
+                
+                // Create terminal instance with responsive settings
+                this.terminal = new Terminal({
+                    cursorBlink: true,
+                    theme: {
+                        background: '#1a1a1a',
+                        foreground: '#d4d4d4',
+                        cursor: '#10b981',
+                        selection: 'rgba(16, 185, 129, 0.3)',
+                        black: '#000000',
+                        red: '#dc2626',
+                        green: '#10b981',
+                        yellow: '#d97706',
+                        blue: '#3b82f6',
+                        magenta: '#a855f7',
+                        cyan: '#06b6d4',
+                        white: '#e5e5e5',
+                        brightBlack: '#737373',
+                        brightRed: '#ef4444',
+                        brightGreen: '#22c55e',
+                        brightYellow: '#f59e0b',
+                        brightBlue: '#60a5fa',
+                        brightMagenta: '#c084fc',
+                        brightCyan: '#22d3ee',
+                        brightWhite: '#ffffff'
+                    },
+                    fontSize: isMobile ? 11 : 14,
+                    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, monospace',
+                    scrollback: 1000,
+                    convertEol: true,
+                    // Allow text selection on mobile
+                    allowProposedApi: true,
+                    // Better mobile scrolling
+                    scrollSensitivity: isMobile ? 3 : 1
+                });
+
+                // Open terminal in the container
+                this.terminal.open(document.getElementById('terminal'));
+
+                // Handle user input
+                this.terminal.onData((data) => {
+                    if (this.socket && this.socket.connected && this.authenticated) {
+                        this.socket.emit('terminal-input', data);
+                    }
+                });
+
+                // Handle terminal resize
+                this.terminal.onResize((dimensions) => {
+                    if (this.socket && this.socket.connected) {
+                        this.socket.emit('terminal-resize', dimensions);
+                    }
+                });
+
+                // Auto-resize terminal on window resize
+                window.addEventListener('resize', () => {
+                    this.resizeTerminal();
+                });
+
+                // Initial resize
+                setTimeout(() => this.resizeTerminal(), 100);
+            }
+
+            resizeTerminal() {
+                const container = document.querySelector('.terminal-container');
+                if (!container) return;
+                
+                const rect = container.getBoundingClientRect();
+                
+                // Get computed styles for more accurate measurements
+                const computedStyle = window.getComputedStyle(container);
+                const paddingX = parseFloat(computedStyle.paddingLeft) + parseFloat(computedStyle.paddingRight);
+                const paddingY = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+                
+                const availableWidth = rect.width - paddingX;
+                const availableHeight = rect.height - paddingY;
+                
+                // Check if mobile viewport
+                const isMobile = window.innerWidth <= 768;
+                
+                // Adjust character size calculations based on device
+                let charWidth, charHeight, minCols, minRows;
+                
+                if (isMobile) {
+                    // Mobile settings - smaller font requires different calculations
+                    charWidth = 6.8;  // Even smaller character width for mobile
+                    charHeight = 14;  // Smaller line height for mobile
+                    minCols = 35;     // Allow even narrower terminal on mobile
+                    minRows = 20;     // Allow shorter terminal on mobile
+                } else {
+                    // Desktop settings
+                    charWidth = 8.4;
+                    charHeight = 17;
+                    minCols = 80;
+                    minRows = 24;
+                }
+                
+                // Calculate terminal dimensions based on container size
+                const cols = Math.floor(availableWidth / charWidth);
+                const rows = Math.floor(availableHeight / charHeight);
+                
+                // Apply minimum dimensions based on device
+                const finalCols = Math.max(minCols, cols);
+                const finalRows = Math.max(minRows, rows);
+                
+                this.terminal.resize(finalCols, finalRows);
+                
+                // Also update font size on mobile
+                if (isMobile && this.terminal.options.fontSize !== 11) {
+                    this.terminal.options.fontSize = 11;
+                } else if (!isMobile && this.terminal.options.fontSize !== 14) {
+                    this.terminal.options.fontSize = 14;
+                }
+            }
+
+            setupSocket() {
+                // Connect to the terminal namespace
+                this.socket = io('/terminal');
+
+                this.socket.on('connect', () => {
+                    console.log('Connected to terminal socket');
+                    this.updateConnectionStatus('connecting', 'Enter PIN');
+                });
+                
+                this.socket.on('auth-success', () => {
+                    console.log('Authentication successful');
+                    this.authenticated = true;
+                    this.pinOverlay.classList.add('hidden');
+                    this.updateConnectionStatus('connected', 'Connected');
+                    
+                    // Get current terminal dimensions
+                    const dimensions = {
+                        cols: this.terminal.cols,
+                        rows: this.terminal.rows
+                    };
+                    
+                    // Start the terminal session with wingman command and dimensions
+                    this.socket.emit('start-terminal', dimensions);
+                    
+                    // Focus on terminal
+                    this.terminal.focus();
+                });
+                
+                this.socket.on('auth-failed', (message) => {
+                    console.log('Authentication failed:', message);
+                    this.pinError.textContent = message || 'Invalid PIN';
+                    this.pinSubmit.disabled = false;
+                    this.pinInput.value = '';
+                    this.pinInput.focus();
+                });
+
+                this.socket.on('disconnect', () => {
+                    console.log('Disconnected from terminal');
+                    this.updateConnectionStatus('disconnected', 'Disconnected');
+                    this.authenticated = false;
+                    
+                    // Show PIN overlay again on disconnect
+                    this.pinOverlay.classList.remove('hidden');
+                    this.pinSubmit.disabled = false;
+                    this.pinInput.value = '';
+                    this.pinError.textContent = '';
+                });
+
+                this.socket.on('terminal-output', (data) => {
+                    this.terminal.write(data);
+                });
+
+                this.socket.on('terminal-error', (error) => {
+                    this.terminal.write(`\r\n\x1b[31mError: ${error}\x1b[0m\r\n`);
+                });
+
+                this.socket.on('connect_error', (error) => {
+                    console.error('Connection error:', error);
+                    this.updateConnectionStatus('disconnected', 'Connection Error');
+                });
+            }
+
+            updateConnectionStatus(status, text) {
+                this.connectionStatus.className = `connection-status ${status}`;
+                this.connectionStatus.innerHTML = `
+                    <span class="status-dot"></span>
+                    <span>${text}</span>
+                `;
+            }
+        }
+
+        // Initialize terminal when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new TerminalClient();
+        });
+
+        // Handle dark theme based on system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.body.classList.add('dark-theme');
+        }
+
+        // Listen for theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (e.matches) {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+        });
+    </script>
+</body>
+</html>
