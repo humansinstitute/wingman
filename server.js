@@ -8,6 +8,7 @@ const os = require('os');
 const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
 const MultiSessionManager = require('./multi-session-manager');
+const mcpServerRegistry = require('./mcp-server-registry');
 
 // Clear recipe cache on server startup to ensure fresh data
 recipeManager.clearCache();
@@ -175,15 +176,51 @@ class GooseWebServer {
       }
     });
 
+    this.app.post('/api/goose/interrupt', async (req, res) => {
+      try {
+        const result = await this.multiSessionManager.interruptActiveSession();
+        
+        // Broadcast interrupt event to all clients
+        this.io.emit('sessionInterrupted', {
+          sessionId: result.sessionId,
+          timestamp: new Date().toISOString()
+        });
+        
+        res.json(result);
+      } catch (error) {
+        console.error('Error interrupting session:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     this.app.post('/api/goose/stop', async (req, res) => {
       try {
-        await conversationManager.stopGooseSession();
+        // First try to interrupt gracefully
+        try {
+          await this.multiSessionManager.interruptActiveSession();
+        } catch (interruptError) {
+          console.log('Could not interrupt gracefully, proceeding with force stop');
+        }
         
-        // Broadcast status update to all clients
-        this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+        // Then force stop
+        const result = await this.multiSessionManager.forceStopActiveSession();
         
-        res.json({ success: true });
+        // Broadcast session stopped event to all clients
+        this.io.emit('sessionForceStopped', {
+          sessionId: result.sessionId,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Also broadcast legacy status update for backward compatibility
+        this.io.emit('gooseStatusUpdate', {
+          active: false,
+          sessionName: null,
+          ready: false
+        });
+        
+        res.json(result);
       } catch (error) {
+        console.error('Error stopping session:', error);
         res.status(500).json({ error: error.message });
       }
     });
@@ -255,7 +292,7 @@ class GooseWebServer {
 
     this.app.post('/api/message', async (req, res) => {
       try {
-        const { content } = req.body;
+        const { content, settings } = req.body;
         
         // Debug logging for message content
         console.log('=== RECEIVED MESSAGE AT SERVER ===');
@@ -273,8 +310,8 @@ class GooseWebServer {
           });
         }
         
-        // Send message to active session
-        const result = await this.multiSessionManager.sendMessageToActiveSession(content);
+        // Send message to active session with settings
+        const result = await this.multiSessionManager.sendMessageToActiveSession(content, settings);
         
         res.json({ success: true, result });
       } catch (error) {
@@ -548,6 +585,137 @@ class GooseWebServer {
       }
     });
 
+    // MCP Server Registry API Endpoints
+    
+    // Get all registered MCP servers
+    this.app.get('/api/mcp-servers', async (req, res) => {
+      try {
+        const { includeUsage, sortBy } = req.query;
+        const servers = await mcpServerRegistry.getAllServers({ 
+          includeUsage: includeUsage === 'true', 
+          sortBy: sortBy || 'name' 
+        });
+        res.json(servers);
+      } catch (error) {
+        console.error('Error fetching MCP servers:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get registry statistics (must come before /:id route)
+    this.app.get('/api/mcp-servers/stats', async (req, res) => {
+      try {
+        const stats = await mcpServerRegistry.getStats();
+        res.json(stats);
+      } catch (error) {
+        console.error('Error fetching registry stats:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get a specific MCP server
+    this.app.get('/api/mcp-servers/:id', async (req, res) => {
+      try {
+        const server = await mcpServerRegistry.getServer(req.params.id);
+        if (!server) {
+          return res.status(404).json({ error: 'MCP server not found' });
+        }
+        res.json({ id: req.params.id, ...server });
+      } catch (error) {
+        console.error('Error fetching MCP server:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Register a new MCP server
+    this.app.post('/api/mcp-servers', async (req, res) => {
+      try {
+        const server = await mcpServerRegistry.registerServer(req.body);
+        res.status(201).json(server);
+      } catch (error) {
+        console.error('Error registering MCP server:', error);
+        res.status(400).json({ error: error.message });
+      }
+    });
+
+    // Update an existing MCP server
+    this.app.put('/api/mcp-servers/:id', async (req, res) => {
+      try {
+        const server = await mcpServerRegistry.updateServer(req.params.id, req.body);
+        res.json(server);
+      } catch (error) {
+        console.error('Error updating MCP server:', error);
+        if (error.message.includes('not found')) {
+          res.status(404).json({ error: error.message });
+        } else {
+          res.status(400).json({ error: error.message });
+        }
+      }
+    });
+
+    // Delete an MCP server
+    this.app.delete('/api/mcp-servers/:id', async (req, res) => {
+      try {
+        const result = await mcpServerRegistry.unregisterServer(req.params.id);
+        res.json(result);
+      } catch (error) {
+        console.error('Error deleting MCP server:', error);
+        if (error.message.includes('not found')) {
+          res.status(404).json({ error: error.message });
+        } else if (error.message.includes('still used by')) {
+          res.status(409).json({ error: error.message });
+        } else {
+          res.status(400).json({ error: error.message });
+        }
+      }
+    });
+
+    // Search MCP servers
+    this.app.post('/api/mcp-servers/search', async (req, res) => {
+      try {
+        const { query } = req.body;
+        if (!query) {
+          return res.status(400).json({ error: 'Search query is required' });
+        }
+        const servers = await mcpServerRegistry.searchServers(query);
+        res.json(servers);
+      } catch (error) {
+        console.error('Error searching MCP servers:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get MCP servers for a specific recipe
+    this.app.get('/api/mcp-servers/recipe/:recipeId', async (req, res) => {
+      try {
+        const servers = await mcpServerRegistry.getServersForRecipe(req.params.recipeId);
+        res.json(servers);
+      } catch (error) {
+        console.error('Error fetching recipe servers:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+
+    // Import servers from existing recipes (migration endpoint)
+    this.app.post('/api/mcp-servers/import-from-recipes', async (req, res) => {
+      try {
+        // Get all recipes to import servers from
+        const recipes = await recipeManager.getAllRecipes();
+        const result = await mcpServerRegistry.importFromRecipes(recipes);
+        
+        res.json({
+          success: true,
+          imported: result.importedServers.length,
+          errors: result.errors,
+          servers: result.importedServers
+        });
+      } catch (error) {
+        console.error('Error importing servers from recipes:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Directory browsing API
     this.app.get('/api/directories', async (req, res) => {
       try {
@@ -599,6 +767,48 @@ class GooseWebServer {
         });
       } catch (error) {
         res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Create directory endpoint
+    this.app.post('/api/create-directory', async (req, res) => {
+      try {
+        const fs = require('fs').promises;
+        const path = require('path');
+        
+        const { parentPath, folderName } = req.body;
+        
+        if (!parentPath || !folderName) {
+          return res.status(400).send('Parent path and folder name are required');
+        }
+        
+        // Validate folder name
+        if (!/^[a-zA-Z0-9_\-\s]+$/.test(folderName)) {
+          return res.status(400).send('Invalid folder name');
+        }
+        
+        // Security: Ensure we can't create directories outside reasonable bounds
+        const resolvedParentPath = path.resolve(parentPath);
+        const newDirPath = path.join(resolvedParentPath, folderName);
+        
+        // Check if directory already exists
+        try {
+          await fs.access(newDirPath);
+          return res.status(409).send('Directory already exists');
+        } catch (error) {
+          // Directory doesn't exist, which is what we want
+        }
+        
+        // Create the directory
+        await fs.mkdir(newDirPath, { recursive: false });
+        
+        res.json({ 
+          success: true, 
+          path: newDirPath 
+        });
+      } catch (error) {
+        console.error('Error creating directory:', error);
+        res.status(500).send(error.message);
       }
     });
 

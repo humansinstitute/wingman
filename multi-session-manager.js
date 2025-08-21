@@ -548,7 +548,7 @@ class MultiSessionManager extends EventEmitter {
     }
   }
   
-  async sendMessageToActiveSession(message) {
+  async sendMessageToActiveSession(message, settings = {}) {
     if (!this.activeSessionId) {
       throw new Error('No active session');
     }
@@ -587,7 +587,76 @@ class MultiSessionManager extends EventEmitter {
       }
     });
     
+    // Update session options with current settings
+    if (settings && settings.enableInterruptOnNewMessage !== undefined) {
+      session.options.enableInterruptOnNewMessage = settings.enableInterruptOnNewMessage;
+    }
+    
     return session.sendMessage(message);
+  }
+
+  async interruptActiveSession() {
+    if (!this.activeSessionId) {
+      throw new Error('No active session to interrupt');
+    }
+    
+    const session = this.sessions.get(this.activeSessionId);
+    if (!session) {
+      throw new Error('Active session not found');
+    }
+    
+    console.log(`🛑 Interrupting active session: ${this.activeSessionId}`);
+    
+    try {
+      await session.interrupt();
+      
+      // Emit interrupt event for UI updates
+      this.emit('sessionInterrupted', {
+        sessionId: this.activeSessionId,
+        timestamp: new Date().toISOString()
+      });
+      
+      return { success: true, sessionId: this.activeSessionId };
+    } catch (error) {
+      console.error('Error interrupting session:', error);
+      throw error;
+    }
+  }
+
+  async forceStopActiveSession() {
+    if (!this.activeSessionId) {
+      throw new Error('No active session to stop');
+    }
+    
+    const session = this.sessions.get(this.activeSessionId);
+    if (!session) {
+      throw new Error('Active session not found');
+    }
+    
+    console.log(`🔥 Force stopping active session: ${this.activeSessionId}`);
+    
+    try {
+      await session.forceStop();
+      
+      // Remove from active sessions
+      this.sessions.delete(this.activeSessionId);
+      this.sessionMetadata.delete(this.activeSessionId);
+      
+      // Clear active session
+      const stoppedSessionId = this.activeSessionId;
+      this.activeSessionId = null;
+      
+      // Emit force stop event for UI updates
+      this.emit('sessionForceStopped', {
+        sessionId: stoppedSessionId,
+        timestamp: new Date().toISOString()
+      });
+      
+      return { success: true, sessionId: stoppedSessionId };
+    } catch (error) {
+      console.error('Error force stopping session:', error);
+      throw error;
+    }
   }
   
   async getRunningSessions() {

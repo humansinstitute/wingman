@@ -1,0 +1,328 @@
+{
+  "servers": {
+    "mcpobsidian-7bb753aa": {
+      "id": "mcpobsidian-7bb753aa",
+      "name": "mcpobsidian",
+      "description": "MCP server for Obsidian vault integration - read, write, and search notes",
+      "type": "stdio",
+      "cmd": "uvx",
+      "args": [
+        "mcp-obsidian"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "OBSIDIAN_API_KEY"
+      ],
+      "tags": [
+        "obsidian",
+        "notes",
+        "knowledge-management"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.901Z",
+      "updatedAt": "2025-08-20T13:47:13.901Z",
+      "usedByRecipes": [
+        "7c7583b29306b0cee9edb8bcda89e9d2",
+        "fc2a7ed7e0fa93f5f5f28648b683efb1"
+      ],
+      "isPublic": true,
+      "isBuiltIn": true,
+      "lastUsed": "2025-08-20T13:49:12.734Z"
+    },
+    "filesread-267750c3": {
+      "id": "filesread-267750c3",
+      "name": "filesread",
+      "description": "Read-only filesystem access for file operations and code analysis",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/mini/code"
+      ],
+      "timeout": 300,
+      "env_keys": [],
+      "tags": [
+        "filesystem",
+        "read-only",
+        "files"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.901Z",
+      "updatedAt": "2025-08-20T13:47:13.901Z",
+      "usedByRecipes": [
+        "7c7583b29306b0cee9edb8bcda89e9d2"
+      ],
+      "isPublic": true,
+      "isBuiltIn": true,
+      "lastUsed": "2025-08-20T13:49:12.734Z"
+    },
+    "files-readonly-27b48d0c": {
+      "id": "files-readonly-27b48d0c",
+      "name": "files_readonly",
+      "description": "Alternative read-only filesystem server for secure file access",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@danielsuguimoto/readonly-server-filesystem",
+        "/Users/mini/code"
+      ],
+      "timeout": 300,
+      "env_keys": [],
+      "tags": [
+        "filesystem",
+        "read-only",
+        "security"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.901Z",
+      "updatedAt": "2025-08-20T13:47:13.901Z",
+      "usedByRecipes": [
+        "fc2a7ed7e0fa93f5f5f28648b683efb1"
+      ],
+      "isPublic": true,
+      "isBuiltIn": true,
+      "lastUsed": "2025-08-20T13:49:12.734Z"
+    },
+    "gitmcp-e02a6082": {
+      "id": "gitmcp-e02a6082",
+      "name": "gitmcp",
+      "description": "Git operations and repository management via MCP",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://gitmcp.io/docs"
+      ],
+      "timeout": 300,
+      "env_keys": [],
+      "tags": [
+        "git",
+        "version-control",
+        "remote"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.901Z",
+      "updatedAt": "2025-08-20T13:47:13.901Z",
+      "usedByRecipes": [
+        "7c7583b29306b0cee9edb8bcda89e9d2"
+      ],
+      "isPublic": true,
+      "isBuiltIn": true,
+      "lastUsed": "2025-08-20T13:49:12.734Z"
+    },
+    "context7-935af983": {
+      "id": "context7-935af983",
+      "name": "context7",
+      "description": "Access to up-to-date documentation and code examples for libraries",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@context7/mcp-server"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "CONTEXT7_API_KEY"
+      ],
+      "tags": [
+        "documentation",
+        "libraries",
+        "examples"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.901Z",
+      "updatedAt": "2025-08-20T13:47:13.901Z",
+      "usedByRecipes": [],
+      "isPublic": true,
+      "isBuiltIn": true
+    },
+    "brave-search-d68742af": {
+      "id": "brave-search-d68742af",
+      "name": "brave-search",
+      "description": "Web search capabilities using Brave Search API",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "BRAVE_API_KEY"
+      ],
+      "tags": [
+        "search",
+        "web",
+        "research"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.901Z",
+      "updatedAt": "2025-08-20T13:47:13.901Z",
+      "usedByRecipes": [],
+      "isPublic": true,
+      "isBuiltIn": true
+    },
+    "postgres-ed63b59b": {
+      "id": "postgres-ed63b59b",
+      "name": "postgres",
+      "description": "PostgreSQL database operations and queries",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "POSTGRES_CONNECTION_STRING"
+      ],
+      "tags": [
+        "database",
+        "sql",
+        "postgres"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.902Z",
+      "updatedAt": "2025-08-20T13:47:13.902Z",
+      "usedByRecipes": [],
+      "isPublic": true,
+      "isBuiltIn": true
+    },
+    "github-16c885bb": {
+      "id": "github-16c885bb",
+      "name": "github",
+      "description": "GitHub repository operations, issues, and pull requests",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "GITHUB_PERSONAL_ACCESS_TOKEN"
+      ],
+      "tags": [
+        "github",
+        "repository",
+        "issues",
+        "pr"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.902Z",
+      "updatedAt": "2025-08-20T13:47:13.902Z",
+      "usedByRecipes": [],
+      "isPublic": true,
+      "isBuiltIn": true
+    },
+    "sqlite-41f43a1b": {
+      "id": "sqlite-41f43a1b",
+      "name": "sqlite",
+      "description": "SQLite database operations and queries",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sqlite"
+      ],
+      "timeout": 300,
+      "env_keys": [],
+      "tags": [
+        "database",
+        "sql",
+        "sqlite"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.902Z",
+      "updatedAt": "2025-08-20T13:47:13.902Z",
+      "usedByRecipes": [],
+      "isPublic": true,
+      "isBuiltIn": true
+    },
+    "everart-2c36c1a9": {
+      "id": "everart-2c36c1a9",
+      "name": "everart",
+      "description": "AI image generation and visual content creation",
+      "type": "stdio",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-everart"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "EVERART_API_KEY"
+      ],
+      "tags": [
+        "image",
+        "ai",
+        "generation",
+        "visual"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-20T13:47:13.902Z",
+      "updatedAt": "2025-08-20T13:47:13.902Z",
+      "usedByRecipes": [],
+      "isPublic": true,
+      "isBuiltIn": true
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "createdAt": "2025-08-20T13:47:13.900Z",
+    "lastUpdated": "2025-08-21T00:16:01.950Z"
+  }
+}

@@ -58,6 +58,28 @@ class SessionAwareGooseCLIWrapper extends StreamingGooseCLIWrapper {
     return result;
   }
 
+  async interrupt() {
+    console.log(`🛑 Interrupting session ${this.sessionId}`);
+    
+    this.recordMetric('session_interrupted', { 
+      timestamp: Date.now(),
+      sessionId: this.sessionId 
+    });
+    
+    return await super.interrupt();
+  }
+
+  async forceStop() {
+    console.log(`🔥 Force stopping session ${this.sessionId}`);
+    
+    this.recordMetric('session_force_stopped', { 
+      timestamp: Date.now(),
+      sessionId: this.sessionId 
+    });
+    
+    return await super.forceStop();
+  }
+
   async resumeSession(sessionName) {
     // Use EXACT main branch resume pattern for 100% reliability
     this.options.sessionName = sessionName;
