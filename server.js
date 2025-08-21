@@ -176,15 +176,51 @@ class GooseWebServer {
       }
     });
 
+    this.app.post('/api/goose/interrupt', async (req, res) => {
+      try {
+        const result = await this.multiSessionManager.interruptActiveSession();
+        
+        // Broadcast interrupt event to all clients
+        this.io.emit('sessionInterrupted', {
+          sessionId: result.sessionId,
+          timestamp: new Date().toISOString()
+        });
+        
+        res.json(result);
+      } catch (error) {
+        console.error('Error interrupting session:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     this.app.post('/api/goose/stop', async (req, res) => {
       try {
-        await conversationManager.stopGooseSession();
+        // First try to interrupt gracefully
+        try {
+          await this.multiSessionManager.interruptActiveSession();
+        } catch (interruptError) {
+          console.log('Could not interrupt gracefully, proceeding with force stop');
+        }
         
-        // Broadcast status update to all clients
-        this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+        // Then force stop
+        const result = await this.multiSessionManager.forceStopActiveSession();
         
-        res.json({ success: true });
+        // Broadcast session stopped event to all clients
+        this.io.emit('sessionForceStopped', {
+          sessionId: result.sessionId,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Also broadcast legacy status update for backward compatibility
+        this.io.emit('gooseStatusUpdate', {
+          active: false,
+          sessionName: null,
+          ready: false
+        });
+        
+        res.json(result);
       } catch (error) {
+        console.error('Error stopping session:', error);
         res.status(500).json({ error: error.message });
       }
     });
@@ -256,7 +292,7 @@ class GooseWebServer {
 
     this.app.post('/api/message', async (req, res) => {
       try {
-        const { content } = req.body;
+        const { content, settings } = req.body;
         
         // Debug logging for message content
         console.log('=== RECEIVED MESSAGE AT SERVER ===');
@@ -274,8 +310,8 @@ class GooseWebServer {
           });
         }
         
-        // Send message to active session
-        const result = await this.multiSessionManager.sendMessageToActiveSession(content);
+        // Send message to active session with settings
+        const result = await this.multiSessionManager.sendMessageToActiveSession(content, settings);
         
         res.json({ success: true, result });
       } catch (error) {

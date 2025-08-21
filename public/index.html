@@ -9,6 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <!-- Force refresh timestamp: 2025-08-21-01:19 -->
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -221,6 +222,48 @@
             margin-left: 0;
             font-weight: inherit;
             display: inline;
+        }
+
+        .working-directory-display {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 0.25rem;
+            font-weight: 400;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 300px;
+        }
+
+        .working-directory-display:empty {
+            display: none;
+        }
+        
+        /* Dark mode styling with green accent */
+        body.dark-theme .working-directory-display {
+            color: var(--accent-primary);
+        }
+        
+        .working-directory-info {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-right: 1rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .working-directory-info span {
+            font-weight: 400;
+        }
+        
+        /* Dark mode styling with green accent */
+        body.dark-theme .working-directory-info {
+            color: var(--accent-primary);
+        }
+        
+        body.dark-theme .working-directory-info span {
+            color: var(--accent-primary);
         }
         
         .status-active {
@@ -438,6 +481,51 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        .interrupt-btn {
+            padding: 0.75rem !important;
+            background: var(--error-primary) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 50% !important;
+            cursor: pointer !important;
+            font-size: 1rem !important;
+            font-weight: 500 !important;
+            width: 3rem !important;
+            height: 3rem !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s ease !important;
+            box-shadow: var(--shadow-sm) !important;
+        }
+
+        .interrupt-btn:hover {
+            background: #dc2626 !important;
+            transform: scale(1.1) !important;
+            box-shadow: var(--shadow-md) !important;
+        }
+
+        .interrupt-btn:active {
+            transform: scale(0.95) !important;
+            box-shadow: var(--shadow-sm) !important;
+        }
+
+        /* Spinner animation */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
         
         .btn-secondary {
@@ -1123,6 +1211,68 @@
             margin-bottom: 0;
         }
 
+        .setting-control {
+            margin-bottom: 1rem;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            opacity: 0;
+            position: absolute;
+            width: 0;
+            height: 0;
+        }
+
+        .checkmark {
+            width: 20px;
+            height: 20px;
+            background-color: var(--bg-secondary);
+            border: 2px solid var(--border-secondary);
+            border-radius: 4px;
+            margin-right: 0.75rem;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-container:hover .checkmark {
+            border-color: var(--accent-primary);
+        }
+
+        .checkbox-container input[type="checkbox"]:checked + .checkmark {
+            background-color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .checkbox-container input[type="checkbox"]:checked + .checkmark:after {
+            content: "";
+            position: absolute;
+            left: 6px;
+            top: 2px;
+            width: 6px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        .setting-label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .setting-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-left: 2.75rem;
+            line-height: 1.4;
+        }
+
         .settings-title {
             font-size: 1rem;
             font-weight: 600;
@@ -1355,6 +1505,9 @@
             <div id="providerModelInfo" class="provider-model-info" style="display: none;">
                 <span id="providerModelText"></span>
             </div>
+            <div id="workingDirectoryInfo" class="working-directory-info" style="display: none;">
+                <div id="workingDirectoryDisplay" class="working-directory-display"></div>
+            </div>
             <div id="gooseStatus" class="goose-status status-inactive">
                 <span id="sessionNameDisplay">No Session Active</span>
                 <span id="sessionCountBadge" class="session-count-badge" style="display: none;"></span>
@@ -1385,7 +1538,7 @@
             <!-- Session Status -->
             <div class="mobile-menu-item session-only">
                 <div id="mobileGooseStatus" class="goose-status status-inactive">
-                    No Session Active
+                    <span id="mobileSessionNameDisplay">No Session Active</span>
                 </div>
             </div>
             
@@ -1393,6 +1546,13 @@
             <div id="mobileProviderModelInfo" class="mobile-menu-item session-only" style="display: none;">
                 <div class="provider-model-info">
                     <span id="mobileProviderModelText"></span>
+                </div>
+            </div>
+            
+            <!-- Working Directory Info -->
+            <div id="mobileWorkingDirectoryInfo" class="mobile-menu-item session-only" style="display: none;">
+                <div class="working-directory-info">
+                    <div id="mobileWorkingDirectoryDisplay" class="working-directory-display"></div>
                 </div>
             </div>
             
@@ -1505,6 +1665,9 @@
         <div class="input-container">
             <div class="input-row">
                 <textarea id="messageInput" placeholder="Type your message to Goose... (Shift+Enter for new line)" maxlength="5000" rows="1"></textarea>
+                <button id="interruptBtn" class="interrupt-btn" title="Stop current operation (Ctrl+C)" style="display: none;">
+                    <span class="spinner"></span>
+                </button>
                 <button id="sendBtn">Send</button>
             </div>
         </div>
@@ -1527,6 +1690,20 @@
                 </div>
             </div>
             
+            <div class="settings-section">
+                <h4 class="settings-title">Interruption Behavior</h4>
+                <div class="setting-control">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="enableInterruptOnNewMessage" checked>
+                        <span class="checkmark"></span>
+                        <span class="setting-label">Interrupt on new message</span>
+                    </label>
+                    <div class="setting-description">
+                        When enabled, sending a new message while Goose is processing will automatically interrupt the current operation (like pressing Ctrl+C).
+                    </div>
+                </div>
+            </div>
+
             <div class="settings-section">
                 <h4 class="settings-title">Actions</h4>
                 <div class="action-controls">
@@ -1683,11 +1860,13 @@
                 this.messagesDiv = document.getElementById('messages');
                 this.messageInput = document.getElementById('messageInput');
                 this.sendBtn = document.getElementById('sendBtn');
+                this.interruptBtn = document.getElementById('interruptBtn');
                 this.clearBtn = document.getElementById('clearBtn');
                 this.loading = document.getElementById('loading');
                 this.connectionBar = document.getElementById('connectionBar');
                 this.gooseStatus = document.getElementById('gooseStatus');
                 this.sessionNameDisplay = document.getElementById('sessionNameDisplay');
+                this.workingDirectoryDisplay = document.getElementById('workingDirectoryDisplay');
                 this.sessionCountBadge = document.getElementById('sessionCountBadge');
                 
                 // New provider/model display elements
@@ -1695,6 +1874,11 @@
                 this.providerModelText = document.getElementById('providerModelText');
                 this.mobileProviderModelInfo = document.getElementById('mobileProviderModelInfo');
                 this.mobileProviderModelText = document.getElementById('mobileProviderModelText');
+                
+                // Working directory display elements
+                this.workingDirectoryInfo = document.getElementById('workingDirectoryInfo');
+                this.mobileWorkingDirectoryInfo = document.getElementById('mobileWorkingDirectoryInfo');
+                this.mobileWorkingDirectoryDisplay = document.getElementById('mobileWorkingDirectoryDisplay');
                 
                 // Session search filter
                 this.sessionSearchFilter = document.getElementById('sessionSearchFilter');
@@ -1757,12 +1941,15 @@
                 this.settingsModal = document.getElementById('settingsModal');
                 this.settingsBtn = document.getElementById('settingsBtn');
                 this.closeSettingsModal = document.getElementById('closeSettingsModal');
+                this.enableInterruptOnNewMessage = document.getElementById('enableInterruptOnNewMessage');
                 
                 // Mobile menu elements
                 this.mobileMenu = document.getElementById('mobileMenu');
                 this.mobileMenuToggle = document.getElementById('mobileMenuToggle');
                 this.mobileMenuClose = document.getElementById('mobileMenuClose');
                 this.mobileGooseStatus = document.getElementById('mobileGooseStatus');
+                this.mobileSessionNameDisplay = document.getElementById('mobileSessionNameDisplay');
+                this.mobileWorkingDirectoryDisplay = document.getElementById('mobileWorkingDirectoryDisplay');
                 this.mobileThemeToggle = document.getElementById('mobileThemeToggle');
                 this.mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
                 
@@ -1835,6 +2022,7 @@
                 this.currentGooseStatus = null;
                 this.setupTheme();
                 this.loadProviders(); // Load provider/model options
+                this.loadSettings(); // Load user settings
                 this.setupEventListeners();
                 this.setupSocketListeners();
                 this.updateGooseControls(false);
@@ -1970,6 +2158,7 @@
                 };
                 
                 safeAddEventListener(this.sendBtn, 'sendBtn', 'click', () => this.sendMessage());
+                safeAddEventListener(this.interruptBtn, 'interruptBtn', 'click', () => this.interruptGoose());
                 safeAddEventListener(this.clearBtn, 'clearBtn', 'click', () => this.clearConversation());
                 safeAddEventListener(this.startSessionBtn, 'startSessionBtn', 'click', () => this.startGooseSession());
                 safeAddEventListener(this.stopSessionBtn, 'stopSessionBtn', 'click', () => this.stopGooseSession());
@@ -2106,6 +2295,22 @@
                 this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
                 this.closeSettingsModal.addEventListener('click', () => this.hideSettingsModal());
                 
+                // Settings change listeners
+                this.enableInterruptOnNewMessage.addEventListener('change', () => {
+                    this.saveSettings();
+                });
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl+C to interrupt (like in CLI)
+                    if (e.ctrlKey && e.key === 'c' && !e.target.matches('input, textarea')) {
+                        e.preventDefault();
+                        if (this.interruptBtn && this.interruptBtn.style.display !== 'none') {
+                            this.interruptGoose();
+                        }
+                    }
+                });
+                
                 // Close modals when clicking overlay
                 this.sessionModal.addEventListener('click', (e) => {
                     if (e.target === this.sessionModal) {
@@ -2173,6 +2378,8 @@
             setupSocketListeners() {
                 this.socket.on('connect', () => {
                     this.connectionBar.classList.remove('disconnected');
+                    // Immediately check for active sessions when reconnecting
+                    this.updateActiveSessionFromRunning();
                 });
                 
                 this.socket.on('disconnect', () => {
@@ -2202,6 +2409,22 @@
                 this.socket.on('gooseError', (error) => {
                     this.appendText(`❌ Goose Error: ${error}\\n`, 'system-message');
                     this.scrollToBottom();
+                });
+
+                // Listen for interruption events
+                this.socket.on('sessionInterrupted', (data) => {
+                    console.log('Session interrupted:', data);
+                    this.updateInterruptButton(true, false);
+                });
+
+                this.socket.on('sessionForceStopped', (data) => {
+                    console.log('Session force stopped:', data);
+                    this.updateInterruptButton(false, false);
+                });
+
+                this.socket.on('processingComplete', (data) => {
+                    console.log('Processing complete:', data);
+                    this.updateInterruptButton(true, false);
                 });
                 
                 // Multi-session event listeners
@@ -2278,13 +2501,15 @@
                         this.updateGooseStatus({
                             active: true,
                             sessionName: activeSession.sessionName,
-                            ready: true
+                            ready: true,
+                            workingDirectory: activeSession.workingDirectory
                         });
                     } else {
                         this.updateGooseStatus({
                             active: false,
                             sessionName: null,
-                            ready: false
+                            ready: false,
+                            workingDirectory: null
                         });
                     }
                 } catch (error) {
@@ -2301,8 +2526,39 @@
                     
                     // Just show the session name without "Active"
                     this.sessionNameDisplay.textContent = status.sessionName || 'Unknown Session';
+                    
+                    // Update working directory display
+                    if (this.workingDirectoryDisplay && status.workingDirectory) {
+                        this.workingDirectoryDisplay.textContent = status.workingDirectory;
+                        this.workingDirectoryDisplay.title = status.workingDirectory; // Full path on hover
+                        this.workingDirectoryInfo.style.display = 'flex';
+                    } else if (this.workingDirectoryDisplay) {
+                        this.workingDirectoryDisplay.textContent = '';
+                        this.workingDirectoryInfo.style.display = 'none';
+                    }
+                    
+                    // Update mobile working directory display
+                    if (this.mobileWorkingDirectoryDisplay && status.workingDirectory) {
+                        this.mobileWorkingDirectoryDisplay.textContent = status.workingDirectory;
+                        this.mobileWorkingDirectoryDisplay.title = status.workingDirectory;
+                        this.mobileWorkingDirectoryInfo.style.display = 'block';
+                    } else if (this.mobileWorkingDirectoryDisplay) {
+                        this.mobileWorkingDirectoryDisplay.textContent = '';
+                        this.mobileWorkingDirectoryInfo.style.display = 'none';
+                    }
+                    
                     statusEl.className = statusClass;
-                    mobileStatusEl.textContent = status.sessionName || 'Unknown Session';
+                    
+                    // Update mobile displays
+                    if (this.mobileSessionNameDisplay) {
+                        this.mobileSessionNameDisplay.textContent = status.sessionName || 'Unknown Session';
+                    }
+                    if (this.mobileWorkingDirectoryDisplay && status.workingDirectory) {
+                        this.mobileWorkingDirectoryDisplay.textContent = status.workingDirectory;
+                        this.mobileWorkingDirectoryDisplay.title = status.workingDirectory;
+                    } else if (this.mobileWorkingDirectoryDisplay) {
+                        this.mobileWorkingDirectoryDisplay.textContent = '';
+                    }
                     mobileStatusEl.className = statusClass;
                 } else {
                     const statusText = 'No Session Active';
@@ -2310,8 +2566,28 @@
                     
                     // Update session name display
                     this.sessionNameDisplay.textContent = statusText;
+                    
+                    // Clear working directory display
+                    if (this.workingDirectoryDisplay) {
+                        this.workingDirectoryDisplay.textContent = '';
+                        this.workingDirectoryInfo.style.display = 'none';
+                    }
+                    
+                    // Clear mobile working directory display
+                    if (this.mobileWorkingDirectoryDisplay) {
+                        this.mobileWorkingDirectoryDisplay.textContent = '';
+                        this.mobileWorkingDirectoryInfo.style.display = 'none';
+                    }
+                    
                     statusEl.className = statusClass;
-                    mobileStatusEl.textContent = statusText;
+                    
+                    // Update mobile displays  
+                    if (this.mobileSessionNameDisplay) {
+                        this.mobileSessionNameDisplay.textContent = statusText;
+                    }
+                    if (this.mobileWorkingDirectoryDisplay) {
+                        this.mobileWorkingDirectoryDisplay.textContent = '';
+                    }
                     mobileStatusEl.className = statusClass;
                 }
                 
@@ -2435,10 +2711,25 @@
                 this.stopSessionBtn.disabled = !active;
                 this.startSessionBtn.disabled = active;
                 
+                // Interrupt button is only enabled when active and processing
+                this.updateInterruptButton(active, false);
+                
                 if (!active) {
                     this.messageInput.placeholder = 'Start a Goose session first...';
                 } else {
                     this.messageInput.placeholder = 'Type your message to Goose...';
+                }
+            }
+
+            updateInterruptButton(sessionActive, isProcessing = false) {
+                if (!this.interruptBtn) return;
+                
+                if (sessionActive && isProcessing) {
+                    this.interruptBtn.style.display = 'flex';
+                    this.interruptBtn.title = 'Stop current operation (Ctrl+C)';
+                } else {
+                    this.interruptBtn.style.display = 'none';
+                    this.interruptBtn.title = 'Stop current operation (Ctrl+C)';
                 }
             }
             
@@ -2539,13 +2830,19 @@
                 this.sendBtn.disabled = true;
                 this.loading.style.display = 'block';
                 
+                // Enable interrupt button while processing
+                this.updateInterruptButton(true, true);
+                
                 try {
                     const response = await fetch('/api/message', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ content })
+                        body: JSON.stringify({ 
+                            content,
+                            settings: this.settings 
+                        })
                     });
                     
                     if (!response.ok) {
@@ -2560,6 +2857,9 @@
                 } finally {
                     this.sendBtn.disabled = false;
                     this.loading.style.display = 'none';
+                    
+                    // Disable interrupt button when done processing
+                    this.updateInterruptButton(true, false);
                 }
             }
             
@@ -2595,6 +2895,37 @@
                 }
             }
             
+            async interruptGoose() {
+                try {
+                    console.log('🛑 Interrupting Goose...');
+                    
+                    const response = await fetch('/api/goose/interrupt', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.appendText('🛑 Interrupted current operation\\n', 'system-message');
+                        this.scrollToBottom();
+                        
+                        // Update interrupt button state
+                        this.updateInterruptButton(true, false);
+                    } else {
+                        const error = await response.json();
+                        this.appendText(`❌ Failed to interrupt: ${error.error}\\n`, 'system-message');
+                        this.scrollToBottom();
+                    }
+                    
+                } catch (error) {
+                    console.error('Error interrupting Goose:', error);
+                    this.appendText(`❌ Failed to interrupt Goose: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+
             async stopGooseSession() {
                 try {
                     const response = await fetch('/api/goose/stop', {
@@ -2796,6 +3127,41 @@
             
             hideSettingsModal() {
                 this.settingsModal.classList.remove('show');
+            }
+
+            loadSettings() {
+                try {
+                    const settings = JSON.parse(localStorage.getItem('wingman-settings')) || {};
+                    
+                    // Default settings
+                    const defaults = {
+                        enableInterruptOnNewMessage: true
+                    };
+                    
+                    // Merge with defaults
+                    this.settings = { ...defaults, ...settings };
+                    
+                    // Apply settings to UI
+                    if (this.enableInterruptOnNewMessage) {
+                        this.enableInterruptOnNewMessage.checked = this.settings.enableInterruptOnNewMessage;
+                    }
+                } catch (error) {
+                    console.error('Error loading settings:', error);
+                    this.settings = { enableInterruptOnNewMessage: true };
+                }
+            }
+
+            saveSettings() {
+                try {
+                    this.settings = {
+                        enableInterruptOnNewMessage: this.enableInterruptOnNewMessage?.checked ?? true
+                    };
+                    
+                    localStorage.setItem('wingman-settings', JSON.stringify(this.settings));
+                    console.log('Settings saved:', this.settings);
+                } catch (error) {
+                    console.error('Error saving settings:', error);
+                }
             }
             
             showMobileMenu() {
