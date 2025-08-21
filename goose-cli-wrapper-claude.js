@@ -277,7 +277,12 @@ class ClaudeGooseCLIWrapper extends EventEmitter {
 
   async logToFile(type, content, timestamp) {
     try {
-      const logFile = path.join(__dirname, 'goose-claude-output.log');
+      const logsDir = path.join(__dirname, 'logs');
+      const logFile = path.join(logsDir, 'goose-claude-output.log');
+
+      // Ensure logs directory exists
+      await fs.mkdir(logsDir, { recursive: true });
+
       const logEntry = `[${timestamp}] ${type}: ${JSON.stringify(content)}\n`;
       await fs.appendFile(logFile, logEntry);
     } catch (error) {

@@ -210,7 +210,12 @@ class ImprovedGooseCLIWrapper extends EventEmitter {
 
   async logToFile(type, content, timestamp) {
     try {
-      const logFile = path.join(__dirname, 'goose-output-improved.log');
+      const logsDir = path.join(__dirname, 'logs');
+      const logFile = path.join(logsDir, 'goose-output-improved.log');
+
+      // Ensure logs directory exists
+      await fs.mkdir(logsDir, { recursive: true });
+
       const logEntry = `[${timestamp}] ${type}: ${JSON.stringify(content)}\n`;
       await fs.appendFile(logFile, logEntry);
     } catch (error) {

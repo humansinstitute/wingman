@@ -18,7 +18,7 @@ class RawLogViewer {
     console.log(chalk.green.bold('📝 Raw Goose Log Viewer'));
     console.log(chalk.gray('Showing RAW_OUTPUT entries only...\n'));
 
-    const activeLog = this.findActiveLogFile();
+    const { activeLog, activeLogPath } = this.findActiveLogFile();
     
     if (!activeLog) {
       console.log(chalk.yellow('No log files found.'));
@@ -27,7 +27,7 @@ class RawLogViewer {
 
     console.log(chalk.blue(`📋 Reading: ${activeLog}\n`));
     
-    const logPath = path.join(__dirname, activeLog);
+    const logPath = activeLogPath;
     
     // Use tail to follow the log
     const tailProcess = spawn('tail', ['-f', logPath], {
@@ -81,21 +81,28 @@ class RawLogViewer {
   findActiveLogFile() {
     let latestTime = 0;
     let latestFile = null;
+    let latestFilePath = null;
+
+    // Check both root directory and logs/ directory
+    const searchDirs = [__dirname, path.join(__dirname, 'logs')];
 
     for (const logFile of this.logFiles) {
-      const filePath = path.join(__dirname, logFile);
-      try {
-        const stats = fs.statSync(filePath);
-        if (stats.mtime.getTime() > latestTime) {
-          latestTime = stats.mtime.getTime();
-          latestFile = logFile;
+      for (const searchDir of searchDirs) {
+        const filePath = path.join(searchDir, logFile);
+        try {
+          const stats = fs.statSync(filePath);
+          if (stats.mtime.getTime() > latestTime) {
+            latestTime = stats.mtime.getTime();
+            latestFile = logFile;
+            latestFilePath = filePath;
+          }
+        } catch (error) {
+          // File doesn't exist, skip
         }
-      } catch (error) {
-        // File doesn't exist, skip
       }
     }
 
-    return latestFile;
+    return { activeLog: latestFile, activeLogPath: latestFilePath };
   }
 }
 

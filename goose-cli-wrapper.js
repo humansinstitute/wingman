@@ -210,7 +210,11 @@ class GooseCLIWrapper extends EventEmitter {
     try {
       const fs = require('fs').promises;
       const path = require('path');
-      const logFile = path.join(__dirname, 'goose-output.log');
+      const logsDir = path.join(__dirname, 'logs');
+      const logFile = path.join(logsDir, 'goose-output.log');
+
+      // Ensure logs directory exists
+      await fs.mkdir(logsDir, { recursive: true });
       
       const logEntry = `[${timestamp}] ${type}: ${JSON.stringify(content)}\n`;
       await fs.appendFile(logFile, logEntry);

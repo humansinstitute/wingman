@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const logFile = path.join(__dirname, 'goose-output.log');
+const logFile = path.join(__dirname, 'logs', 'goose-output.log');
 
 if (!fs.existsSync(logFile)) {
   console.log('No log file found yet. Run some Goose sessions first!');
