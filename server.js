@@ -1145,7 +1145,7 @@ class GooseWebServer {
         }
       });
 
-      socket.on('start-terminal', () => {
+      socket.on('start-terminal', (dimensions) => {
         if (!authenticated) {
           socket.emit('terminal-error', 'Not authenticated. Please enter PIN.');
           return;
@@ -1154,11 +1154,15 @@ class GooseWebServer {
           // Determine shell and platform
           const shell = os.platform() === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash';
           
+          // Use provided dimensions or defaults
+          const cols = dimensions?.cols || 80;
+          const rows = dimensions?.rows || 24;
+          
           // Spawn terminal process with wingman command
           ptyProcess = pty.spawn(shell, [], {
             name: 'xterm-256color',
-            cols: 120,
-            rows: 30,
+            cols: cols,
+            rows: rows,
             cwd: process.cwd(),
             env: process.env
           });
