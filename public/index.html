@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <!-- Force refresh timestamp: 2025-08-21-01:19 -->
+    <!-- Force refresh timestamp: 2025-08-21-01:23 -->
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -264,6 +264,85 @@
         
         body.dark-theme .working-directory-info span {
             color: var(--accent-primary);
+        }
+        
+        .recipe-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 1rem;
+        }
+        
+        .recipe-pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-primary);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        
+        .recipe-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .recipe-pagination button:hover:not(:disabled) {
+            background: var(--bg-secondary);
+        }
+        
+        /* Enhanced button styling */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+            border: 1px solid var(--accent-primary);
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-secondary);
+            border-color: var(--accent-secondary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-secondary);
+            transform: translateY(-1px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .wizard-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 1.5rem 0;
+        }
+        
+        .wizard-nav {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
         }
         
         .status-active {
@@ -1590,34 +1669,16 @@
             </div>
             
             <div class="recipe-selector-content">
-                <div class="recipe-tabs">
-                    <button class="recipe-tab active" data-tab="popular">Popular</button>
-                    <button class="recipe-tab" data-tab="categories">Categories</button>
-                    <button class="recipe-tab" data-tab="search">Search</button>
+                <div class="search-box">
+                    <input type="text" id="recipeSearchInput" class="form-input" placeholder="Search recipes...">
                 </div>
-                
-                <div id="popular-recipes" class="recipe-tab-content active">
-                    <div class="recipe-grid" id="popularRecipeGrid">
-                        <!-- Popular recipes will be loaded here -->
-                    </div>
+                <div class="recipe-grid" id="allRecipeGrid">
+                    <!-- All recipes will be loaded here -->
                 </div>
-                
-                <div id="category-recipes" class="recipe-tab-content">
-                    <div class="category-list" id="categoryList">
-                        <!-- Categories will be loaded here -->
-                    </div>
-                    <div class="recipe-grid" id="categoryRecipeGrid">
-                        <!-- Category recipes will be loaded here -->
-                    </div>
-                </div>
-                
-                <div id="search-recipes" class="recipe-tab-content">
-                    <div class="search-box">
-                        <input type="text" id="recipeSearchInput" class="form-input" placeholder="Search recipes...">
-                    </div>
-                    <div class="recipe-grid" id="searchRecipeGrid">
-                        <!-- Search results will be loaded here -->
-                    </div>
+                <div class="recipe-pagination" id="recipePagination" style="display: none;">
+                    <button id="prevPageBtn" class="btn">Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPageBtn" class="btn">Next</button>
                 </div>
             </div>
 
@@ -1646,6 +1707,15 @@
             </div>
             
             <div class="current-path" id="currentPath">/</div>
+            
+            <div style="margin: 1rem 0; display: flex; gap: 1rem; align-items: center;">
+                <button id="createFolderBtn" class="btn btn-small btn-secondary">+ Create New Folder</button>
+                <div id="createFolderForm" style="display: none; flex: 1; gap: 0.5rem; align-items: center;">
+                    <input type="text" id="newFolderName" placeholder="Folder name" style="flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <button id="confirmCreateFolder" class="btn btn-small btn-primary">Create</button>
+                    <button id="cancelCreateFolder" class="btn btn-small btn-secondary">Cancel</button>
+                </div>
+            </div>
             
             <div class="directory-browser" id="directoryBrowser">
                 <div class="loading" style="padding: 2rem; text-align: center;">Loading directories...</div>
@@ -1775,6 +1845,37 @@
                         <strong>Selected Recipe:</strong> <span id="wizardSelectedRecipeName"></span>
                         <p id="wizardSelectedRecipeDescription"></p>
                     </div>
+                    
+                    <!-- Provider Override Checkbox -->
+                    <div class="provider-override-section" style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="wizardOverrideProviders" style="margin: 0;">
+                            Override default model/provider for this session
+                        </label>
+                        
+                        <!-- Dynamic override form -->
+                        <div id="wizardProviderOverrideForm" class="provider-override-form" style="display: none; margin-top: 1rem;">
+                            <div id="wizardRecipeDefaultsDisplay" class="recipe-defaults-info" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 0.25rem; font-size: 0.875rem;">
+                                <strong>Recipe Defaults:</strong>
+                                <p id="wizardRecipeDefaultProvider">Provider: <span>-</span></p>
+                                <p id="wizardRecipeDefaultModel">Model: <span>-</span></p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="wizardOverrideProvider">Provider</label>
+                                <select id="wizardOverrideProvider" class="form-input">
+                                    <option value="">Use Recipe/Goose Default</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="wizardOverrideModelGroup" style="display: none;">
+                                <label class="form-label" for="wizardOverrideModel">Model</label>
+                                <select id="wizardOverrideModel" class="form-input">
+                                    <option value="">Use Provider Default</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="wizard-buttons">
@@ -1787,47 +1888,6 @@
                 </div>
             </div>
             
-            <!-- Step 2.5: Provider/Model Override (only shown when recipe is selected) -->
-            <div id="wizardStep2_5" class="wizard-step" style="display: none;">
-                <h4>Step 2.5: Provider/Model Override</h4>
-                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Optionally override the provider/model for this session.</p>
-                
-                <div id="recipeDefaultsDisplay" class="recipe-defaults-info" style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
-                    <strong>Recipe Defaults:</strong>
-                    <p id="recipeDefaultProvider">Provider: <span>-</span></p>
-                    <p id="recipeDefaultModel">Model: <span>-</span></p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="enableProviderOverride" class="form-label">
-                        <input type="checkbox" id="enableProviderOverride" style="margin-right: 0.5rem;">
-                        Override provider/model for this session
-                    </label>
-                </div>
-                
-                <div id="providerOverrideControls" style="display: none;">
-                    <div class="form-group">
-                        <label class="form-label" for="overrideProvider">Provider</label>
-                        <select id="overrideProvider" class="form-input">
-                            <option value="">Use Recipe/Goose Default</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group" id="overrideModelGroup" style="display: none;">
-                        <label class="form-label" for="overrideModel">Model</label>
-                        <select id="overrideModel" class="form-input">
-                            <option value="">Use Provider Default</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="wizard-buttons">
-                    <button id="wizardStep2_5Next" class="btn btn-primary">Next: Working Directory</button>
-                </div>
-                <div class="wizard-nav">
-                    <button id="wizardStep2_5Back" class="btn btn-secondary">← Back</button>
-                </div>
-            </div>
             
             <!-- Step 3: Working Directory -->
             <div id="wizardStep3" class="wizard-step" style="display: none;">
@@ -1905,7 +1965,6 @@
                 this.closeWizardModal = document.getElementById('closeWizardModal');
                 this.wizardStep1 = document.getElementById('wizardStep1');
                 this.wizardStep2 = document.getElementById('wizardStep2');
-                this.wizardStep2_5 = document.getElementById('wizardStep2_5');
                 this.wizardStep3 = document.getElementById('wizardStep3');
                 this.wizardSessionName = document.getElementById('wizardSessionName');
                 this.wizardWorkingDirectory = document.getElementById('wizardWorkingDirectory');
@@ -1914,8 +1973,6 @@
                 this.wizardStep1Next = document.getElementById('wizardStep1Next');
                 this.wizardStep2Back = document.getElementById('wizardStep2Back');
                 this.wizardStep2Next = document.getElementById('wizardStep2Next');
-                this.wizardStep2_5Back = document.getElementById('wizardStep2_5Back');
-                this.wizardStep2_5Next = document.getElementById('wizardStep2_5Next');
                 this.wizardStep3Back = document.getElementById('wizardStep3Back');
                 this.wizardChooseRecipeBtn = document.getElementById('wizardChooseRecipeBtn');
                 this.wizardSkipRecipeBtn = document.getElementById('wizardSkipRecipeBtn');
@@ -1923,12 +1980,15 @@
                 this.wizardUseCurrentDirBtn = document.getElementById('wizardUseCurrentDirBtn');
                 this.wizardCreateSessionBtn = document.getElementById('wizardCreateSessionBtn');
                 
-                // Provider/Model override elements
-                this.enableProviderOverride = document.getElementById('enableProviderOverride');
-                this.providerOverrideControls = document.getElementById('providerOverrideControls');
-                this.overrideProvider = document.getElementById('overrideProvider');
-                this.overrideModel = document.getElementById('overrideModel');
-                this.overrideModelGroup = document.getElementById('overrideModelGroup');
+                // Provider/Model override elements (new wizard-based)
+                this.wizardOverrideProviders = document.getElementById('wizardOverrideProviders');
+                this.wizardProviderOverrideForm = document.getElementById('wizardProviderOverrideForm');
+                this.wizardOverrideProvider = document.getElementById('wizardOverrideProvider');
+                this.wizardOverrideModel = document.getElementById('wizardOverrideModel');
+                this.wizardOverrideModelGroup = document.getElementById('wizardOverrideModelGroup');
+                this.wizardRecipeDefaultsDisplay = document.getElementById('wizardRecipeDefaultsDisplay');
+                this.wizardRecipeDefaultProvider = document.getElementById('wizardRecipeDefaultProvider');
+                this.wizardRecipeDefaultModel = document.getElementById('wizardRecipeDefaultModel');
                 this.recipeDefaultProvider = document.getElementById('recipeDefaultProvider');
                 this.recipeDefaultModel = document.getElementById('recipeDefaultModel');
                 
@@ -1959,13 +2019,18 @@
                 this.changeRecipeBtn = document.getElementById('changeRecipeBtn');
                 this.closeRecipeSelectorModal = document.getElementById('closeRecipeSelectorModal');
                 
-                this.recipeTabs = document.querySelectorAll('.recipe-tab');
-                this.recipeTabContents = document.querySelectorAll('.recipe-tab-content');
-                this.popularRecipeGrid = document.getElementById('popularRecipeGrid');
-                this.categoryList = document.getElementById('categoryList');
-                this.categoryRecipeGrid = document.getElementById('categoryRecipeGrid');
-                this.searchRecipeGrid = document.getElementById('searchRecipeGrid');
+                this.allRecipeGrid = document.getElementById('allRecipeGrid');
                 this.recipeSearchInput = document.getElementById('recipeSearchInput');
+                this.recipePagination = document.getElementById('recipePagination');
+                this.prevPageBtn = document.getElementById('prevPageBtn');
+                this.nextPageBtn = document.getElementById('nextPageBtn');
+                this.pageInfo = document.getElementById('pageInfo');
+                
+                // Recipe pagination state
+                this.currentPage = 1;
+                this.recipesPerPage = 10;
+                this.allRecipes = [];
+                this.filteredRecipes = [];
                 
                 this.selectedRecipeDisplay = document.getElementById('selectedRecipeDisplay');
                 this.selectedRecipeName = document.getElementById('selectedRecipeName');
@@ -1981,6 +2046,11 @@
                 this.directoryBrowser = document.getElementById('directoryBrowser');
                 this.selectDirectoryBtn = document.getElementById('selectDirectoryBtn');
                 this.cancelDirectorySelection = document.getElementById('cancelDirectorySelection');
+                this.createFolderBtn = document.getElementById('createFolderBtn');
+                this.createFolderForm = document.getElementById('createFolderForm');
+                this.newFolderName = document.getElementById('newFolderName');
+                this.confirmCreateFolder = document.getElementById('confirmCreateFolder');
+                this.cancelCreateFolder = document.getElementById('cancelCreateFolder');
                 
                 // Debug: Check if directory browser elements were found
                 console.log('Directory browser elements found:', {
@@ -2174,19 +2244,17 @@
                 safeAddEventListener(this.closeWizardModal, 'closeWizardModal', 'click', () => this.hideSessionWizard());
                 safeAddEventListener(this.wizardStep1Next, 'wizardStep1Next', 'click', () => this.wizardGoToStep(2));
                 safeAddEventListener(this.wizardStep2Back, 'wizardStep2Back', 'click', () => this.wizardGoToStep(1));
-                safeAddEventListener(this.wizardStep2Next, 'wizardStep2Next', 'click', () => this.wizardGoToProviderStep());
-                safeAddEventListener(this.wizardStep2_5Back, 'wizardStep2_5Back', 'click', () => this.wizardGoToStep(2));
-                safeAddEventListener(this.wizardStep2_5Next, 'wizardStep2_5Next', 'click', () => this.wizardGoToStep(3));
-                safeAddEventListener(this.wizardStep3Back, 'wizardStep3Back', 'click', () => this.wizardGoToProviderStep());
+                safeAddEventListener(this.wizardStep2Next, 'wizardStep2Next', 'click', () => this.wizardGoToStep(3));
+                safeAddEventListener(this.wizardStep3Back, 'wizardStep3Back', 'click', () => this.wizardGoToStep(2));
                 safeAddEventListener(this.wizardChooseRecipeBtn, 'wizardChooseRecipeBtn', 'click', () => this.wizardChooseRecipe());
                 safeAddEventListener(this.wizardSkipRecipeBtn, 'wizardSkipRecipeBtn', 'click', () => this.wizardSkipRecipe());
                 safeAddEventListener(this.wizardBrowseDirectoryBtn, 'wizardBrowseDirectoryBtn', 'click', () => this.wizardBrowseDirectory());
                 safeAddEventListener(this.wizardUseCurrentDirBtn, 'wizardUseCurrentDirBtn', 'click', () => this.wizardUseCurrentDirectory());
                 safeAddEventListener(this.wizardCreateSessionBtn, 'wizardCreateSessionBtn', 'click', () => this.wizardCreateSession());
                 
-                // Provider/Model override event listeners
-                safeAddEventListener(this.enableProviderOverride, 'enableProviderOverride', 'change', () => this.toggleProviderOverride());
-                safeAddEventListener(this.overrideProvider, 'overrideProvider', 'change', () => this.onOverrideProviderChange());
+                // Wizard Provider/Model override event listeners
+                safeAddEventListener(this.wizardOverrideProviders, 'wizardOverrideProviders', 'change', () => this.toggleWizardProviderOverride());
+                safeAddEventListener(this.wizardOverrideProvider, 'wizardOverrideProvider', 'change', () => this.onWizardOverrideProviderChange());
                 
                 // Recipe selector modal event listeners
                 safeAddEventListener(this.selectRecipeBtn, 'selectRecipeBtn', 'click', () => this.showRecipeSelectorModal());
@@ -2275,13 +2343,62 @@
                     console.error('❌ cancelDirectorySelection element not found');
                 }
                 
-                // Recipe selection event listeners
-                this.recipeTabs.forEach(tab => {
-                    tab.addEventListener('click', () => this.switchRecipeTab(tab.dataset.tab));
+                // Create folder event listeners
+                if (this.createFolderBtn) {
+                    this.createFolderBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.showCreateFolderForm();
+                    });
+                }
+                
+                if (this.confirmCreateFolder) {
+                    this.confirmCreateFolder.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.createNewFolder();
+                    });
+                }
+                
+                if (this.cancelCreateFolder) {
+                    this.cancelCreateFolder.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.hideCreateFolderForm();
+                    });
+                }
+                
+                if (this.newFolderName) {
+                    this.newFolderName.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            this.createNewFolder();
+                        } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            this.hideCreateFolderForm();
+                        }
+                    });
+                }
+                
+                // Recipe search event listener
+                this.recipeSearchInput.addEventListener('input', (e) => {
+                    this.filterAndDisplayRecipes(e.target.value);
                 });
                 
-                this.recipeSearchInput.addEventListener('input', (e) => {
-                    this.searchRecipes(e.target.value);
+                // Pagination event listeners
+                this.prevPageBtn.addEventListener('click', () => {
+                    if (this.currentPage > 1) {
+                        this.currentPage--;
+                        this.displayCurrentPage();
+                    }
+                });
+                
+                this.nextPageBtn.addEventListener('click', () => {
+                    const totalPages = Math.ceil(this.filteredRecipes.length / this.recipesPerPage);
+                    if (this.currentPage < totalPages) {
+                        this.currentPage++;
+                        this.displayCurrentPage();
+                    }
                 });
                 
                 // Session search filter
@@ -3040,9 +3157,9 @@
 
             // Recipe Selector Modal Methods
             async showRecipeSelectorModal() {
-                // Load popular recipes on first show
-                if (!this.popularRecipeGrid.innerHTML.trim()) {
-                    await this.loadPopularRecipes();
+                // Load all recipes on first show
+                if (this.allRecipes.length === 0) {
+                    await this.loadAllRecipes();
                 }
                 
                 this.recipeSelectorModal.classList.add('show');
@@ -3671,18 +3788,80 @@
             }
             
             // Recipe Methods
-            async loadPopularRecipes() {
+            async loadAllRecipes() {
                 try {
-                    const response = await fetch('/api/recipes/popular?limit=6');
+                    const response = await fetch('/api/recipes');
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
                     }
                     const recipes = await response.json();
-                    this.renderRecipeGrid(recipes, this.popularRecipeGrid);
+                    
+                    // Sort by most recently used if usage data available, then alphabetical
+                    this.allRecipes = recipes.sort((a, b) => {
+                        // Check if we have usage data
+                        const aLastUsed = a.lastUsed ? new Date(a.lastUsed) : null;
+                        const bLastUsed = b.lastUsed ? new Date(b.lastUsed) : null;
+                        
+                        if (aLastUsed && bLastUsed) {
+                            return bLastUsed - aLastUsed; // Most recent first
+                        } else if (aLastUsed) {
+                            return -1; // a has usage data, b doesn't - a comes first
+                        } else if (bLastUsed) {
+                            return 1; // b has usage data, a doesn't - b comes first
+                        } else {
+                            return a.name.localeCompare(b.name); // Alphabetical
+                        }
+                    });
+                    
+                    this.filteredRecipes = [...this.allRecipes];
+                    this.currentPage = 1;
+                    this.displayCurrentPage();
                 } catch (error) {
-                    console.error('Error loading popular recipes:', error);
-                    this.popularRecipeGrid.innerHTML = '<p class="text-muted">Failed to load popular recipes</p>';
+                    console.error('Error loading recipes:', error);
+                    this.allRecipeGrid.innerHTML = '<p class="text-muted">Failed to load recipes</p>';
                 }
+            }
+            
+            filterAndDisplayRecipes(searchTerm) {
+                if (!searchTerm.trim()) {
+                    this.filteredRecipes = [...this.allRecipes];
+                } else {
+                    const term = searchTerm.toLowerCase();
+                    this.filteredRecipes = this.allRecipes.filter(recipe => {
+                        return (
+                            recipe.name.toLowerCase().includes(term) ||
+                            (recipe.description && recipe.description.toLowerCase().includes(term)) ||
+                            (recipe.categories && recipe.categories.some(cat => cat.toLowerCase().includes(term))) ||
+                            (recipe.tags && recipe.tags.some(tag => tag.toLowerCase().includes(term)))
+                        );
+                    });
+                }
+                
+                this.currentPage = 1;
+                this.displayCurrentPage();
+            }
+            
+            displayCurrentPage() {
+                const startIndex = (this.currentPage - 1) * this.recipesPerPage;
+                const endIndex = startIndex + this.recipesPerPage;
+                const recipesToShow = this.filteredRecipes.slice(startIndex, endIndex);
+                
+                this.renderRecipeGrid(recipesToShow, this.allRecipeGrid);
+                this.updatePaginationControls();
+            }
+            
+            updatePaginationControls() {
+                const totalPages = Math.ceil(this.filteredRecipes.length / this.recipesPerPage);
+                
+                if (totalPages <= 1) {
+                    this.recipePagination.style.display = 'none';
+                    return;
+                }
+                
+                this.recipePagination.style.display = 'flex';
+                this.pageInfo.textContent = `Page ${this.currentPage} of ${totalPages}`;
+                this.prevPageBtn.disabled = this.currentPage <= 1;
+                this.nextPageBtn.disabled = this.currentPage >= totalPages;
             }
             
             async loadCategories() {
@@ -3869,24 +4048,6 @@
                 });
             }
             
-            switchRecipeTab(tabName) {
-                // Update tab buttons
-                this.recipeTabs.forEach(tab => {
-                    tab.classList.toggle('active', tab.dataset.tab === tabName);
-                });
-                
-                // Update tab content
-                this.recipeTabContents.forEach(content => {
-                    content.classList.toggle('active', content.id === `${tabName}-recipes`);
-                });
-                
-                // Load content if needed
-                if (tabName === 'popular' && !this.popularRecipeGrid.innerHTML.trim()) {
-                    this.loadPopularRecipes();
-                } else if (tabName === 'categories' && !this.categoryList.innerHTML.trim()) {
-                    this.loadCategories();
-                }
-            }
             
             getParameterValues() {
                 if (!this.selectedRecipe?.parameters) return {};
@@ -4110,6 +4271,58 @@
                 });
             }
             
+            showCreateFolderForm() {
+                this.createFolderBtn.style.display = 'none';
+                this.createFolderForm.style.display = 'flex';
+                this.newFolderName.value = '';
+                this.newFolderName.focus();
+            }
+            
+            hideCreateFolderForm() {
+                this.createFolderBtn.style.display = 'inline-block';
+                this.createFolderForm.style.display = 'none';
+                this.newFolderName.value = '';
+            }
+            
+            async createNewFolder() {
+                const folderName = this.newFolderName.value.trim();
+                if (!folderName) {
+                    alert('Please enter a folder name');
+                    return;
+                }
+                
+                // Validate folder name (no special characters)
+                if (!/^[a-zA-Z0-9_\-\s]+$/.test(folderName)) {
+                    alert('Folder name can only contain letters, numbers, spaces, hyphens, and underscores');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/create-directory', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            parentPath: this.selectedDirectory || this.currentPath.textContent,
+                            folderName: folderName
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        // Refresh the directory listing
+                        await this.loadDirectories(this.selectedDirectory || this.currentPath.textContent);
+                        this.hideCreateFolderForm();
+                    } else {
+                        const error = await response.text();
+                        alert(`Failed to create folder: ${error}`);
+                    }
+                } catch (error) {
+                    console.error('Error creating folder:', error);
+                    alert('Failed to create folder. Please try again.');
+                }
+            }
+            
             
             async initializeWorkingDirectory() {
                 try {
@@ -4169,7 +4382,6 @@
                 // Hide all steps
                 this.wizardStep1.style.display = 'none';
                 this.wizardStep2.style.display = 'none';
-                this.wizardStep2_5.style.display = 'none';
                 this.wizardStep3.style.display = 'none';
                 
                 // Show current step
@@ -4180,10 +4392,6 @@
                     case 2:
                         this.wizardStep2.style.display = 'block';
                         this.updateStep2State();
-                        break;
-                    case 2.5:
-                        this.wizardStep2_5.style.display = 'block';
-                        this.updateProviderStepDisplay();
                         break;
                     case 3:
                         this.wizardStep3.style.display = 'block';
@@ -4206,29 +4414,72 @@
                 this.showWizardStep(step);
             }
             
-            wizardGoToProviderStep() {
-                // Only show provider step if recipe is selected
-                if (this.wizardData.selectedRecipe && this.wizardData.selectedRecipe !== false) {
-                    this.updateProviderStepDisplay();
-                    this.showWizardStep(2.5);
-                } else {
-                    // Skip provider step if no recipe
-                    this.wizardGoToStep(3);
+            updateWizardProviderDisplay() {
+                // Show recipe's default provider/model in the wizard
+                const recipe = this.wizardData.selectedRecipe;
+                const recipeProvider = recipe?.settings?.goose_provider || 'Goose Default';
+                const recipeModel = recipe?.settings?.goose_model || 'Default';
+                
+                if (this.wizardRecipeDefaultProvider) {
+                    this.wizardRecipeDefaultProvider.querySelector('span').textContent = recipeProvider;
+                }
+                if (this.wizardRecipeDefaultModel) {
+                    this.wizardRecipeDefaultModel.querySelector('span').textContent = recipeModel;
                 }
             }
             
-            updateProviderStepDisplay() {
-                // Show recipe's default provider/model
-                const recipe = this.wizardData.selectedRecipe;
-                const recipeProvider = recipe?.settings?.goose_provider || 'Goose Default';
-                const recipeModel = recipe?.settings?.goose_model || 'Provider Default';
+            toggleWizardProviderOverride() {
+                const isChecked = this.wizardOverrideProviders.checked;
+                this.wizardProviderOverrideForm.style.display = isChecked ? 'block' : 'none';
                 
-                this.recipeDefaultProvider.querySelector('span').textContent = recipeProvider;
-                this.recipeDefaultModel.querySelector('span').textContent = recipeModel;
+                if (isChecked) {
+                    // Populate provider dropdown and show recipe defaults
+                    this.populateWizardProviderDropdowns();
+                    this.updateWizardProviderDisplay();
+                }
+            }
+            
+            async populateWizardProviderDropdowns() {
+                // Populate provider dropdown
+                if (this.wizardOverrideProvider) {
+                    this.wizardOverrideProvider.innerHTML = '<option value="">Use Recipe/Goose Default</option>';
+                    
+                    this.availableProviders.forEach(provider => {
+                        const option = document.createElement('option');
+                        option.value = provider.id;
+                        option.textContent = provider.name;
+                        if (!provider.configured) {
+                            option.disabled = true;
+                            option.textContent += ' (Not Configured)';
+                        }
+                        this.wizardOverrideProvider.appendChild(option);
+                    });
+                }
+            }
+            
+            onWizardOverrideProviderChange() {
+                const selectedProvider = this.wizardOverrideProvider.value;
                 
-                // Reset override controls
-                this.enableProviderOverride.checked = false;
-                this.toggleProviderOverride();
+                if (!selectedProvider) {
+                    this.wizardOverrideModelGroup.style.display = 'none';
+                    return;
+                }
+                
+                // Load models for selected provider
+                const provider = this.availableProviders.find(p => p.id === selectedProvider);
+                if (provider && provider.models && provider.models.length > 0) {
+                    this.wizardOverrideModelGroup.style.display = 'block';
+                    this.wizardOverrideModel.innerHTML = '<option value="">Use Provider Default</option>';
+                    
+                    provider.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        this.wizardOverrideModel.appendChild(option);
+                    });
+                } else {
+                    this.wizardOverrideModelGroup.style.display = 'none';
+                }
             }
             
             toggleProviderOverride() {
@@ -4287,11 +4538,11 @@
                 
                 // Collect provider override if enabled
                 let providerOverride = null;
-                if (this.enableProviderOverride && this.enableProviderOverride.checked) {
-                    if (this.overrideProvider.value || this.overrideModel.value) {
+                if (this.wizardOverrideProviders && this.wizardOverrideProviders.checked) {
+                    if (this.wizardOverrideProvider.value || this.wizardOverrideModel.value) {
                         providerOverride = {
-                            provider: this.overrideProvider.value || null,
-                            model: this.overrideModel.value || null
+                            provider: this.wizardOverrideProvider.value || null,
+                            model: this.wizardOverrideModel.value || null
                         };
                     }
                 }

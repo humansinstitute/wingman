@@ -770,6 +770,48 @@ class GooseWebServer {
       }
     });
 
+    // Create directory endpoint
+    this.app.post('/api/create-directory', async (req, res) => {
+      try {
+        const fs = require('fs').promises;
+        const path = require('path');
+        
+        const { parentPath, folderName } = req.body;
+        
+        if (!parentPath || !folderName) {
+          return res.status(400).send('Parent path and folder name are required');
+        }
+        
+        // Validate folder name
+        if (!/^[a-zA-Z0-9_\-\s]+$/.test(folderName)) {
+          return res.status(400).send('Invalid folder name');
+        }
+        
+        // Security: Ensure we can't create directories outside reasonable bounds
+        const resolvedParentPath = path.resolve(parentPath);
+        const newDirPath = path.join(resolvedParentPath, folderName);
+        
+        // Check if directory already exists
+        try {
+          await fs.access(newDirPath);
+          return res.status(409).send('Directory already exists');
+        } catch (error) {
+          // Directory doesn't exist, which is what we want
+        }
+        
+        // Create the directory
+        await fs.mkdir(newDirPath, { recursive: false });
+        
+        res.json({ 
+          success: true, 
+          path: newDirPath 
+        });
+      } catch (error) {
+        console.error('Error creating directory:', error);
+        res.status(500).send(error.message);
+      }
+    });
+
     // Multi-Session Management API Endpoints
     this.app.get('/api/sessions/running', async (req, res) => {
       try {

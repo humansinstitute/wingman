@@ -852,6 +852,33 @@
         </div>
     </div>
 
+    <!-- Duplicate Recipe Modal -->
+    <div id="duplicateRecipeModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Duplicate Recipe</h3>
+                <button class="modal-close" id="closeDuplicateModal">×</button>
+            </div>
+            
+            <form id="duplicateRecipeForm">
+                <div class="form-group">
+                    <label class="form-label" for="duplicateRecipeName">New Recipe Name *</label>
+                    <input type="text" id="duplicateRecipeName" class="form-input" required>
+                </div>
+                
+                <div id="originalRecipeInfo" class="form-group" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                    <strong>Duplicating from:</strong>
+                    <div id="originalRecipeDisplay" style="margin-top: 0.5rem; color: var(--text-secondary);"></div>
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="button" id="cancelDuplicate" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" id="confirmDuplicate" class="btn btn-primary">Duplicate Recipe</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Server Browser Modal -->
     <div id="serverBrowserModal" class="modal-overlay">
         <div class="modal" style="max-width: 800px;">
@@ -903,6 +930,7 @@
                 this.recipes = [];
                 this.categories = [];
                 this.currentRecipe = null;
+                this.recipeToClone = null;
                 
                 this.initializeElements();
                 this.setupEventListeners();
@@ -918,7 +946,16 @@
                 // Modal elements
                 this.recipeModal = document.getElementById('recipeModal');
                 this.importModal = document.getElementById('importModal');
+                this.duplicateRecipeModal = document.getElementById('duplicateRecipeModal');
                 this.modalTitle = document.getElementById('modalTitle');
+                
+                // Duplicate modal elements
+                this.duplicateRecipeForm = document.getElementById('duplicateRecipeForm');
+                this.duplicateRecipeName = document.getElementById('duplicateRecipeName');
+                this.originalRecipeDisplay = document.getElementById('originalRecipeDisplay');
+                this.closeDuplicateModal = document.getElementById('closeDuplicateModal');
+                this.cancelDuplicate = document.getElementById('cancelDuplicate');
+                this.confirmDuplicate = document.getElementById('confirmDuplicate');
                 
                 // Form elements
                 this.recipeForm = document.getElementById('recipeForm');
@@ -980,6 +1017,8 @@
                 document.getElementById('closeRecipeModal').addEventListener('click', () => this.hideRecipeModal());
                 document.getElementById('closeImportModal').addEventListener('click', () => this.hideImportModal());
                 document.getElementById('closeServerBrowserModal').addEventListener('click', () => this.hideServerBrowserModal());
+                this.closeDuplicateModal.addEventListener('click', () => this.hideDuplicateModal());
+                this.cancelDuplicate.addEventListener('click', () => this.hideDuplicateModal());
             }
             
             setupEventListeners() {
@@ -989,6 +1028,9 @@
                 this.cancelRecipeBtn.addEventListener('click', () => this.hideRecipeModal());
                 this.importBtn.addEventListener('click', () => this.importRecipe());
                 this.cancelImportBtn.addEventListener('click', () => this.hideImportModal());
+                
+                // Duplicate modal event listeners
+                this.duplicateRecipeForm.addEventListener('submit', (e) => this.duplicateRecipe(e));
                 
                 // Extension event listeners
                 this.browseServersBtn.addEventListener('click', (e) => {
@@ -1186,6 +1228,12 @@
                         useBtn.addEventListener('click', () => this.useRecipe(recipeId));
                     }
                     
+                    // Copy button always exists
+                    const copyBtn = card.querySelector('.copy-btn');
+                    if (copyBtn) {
+                        copyBtn.addEventListener('click', () => this.showDuplicateModal(recipeId));
+                    }
+                    
                     // Edit/Delete buttons only exist for non-built-in recipes
                     const editBtn = card.querySelector('.edit-btn');
                     if (editBtn) {
@@ -1220,6 +1268,7 @@
                             </div>
                             <div class="recipe-actions">
                                 <button class="btn btn-small btn-primary use-btn">Use Recipe</button>
+                                <button class="btn btn-small btn-secondary copy-btn">Copy</button>
                                 ${recipe.source !== 'built-in' ? `
                                     <button class="btn btn-small btn-secondary edit-btn">Edit</button>
                                     <button class="btn btn-small btn-danger delete-btn">Delete</button>
@@ -1357,6 +1406,32 @@
             hideImportModal() {
                 this.importModal.classList.remove('show');
                 this.importUrl.value = '';
+            }
+            
+            showDuplicateModal(recipeId) {
+                const recipe = this.recipes.find(r => r.id === recipeId);
+                if (!recipe) {
+                    this.showError('Recipe not found');
+                    return;
+                }
+                
+                this.recipeToClone = recipe;
+                this.duplicateRecipeName.value = `${recipe.name} (Copy)`;
+                this.originalRecipeDisplay.innerHTML = `
+                    <strong>${recipe.name}</strong><br>
+                    <small>${recipe.description}</small>
+                `;
+                
+                this.duplicateRecipeModal.classList.add('show');
+                this.duplicateRecipeName.focus();
+                this.duplicateRecipeName.select();
+            }
+            
+            hideDuplicateModal() {
+                this.duplicateRecipeModal.classList.remove('show');
+                this.duplicateRecipeName.value = '';
+                this.originalRecipeDisplay.innerHTML = '';
+                this.recipeToClone = null;
             }
             
             // Extension Management Methods
@@ -1582,6 +1657,52 @@
                     
                 } catch (error) {
                     console.error('Error deleting recipe:', error);
+                    this.showError(error.message);
+                }
+            }
+            
+            async duplicateRecipe(e) {
+                e.preventDefault();
+                
+                const newName = this.duplicateRecipeName.value.trim();
+                if (!newName) {
+                    this.showError('Please enter a name for the new recipe');
+                    return;
+                }
+                
+                if (!this.recipeToClone) {
+                    this.showError('No recipe selected for duplication');
+                    return;
+                }
+                
+                try {
+                    // Create a copy of the original recipe with a new name
+                    const duplicatedRecipe = {
+                        ...this.recipeToClone,
+                        name: newName,
+                        id: undefined, // Let the server generate a new ID
+                        source: 'user', // Mark as user-created
+                        createdAt: undefined, // Let the server set timestamps
+                        updatedAt: undefined
+                    };
+                    
+                    const response = await fetch('/api/recipes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(duplicatedRecipe)
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to duplicate recipe');
+                    }
+                    
+                    this.hideDuplicateModal();
+                    await this.loadRecipes();
+                    this.showSuccess(`Recipe duplicated as "${newName}"`);
+                    
+                } catch (error) {
+                    console.error('Error duplicating recipe:', error);
                     this.showError(error.message);
                 }
             }
