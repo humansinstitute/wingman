@@ -20,7 +20,7 @@
   },
   "usage": {
     "7c7583b29306b0cee9edb8bcda89e9d2": {
-      "count": 17,
+      "count": 19,
       "sessions": [
         {
           "sessionId": "recipe-Planner-1755577954767",
@@ -89,10 +89,18 @@
         {
           "sessionId": "Fat Contoller: Plan",
           "timestamp": "2025-08-19T13:10:23.210Z"
+        },
+        {
+          "sessionId": "Quick Changes",
+          "timestamp": "2025-08-22T01:21:12.235Z"
+        },
+        {
+          "sessionId": "Quick Changes",
+          "timestamp": "2025-08-22T01:21:14.259Z"
         }
       ],
       "firstUsed": "2025-08-19T04:32:34.778Z",
-      "lastUsed": "2025-08-19T13:10:23.210Z"
+      "lastUsed": "2025-08-22T01:21:14.259Z"
     },
     "772e2f6e7d048c68d44ece141143ea32": {
       "count": 1,
@@ -106,7 +114,7 @@
       "lastUsed": "2025-08-19T06:53:05.889Z"
     },
     "fc2a7ed7e0fa93f5f5f28648b683efb1": {
-      "count": 4,
+      "count": 5,
       "sessions": [
         {
           "sessionId": "Test Read Only",
@@ -123,10 +131,14 @@
         {
           "sessionId": "New session overides on session",
           "timestamp": "2025-08-21T01:47:15.892Z"
+        },
+        {
+          "sessionId": "Hengestr",
+          "timestamp": "2025-08-21T13:14:12.811Z"
         }
       ],
       "firstUsed": "2025-08-20T09:31:33.039Z",
-      "lastUsed": "2025-08-21T01:47:15.892Z"
+      "lastUsed": "2025-08-21T13:14:12.811Z"
     }
   },
   "lastUpdated": "2025-08-16T05:54:11.930Z"
