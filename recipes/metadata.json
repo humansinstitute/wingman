@@ -3,7 +3,8 @@
     "772e2f6e7d048c68d44ece141143ea32": {
       "name": "Code Review",
       "path": "/Users/mini/code/wingman/recipes/user/772e2f6e7d048c68d44ece141143ea32.json",
-      "createdAt": "2025-08-19T02:17:40.577Z"
+      "createdAt": "2025-08-19T02:17:40.577Z",
+      "updatedAt": "2025-08-22T07:24:20.365Z"
     },
     "7c7583b29306b0cee9edb8bcda89e9d2": {
       "name": "Planner",
@@ -147,8 +148,12 @@
       "lastUsed": "2025-08-21T13:14:12.811Z"
     },
     "e24a0f1cc8dd9b607780cdf47055aaa3": {
-      "count": 5,
+      "count": 6,
       "sessions": [
+        {
+          "sessionId": "Return to base",
+          "timestamp": "2025-08-22T07:42:12.014Z"
+        },
         {
           "sessionId": "Dynamic Payload Test",
           "timestamp": "2025-08-22T08:52:28.696Z"
@@ -170,7 +175,7 @@
           "timestamp": "2025-08-22T09:17:51.168Z"
         }
       ],
-      "firstUsed": "2025-08-22T08:52:28.696Z",
+      "firstUsed": "2025-08-22T07:42:12.014Z",
       "lastUsed": "2025-08-22T09:17:51.168Z"
     }
   },

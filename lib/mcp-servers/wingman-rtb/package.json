@@ -1,0 +1,63 @@
+{
+  "name": "wingman-rtb-mcp-server",
+  "version": "1.0.0",
+  "description": "Wingman RTB (Return to Base) - MCP server for session completion and external data delivery",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "wingman",
+    "session-management",
+    "webhook",
+    "file-export"
+  ],
+  "author": "Wingman Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.11.0"
+  },
+  "peerDependencies": {
+    "node": ">=16.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "mcp": {
+    "server": {
+      "name": "wingman-rtb",
+      "version": "1.0.0",
+      "description": "Return to Base - Session completion tools with security controls",
+      "capabilities": {
+        "tools": [
+          {
+            "name": "post_webhook",
+            "description": "Send session data to webhooks with domain validation"
+          },
+          {
+            "name": "save_to_file", 
+            "description": "Save session data to local filesystem"
+          },
+          {
+            "name": "stop_session",
+            "description": "Stop the current wingman session"
+          }
+        ]
+      },
+      "security": {
+        "domain_whitelist": {
+          "env_var": "WINGMAN_RTB_WEBHOOK_WHITELIST",
+          "required": true,
+          "description": "Comma-separated list of allowed webhook domains"
+        },
+        "file_paths": {
+          "base_directory": "../../../temp/output",
+          "validation": true
+        }
+      }
+    }
+  }
+}

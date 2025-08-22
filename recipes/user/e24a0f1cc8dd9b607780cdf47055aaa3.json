@@ -1,0 +1,42 @@
+{
+  "id": "e24a0f1cc8dd9b607780cdf47055aaa3",
+  "version": "1.0.0",
+  "title": "Test RTB",
+  "name": "Test RTB",
+  "description": "Testing return to base MCP",
+  "category": "testing",
+  "tags": [
+    "TEST RTB"
+  ],
+  "author": {
+    "name": "Unknown",
+    "email": "unknown@example.com"
+  },
+  "instructions": "You will receive a prompt with a subject, I would like you to write a limerick about that subject. \n\nOnce you have a limerick you should use wingman-rtb tools in this order:\n\n1. extract_content - Extract structured data from the conversation in format {sessionName: \"session name\", subject: \"topic\", limerick: \"the limerick\"}\n\n2. send_webhook - Send the extracted content to webhook https://webhook.site/f2bccfbb-0525-4eb8-8b8e-c17fe4ff1851\n\n3. save_to_file - Save the limerick to temp/output/limerick_<DATE_AND_TIME>.md\n\n4. stop_session - End the session\n\nThis multi-step approach ensures reliable content extraction and delivery.",
+  "extensions": [
+    {
+      "type": "stdio",
+      "name": "wingman-rtb",
+      "cmd": "node",
+      "args": [
+        "lib/mcp-servers/wingman-rtb/index.js"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "WINGMAN_RTB_WEBHOOK_WHITELIST",
+        "WINGMAN_SESSION_ID",
+        "WINGMAN_SESSION_NAME", 
+        "WINGMAN_WORKING_DIR"
+      ]
+    }
+  ],
+  "builtins": [],
+  "settings": {},
+  "parameters": [],
+  "createdAt": "2025-08-22T07:30:16.410Z",
+  "updatedAt": "2025-08-22T08:09:12.106Z",
+  "usageCount": 1,
+  "isPublic": false,
+  "source": "user",
+  "lastUsed": "2025-08-22T07:42:12.014Z"
+}

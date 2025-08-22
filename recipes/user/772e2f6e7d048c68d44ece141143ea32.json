@@ -9,17 +9,35 @@
     "github",
     "code-review"
   ],
-  "author": { "name": "Unknown", "email": "unknown@example.com" },
+  "author": {
+    "name": "Unknown",
+    "email": "unknown@example.com"
+  },
   "instructions": "Your role is to pull all my latest github PRs from the last 24 hours and review for bugs, then write the output to the relevant Obsidian Vault.",
   "prompt": "Please identify your current working project, review the latest commits from the last 24 hours and review for any bugs or issues. \n\nPlease write the output to Obsidian Vault in the directory: \"<Project Name>/Review/DD_MM_YY_Code-Review.md\"\n\nThis should detail the commits / PRs reviewed. Any issues found and appropriate resolutions identified for these issues. \n\nPlease structure the markdown as appropriate.",
-  "extensions": [],
+  "extensions": [
+    {
+      "type": "stdio",
+      "name": "wingman-rtb",
+      "cmd": "node",
+      "args": [
+        "lib/mcp-servers/wingman-rtb/index.js"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "WINGMAN_RTB_WEBHOOK_WHITELIST"
+      ]
+    }
+  ],
   "builtins": [
     "developer"
   ],
   "settings": {},
   "parameters": [],
   "createdAt": "2025-08-19T02:17:40.577Z",
-  "updatedAt": "2025-08-19T02:17:40.577Z",
-  "usageCount": 0,
-  "isPublic": false
+  "updatedAt": "2025-08-22T07:24:20.365Z",
+  "usageCount": 1,
+  "isPublic": false,
+  "lastUsed": "2025-08-19T06:53:05.889Z",
+  "source": "user"
 }

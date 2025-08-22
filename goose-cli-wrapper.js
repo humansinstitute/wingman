@@ -103,7 +103,8 @@ class GooseCLIWrapper extends EventEmitter {
       
       this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: this.options.workingDirectory
+        cwd: this.options.workingDirectory,
+        env: { ...process.env }
       });
 
       this.gooseProcess.stdout.on('data', (data) => {
