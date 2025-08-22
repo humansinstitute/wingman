@@ -259,6 +259,10 @@
             padding: 1.5rem;
             transition: all 0.2s ease;
             box-shadow: var(--shadow-sm);
+            min-height: 320px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .recipe-card:hover {
@@ -311,26 +315,30 @@
         }
 
         .recipe-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin-top: auto;
             padding-top: 1rem;
             border-top: 1px solid var(--border-primary);
         }
 
         .recipe-stats {
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .recipe-actions {
             display: flex;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
         .btn-small {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            white-space: nowrap;
         }
 
         .btn-danger {
@@ -1271,7 +1279,7 @@
                         <div class="recipe-footer">
                             <div class="recipe-stats">
                                 <span>Used ${recipe.usageCount || 0} times</span>
-                                <span style="margin-left: 10px; color: var(--text-muted); font-size: 0.85rem;">ID: ${recipe.id.substring(0, 8)}...</span>
+                                <span>ID: ${recipe.id.substring(0, 8)}...</span>
                             </div>
                             <div class="recipe-actions">
                                 <button class="btn btn-small btn-primary use-btn">Use Recipe</button>
