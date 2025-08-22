@@ -1943,44 +1943,12 @@ async function main() {
     
     // If we reach here, user didn't create sessions or declined to connect
     // Fall through to normal session management
-  } else {
-    // Not first run - check for reconnection preferences
-    const config = loadWingmanConfig();
-    
-    // Only offer reconnection if it's enabled and we have a last session
-    if (config.preferences && config.preferences.reconnectToRecent && config.lastSession) {
-      // Try to reconnect to the last session if it exists
-      try {
-        await execPromise(`tmux has-session -t "${config.lastSession}"`);
-        
-        // Session exists, ask if user wants to reconnect
-        showHeader();
-        console.log(`${colors.yellow}Welcome back to Wingman!${colors.reset}`);
-        console.log();
-        
-        const sessionInfo = await getSessionInfo(config.lastSession);
-        console.log(`${colors.cyan}Last session:${colors.reset} ${colors.green}${config.lastSession}${colors.reset}`);
-        console.log(`${colors.magenta}${sessionInfo}${colors.reset}`);
-        console.log();
-        
-        const reconnect = await question(`${colors.green}Reconnect to '${config.lastSession}'? [Y/n]: ${colors.reset}`);
-        
-        if (!reconnect.toLowerCase().startsWith('n')) {
-          await connectToSpecificSession(config.lastSession);
-          return;
-        }
-        
-      } catch (error) {
-        // Last session doesn't exist anymore, continue to normal flow
-        // Don't show a message, just continue silently
-      }
-    }
   }
   
   // Detect project context for current directory
   await detectProjectContext();
   
-  // Normal session management flow
+  // Normal session management flow - always show full session list
   currentPage = 0;
   await connectToSession();
 }
