@@ -1180,8 +1180,11 @@ class GooseWebServer {
             socket.emit('terminal-error', `Terminal process exited with code: ${exitCode}`);
           });
 
-          // Immediately run the wingman command
-          ptyProcess.write('wingman\r');
+          // Get terminal command from environment or use default
+          const terminalCmd = process.env.TERMINALCMD || 'node wingman-cli.js';
+          
+          // Immediately run the configured terminal command
+          ptyProcess.write(`${terminalCmd}\r`);
 
         } catch (error) {
           console.error('Error starting terminal:', error);

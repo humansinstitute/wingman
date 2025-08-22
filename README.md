@@ -41,6 +41,7 @@ If this is useful - send sats! pw21@walletofsatoshi.com
 - Recipe support for custom agents and tasks
 - MCP support and access via Goose Agent
 - Mobile-responsive design
+- **Deep Dive Terminal**: Web-based terminal access with configurable command
 
 ### 💾 Persistence
 - Conversation history automatically saved
@@ -59,6 +60,40 @@ If this is useful - send sats! pw21@walletofsatoshi.com
 cd wingman
 npm install
 ```
+
+## Configuration
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and configure the following:
+
+```bash
+# Server configuration
+NODE_ENV=development
+PORT=3000
+
+# Root directory for file browser
+ROOT_WORKING_DIR=~/code
+
+# Terminal command for Deep Dive feature
+# Default: "node wingman-cli.js" (relative to wingman path)
+# If you have wingman aliased in your shell, you can use: "wingman"
+TERMINALCMD="node wingman-cli.js"
+
+# Maximum character limit for the message input field
+INPUT_LENGTH=5000
+
+# PIN for Deep Dive terminal access
+PIN=1234
+```
+
+### Deep Dive Terminal Configuration
+
+The Deep Dive feature provides a web-based terminal that automatically launches your Wingman CLI. Configure the command using the `TERMINALCMD` environment variable:
+
+- **With alias**: If you have `wingman` aliased in your shell: `TERMINALCMD="wingman"`
+- **Without alias**: Use the relative path: `TERMINALCMD="node wingman-cli.js"`
+- **Custom command**: You can specify any command that launches your preferred terminal interface
 
 ## Usage
 
