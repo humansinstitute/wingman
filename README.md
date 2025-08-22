@@ -35,7 +35,7 @@ If this is useful - send sats! pw21@walletofsatoshi.com
 - `/show-thinking` command to view last thinking process
 
 ### 🌐 Web Interface
-- Modern chat UI accessible at http://localhost:3000
+- Modern chat UI accessible at http://localhost:3000 (or next available port)
 - Goose session management controls
 - Real-time conversation updates
 - Recipe support for custom agents and tasks
@@ -181,7 +181,7 @@ The application supports all standard Goose CLI features:
 ## Example Workflow
 
 1. Start the application: `npm start`
-2. Open web interface: http://localhost:3000
+2. Open web interface: http://localhost:3000 (check console for actual port if 3000 is in use)
 3. Start a Goose session: `/goose-start my-project`
 4. Send messages from either CLI or web interface
 5. Use Goose commands: `/goose-cmd /plan implement user authentication`

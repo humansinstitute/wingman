@@ -11,12 +11,60 @@ class GooseCLIInterface {
       prompt: chalk.blue('You: ')
     });
 
-    // Connect to the web server if it's running
-    this.socket = io('http://localhost:3000', {
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+    // Connect to the web server - try common ports
+    this.connectToServer();
+  }
+
+  async findServerPort() {
+    const net = require('net');
+    const startPort = 3000;
+    
+    return new Promise((resolve) => {
+      const tryPort = (port) => {
+        const socket = new net.Socket();
+        
+        const timeout = setTimeout(() => {
+          socket.destroy();
+          if (port < startPort + 10) {
+            tryPort(port + 1);
+          } else {
+            resolve(null);
+          }
+        }, 100);
+        
+        socket.connect(port, 'localhost', () => {
+          clearTimeout(timeout);
+          socket.destroy();
+          resolve(port);
+        });
+        
+        socket.on('error', () => {
+          clearTimeout(timeout);
+          if (port < startPort + 10) {
+            tryPort(port + 1);
+          } else {
+            resolve(null);
+          }
+        });
+      };
+      
+      tryPort(startPort);
     });
+  }
+
+  async connectToServer() {
+    const serverPort = await this.findServerPort();
+    
+    if (serverPort) {
+      this.socket = io(`http://localhost:${serverPort}`, {
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+      });
+    } else {
+      console.log(chalk.yellow('⚠ No web server found - running in standalone mode'));
+      this.socket = null;
+    }
 
     this.setupSocketListeners();
     this.setupEventListeners();
@@ -41,6 +89,8 @@ class GooseCLIInterface {
   }
 
   setupSocketListeners() {
+    if (!this.socket) return;
+    
     this.socket.on('connect', () => {
       console.log(chalk.green('✓ Connected to web server'));
     });
