@@ -1228,6 +1228,12 @@
                         useBtn.addEventListener('click', () => this.useRecipe(recipeId));
                     }
                     
+                    // Copy ID button for API integration
+                    const copyIdBtn = card.querySelector('.copy-id-btn');
+                    if (copyIdBtn) {
+                        copyIdBtn.addEventListener('click', () => this.copyRecipeId(recipeId));
+                    }
+                    
                     // Copy button always exists
                     const copyBtn = card.querySelector('.copy-btn');
                     if (copyBtn) {
@@ -1264,11 +1270,13 @@
                         </div>
                         <div class="recipe-footer">
                             <div class="recipe-stats">
-                                Used ${recipe.usageCount || 0} times
+                                <span>Used ${recipe.usageCount || 0} times</span>
+                                <span style="margin-left: 10px; color: var(--text-muted); font-size: 0.85rem;">ID: ${recipe.id.substring(0, 8)}...</span>
                             </div>
                             <div class="recipe-actions">
                                 <button class="btn btn-small btn-primary use-btn">Use Recipe</button>
-                                <button class="btn btn-small btn-secondary copy-btn">Copy</button>
+                                <button class="btn btn-small btn-secondary copy-id-btn" title="Copy Recipe ID for API">Copy ID</button>
+                                <button class="btn btn-small btn-secondary copy-btn">Duplicate</button>
                                 ${recipe.source !== 'built-in' ? `
                                     <button class="btn btn-small btn-secondary edit-btn">Edit</button>
                                     <button class="btn btn-small btn-danger delete-btn">Delete</button>
@@ -1406,6 +1414,30 @@
             hideImportModal() {
                 this.importModal.classList.remove('show');
                 this.importUrl.value = '';
+            }
+            
+            async copyRecipeId(recipeId) {
+                try {
+                    // Use modern clipboard API if available
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(recipeId);
+                        this.showSuccess(`Recipe ID copied to clipboard: ${recipeId}`);
+                    } else {
+                        // Fallback for older browsers
+                        const textArea = document.createElement('textarea');
+                        textArea.value = recipeId;
+                        textArea.style.position = 'fixed';
+                        textArea.style.opacity = '0';
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        this.showSuccess(`Recipe ID copied to clipboard: ${recipeId}`);
+                    }
+                } catch (error) {
+                    console.error('Failed to copy recipe ID:', error);
+                    this.showError('Failed to copy recipe ID to clipboard');
+                }
             }
             
             showDuplicateModal(recipeId) {
