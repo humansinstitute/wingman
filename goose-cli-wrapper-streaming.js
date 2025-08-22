@@ -85,9 +85,18 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       console.log(`Starting Goose ${command}: goose ${command} ${args.join(' ')}`);
       console.log(`Working directory: ${workingDir}`);
       
+      // Add session context to environment variables for MCP servers
+      const sessionEnv = {
+        ...process.env,
+        WINGMAN_SESSION_ID: this.sessionId,
+        WINGMAN_SESSION_NAME: this.sessionName || this.sessionId,
+        WINGMAN_WORKING_DIR: workingDir
+      };
+      
       this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: workingDir
+        cwd: workingDir,
+        env: sessionEnv
       });
 
       this.gooseProcess.stdout.on('data', (data) => {
@@ -548,9 +557,18 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       console.log(`Resuming Goose ${command}: goose ${command} ${args.join(' ')}`);
       console.log(`Working directory: ${workingDir}`);
       
+      // Add session context to environment variables for MCP servers
+      const sessionEnv = {
+        ...process.env,
+        WINGMAN_SESSION_ID: this.sessionId,
+        WINGMAN_SESSION_NAME: this.sessionName || this.sessionId,
+        WINGMAN_WORKING_DIR: workingDir
+      };
+      
       this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: workingDir
+        cwd: workingDir,
+        env: sessionEnv
       });
 
       this.gooseProcess.stdout.on('data', (data) => {

@@ -1,4 +1,5 @@
 // Initialize built-in MCP servers in the registry
+const path = require('path');
 const mcpServerRegistry = require('./mcp-server-registry');
 
 async function initializeBuiltInServers() {
@@ -143,6 +144,20 @@ async function initializeBuiltInServers() {
       timeout: 300,
       env_keys: ['EVERART_API_KEY'],
       tags: ['image', 'ai', 'generation', 'visual'],
+      category: 'built-in',
+      version: '1.0.0',
+      isBuiltIn: true,
+      isPublic: true
+    },
+    {
+      name: 'wingman-rtb',
+      description: 'Return to Base - Session completion tools with security controls',
+      type: 'stdio',
+      cmd: 'node',
+      args: [path.resolve(__dirname, 'lib/mcp-servers/wingman-rtb/index.js')],
+      timeout: 300,
+      env_keys: ['WINGMAN_RTB_WEBHOOK_WHITELIST'],
+      tags: ['session', 'completion', 'webhook', 'file-output', 'security'],
       category: 'built-in',
       version: '1.0.0',
       isBuiltIn: true,

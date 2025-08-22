@@ -318,11 +318,79 @@
       "usedByRecipes": [],
       "isPublic": true,
       "isBuiltIn": true
+    },
+    "wingman-rtb-f6c586ef": {
+      "id": "wingman-rtb-f6c586ef",
+      "name": "wingman-rtb",
+      "description": "Return to Base - Session completion tools with security controls",
+      "type": "stdio",
+      "cmd": "node",
+      "args": [
+        "lib/mcp-servers/wingman-rtb/index.js"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "WINGMAN_RTB_WEBHOOK_WHITELIST"
+      ],
+      "tags": [
+        "session",
+        "completion",
+        "webhook",
+        "file-output",
+        "security"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-22T06:15:26.023Z",
+      "updatedAt": "2025-08-22T06:15:26.024Z",
+      "usedByRecipes": [
+        "772e2f6e7d048c68d44ece141143ea32",
+        "e24a0f1cc8dd9b607780cdf47055aaa3"
+      ],
+      "isPublic": true,
+      "isBuiltIn": true,
+      "lastUsed": "2025-08-22T09:16:39.070Z"
+    },
+    "wingman-rtb-06dbb607": {
+      "id": "wingman-rtb-06dbb607",
+      "name": "wingman-rtb",
+      "description": "Return to Base - Session completion tools with security controls",
+      "type": "stdio",
+      "cmd": "node",
+      "args": [
+        "/Users/mini/code/wingman/.worktrees/snag/lib/mcp-servers/wingman-rtb/index.js"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "WINGMAN_RTB_WEBHOOK_WHITELIST"
+      ],
+      "tags": [
+        "session",
+        "completion",
+        "webhook",
+        "file-output",
+        "security"
+      ],
+      "category": "built-in",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-22T06:22:55.020Z",
+      "updatedAt": "2025-08-22T06:22:55.021Z",
+      "usedByRecipes": [],
+      "isPublic": true,
+      "isBuiltIn": true
     }
   },
   "metadata": {
     "version": "1.0.0",
     "createdAt": "2025-08-20T13:47:13.900Z",
-    "lastUpdated": "2025-08-21T00:16:01.950Z"
+    "lastUpdated": "2025-08-22T09:16:39.070Z"
   }
 }

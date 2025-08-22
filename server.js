@@ -10,6 +10,7 @@ const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
 const MultiSessionManager = require('./multi-session-manager');
 const mcpServerRegistry = require('./mcp-server-registry');
+const TriggerHandler = require('./lib/triggers/trigger-handler');
 
 // Clear recipe cache on server startup to ensure fresh data
 recipeManager.clearCache();
@@ -30,6 +31,9 @@ class GooseWebServer {
     // Initialize multi-session manager
     this.multiSessionManager = new MultiSessionManager();
     this.setupMultiSessionEvents();
+    
+    // Initialize trigger handler
+    this.triggerHandler = new TriggerHandler(this.multiSessionManager, recipeManager);
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -814,6 +818,64 @@ class GooseWebServer {
       } catch (error) {
         console.error('Error creating directory:', error);
         res.status(500).send(error.message);
+      }
+    });
+
+    // Triggers API
+    this.app.post('/api/triggers', async (req, res) => {
+      try {
+        const token = req.headers['trigger_token'] || req.headers['authorization']?.replace('Bearer ', '');
+        
+        const result = await this.triggerHandler.processTrigger(req.body, token);
+        res.json(result);
+      } catch (error) {
+        console.error('Trigger API error:', error);
+        
+        // Determine error code based on error message
+        let statusCode = 500;
+        let errorCode = 'INTERNAL_ERROR';
+        
+        if (error.message.includes('token')) {
+          statusCode = 401;
+          errorCode = 'INVALID_TOKEN';
+        } else if (error.message.includes('Recipe') && error.message.includes('not found')) {
+          statusCode = 404;
+          errorCode = 'RECIPE_NOT_FOUND';
+        } else if (error.message.includes('required')) {
+          statusCode = 400;
+          errorCode = 'MISSING_PARAMETER';
+        }
+        
+        res.status(statusCode).json({
+          success: false,
+          error: error.message,
+          code: errorCode
+        });
+      }
+    });
+    
+    // Get trigger logs (for debugging/monitoring)
+    this.app.get('/api/triggers/logs', (req, res) => {
+      const token = req.headers['trigger_token'] || req.headers['authorization']?.replace('Bearer ', '');
+      
+      try {
+        // Validate token for accessing logs
+        this.triggerHandler.validateToken(token);
+        
+        const limit = parseInt(req.query.limit) || 100;
+        const logs = this.triggerHandler.getTriggerLogs(limit);
+        
+        res.json({
+          success: true,
+          logs,
+          count: logs.length
+        });
+      } catch (error) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+          code: 'INVALID_TOKEN'
+        });
       }
     });
 
