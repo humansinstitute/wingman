@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wingman: Goose</title>
     <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png" id="favicon-light">
     <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png" id="favicon-dark" disabled>
@@ -1415,7 +1415,55 @@
             min-height: 48px;
         }
 
-        /* Mobile hamburger menu */
+        /* Pull-to-refresh styles */
+        .pull-to-refresh {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100%);
+            background: var(--accent-primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0 0 12px 12px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            z-index: 1002;
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .pull-to-refresh.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .pull-to-refresh.refreshing {
+            background: var(--accent-secondary);
+        }
+        
+        .refresh-icon {
+            width: 16px;
+            height: 16px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .refresh-icon.idle {
+            animation: none;
+            border: none;
+            width: auto;
+            height: auto;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
         .mobile-menu-toggle {
             display: none;
             background: none;
@@ -1426,6 +1474,41 @@
             border-radius: 8px;
             transition: background 0.2s ease;
             color: var(--text-primary);
+        }
+        
+        /* Prevent iOS zoom on input focus */
+        input[type="text"],
+        input[type="password"], 
+        input[type="email"],
+        input[type="number"],
+        input[type="search"],
+        textarea,
+        select {
+            font-size: 16px !important;
+            transform-origin: left top;
+            transition: none !important;
+        }
+        
+        /* Override for mobile to ensure 16px minimum */
+        @media (max-width: 768px) {
+            input[type="text"],
+            input[type="password"], 
+            input[type="email"],
+            input[type="number"],
+            input[type="search"],
+            textarea,
+            select,
+            .form-input,
+            .goose-command-input,
+            .session-name-input {
+                font-size: 16px !important;
+                -webkit-text-size-adjust: 100%;
+            }
+            
+            /* Ensure message input is also 16px */
+            #messageInput {
+                font-size: 16px !important;
+            }
         }
 
         .mobile-menu-toggle:hover {
@@ -1521,14 +1604,18 @@
             #providerModelInfo {
                 display: none !important;
             }
+            #workingDirectoryInfo {
+                display: none !important;
+            }
 
             /* Re-enable send button on mobile */
             .input-container button#sendBtn {
                 display: block;
             }
 
-            /* Mobile textarea height limit (3 lines) */
+            /* Mobile textarea height - start with 2 lines, max 3 lines */
             .input-container textarea {
+                min-height: calc(2 * 1.5em + 1.5rem);
                 max-height: calc(3 * 1.5em + 1.5rem);
             }
 
@@ -1589,6 +1676,12 @@
     </style>
 </head>
 <body>
+    <!-- Pull-to-refresh indicator -->
+    <div id="pullToRefresh" class="pull-to-refresh">
+        <div id="refreshIcon" class="refresh-icon idle">⟳</div>
+        <span id="refreshText">Pull to refresh</span>
+    </div>
+    
     <div id="connectionBar" class="connection-bar"></div>
     <div class="header">
         <h1>
@@ -1955,6 +2048,18 @@
                 this.workingDirectoryDisplay = document.getElementById('workingDirectoryDisplay');
                 this.sessionCountBadge = document.getElementById('sessionCountBadge');
                 
+                // Pull-to-refresh elements
+                this.pullToRefresh = document.getElementById('pullToRefresh');
+                this.refreshIcon = document.getElementById('refreshIcon');
+                this.refreshText = document.getElementById('refreshText');
+                
+                // Pull-to-refresh state
+                this.pullStartY = 0;
+                this.pullCurrentY = 0;
+                this.pullThreshold = 80;
+                this.isPulling = false;
+                this.isRefreshing = false;
+                
                 // New provider/model display elements
                 this.providerModelInfo = document.getElementById('providerModelInfo');
                 this.providerModelText = document.getElementById('providerModelText');
@@ -2117,6 +2222,8 @@
                 
                 this.currentGooseStatus = null;
                 this.setupTheme();
+                this.setupPullToRefresh(); // Add pull-to-refresh functionality
+                this.preventMobileZoom(); // Prevent unwanted mobile zoom
                 this.loadProviders(); // Load provider/model options
                 this.loadSettings(); // Load user settings
                 this.setupEventListeners();
@@ -2231,6 +2338,182 @@
                 
                 this.themeToggle.addEventListener('click', toggleTheme);
                 this.mobileThemeToggle.addEventListener('click', toggleTheme);
+            }
+            
+            setupPullToRefresh() {
+                // Only enable on mobile and in PWA mode
+                if (!this.isMobile() && !this.isPWA()) {
+                    return;
+                }
+                
+                // Add touch event listeners only to the header area
+                const header = document.querySelector('.header');
+                if (header) {
+                    header.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+                    header.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+                    header.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+                }
+            }
+            
+            isMobile() {
+                return window.innerWidth <= 768;
+            }
+            
+            isPWA() {
+                return window.matchMedia('(display-mode: standalone)').matches ||
+                       window.navigator.standalone === true ||
+                       document.referrer.includes('android-app://');
+            }
+            
+            handleTouchStart(e) {
+                // Only trigger pull-to-refresh from header area
+                // No need to check scroll position since we're only listening to header
+                if (this.isInputFocused(e.target)) {
+                    return;
+                }
+                
+                this.pullStartY = e.touches[0].clientY;
+                this.isPulling = false;
+            }
+            
+            handleTouchMove(e) {
+                if (this.isRefreshing || this.isInputFocused(e.target)) {
+                    return;
+                }
+                
+                this.pullCurrentY = e.touches[0].clientY;
+                const pullDistance = this.pullCurrentY - this.pullStartY;
+                
+                // Only start pulling if moving down from the header
+                if (pullDistance > 0) {
+                    e.preventDefault(); // Prevent default scroll only in header area
+                    
+                    this.isPulling = true;
+                    const progress = Math.min(pullDistance / this.pullThreshold, 1);
+                    
+                    // Show the refresh indicator
+                    this.pullToRefresh.classList.add('visible');
+                    
+                    // Update the visual feedback
+                    if (pullDistance >= this.pullThreshold) {
+                        this.refreshText.textContent = 'Release to refresh';
+                        this.refreshIcon.style.transform = 'rotate(180deg)';
+                    } else {
+                        this.refreshText.textContent = 'Pull to refresh';
+                        this.refreshIcon.style.transform = `rotate(${progress * 180}deg)`;
+                    }
+                }
+            }
+            
+            handleTouchEnd(e) {
+                if (!this.isPulling || this.isRefreshing) {
+                    return;
+                }
+                
+                const pullDistance = this.pullCurrentY - this.pullStartY;
+                
+                if (pullDistance >= this.pullThreshold) {
+                    this.triggerRefresh();
+                } else {
+                    this.resetPullToRefresh();
+                }
+                
+                this.isPulling = false;
+            }
+            
+            isInputFocused(target) {
+                return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+            }
+            
+            async triggerRefresh() {
+                if (this.isRefreshing) return;
+                
+                this.isRefreshing = true;
+                this.pullToRefresh.classList.add('refreshing');
+                this.refreshText.textContent = 'Refreshing...';
+                this.refreshIcon.className = 'refresh-icon';
+                this.refreshIcon.textContent = '';
+                
+                try {
+                    // Wait a moment for the animation
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Reload the page
+                    window.location.reload();
+                } catch (error) {
+                    console.error('Refresh error:', error);
+                    this.resetPullToRefresh();
+                }
+            }
+            
+            resetPullToRefresh() {
+                this.pullToRefresh.classList.remove('visible', 'refreshing');
+                this.refreshText.textContent = 'Pull to refresh';
+                this.refreshIcon.className = 'refresh-icon idle';
+                this.refreshIcon.textContent = '⟳';
+                this.refreshIcon.style.transform = 'rotate(0deg)';
+                this.isRefreshing = false;
+                this.isPulling = false;
+            }
+            
+            preventMobileZoom() {
+                // Prevent pinch-to-zoom gestures
+                document.addEventListener('touchstart', function(event) {
+                    if (event.touches.length > 1) {
+                        event.preventDefault();
+                    }
+                }, { passive: false });
+                
+                // Prevent double-tap zoom, but only on input elements and buttons
+                let lastTouchEnd = 0;
+                document.addEventListener('touchend', function(event) {
+                    const target = event.target;
+                    const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON';
+                    
+                    if (isInput) {
+                        const now = (new Date()).getTime();
+                        if (now - lastTouchEnd <= 300) {
+                            event.preventDefault();
+                        }
+                        lastTouchEnd = now;
+                    }
+                }, { passive: false });
+                
+                // Set font size to 16px for all inputs to prevent iOS zoom
+                const inputs = document.querySelectorAll('input, textarea, select');
+                inputs.forEach(input => {
+                    if (!input.style.fontSize || parseFloat(input.style.fontSize) < 16) {
+                        input.style.fontSize = '16px';
+                    }
+                });
+                
+                // Also handle dynamically created inputs
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        mutation.addedNodes.forEach(function(node) {
+                            if (node.nodeType === 1) { // Element node
+                                const newInputs = node.querySelectorAll ? node.querySelectorAll('input, textarea, select') : [];
+                                newInputs.forEach(input => {
+                                    if (!input.style.fontSize || parseFloat(input.style.fontSize) < 16) {
+                                        input.style.fontSize = '16px';
+                                    }
+                                });
+                                
+                                // Check if the node itself is an input
+                                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(node.tagName)) {
+                                    if (!node.style.fontSize || parseFloat(node.style.fontSize) < 16) {
+                                        node.style.fontSize = '16px';
+                                    }
+                                }
+                            }
+                        });
+                    });
+                });
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
             }
             
             updateFavicon(isDark) {
