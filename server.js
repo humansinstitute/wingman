@@ -1216,7 +1216,7 @@ class GooseWebServer {
         const db = require('./lib/database').getDatabase();
         
         // Stop all running sessions first
-        const runningSessions = this.multiSessionManager.getRunningSessions();
+        const runningSessions = await this.multiSessionManager.getRunningSessions();
         for (const session of runningSessions) {
           await this.multiSessionManager.stopSession(session.id);
         }
