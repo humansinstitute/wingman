@@ -37,25 +37,33 @@ class GooseLogObserver {
   findActiveLogFile() {
     let latestTime = 0;
     let latestFile = null;
+    let latestFilePath = null;
+
+    // Check both root directory and logs/ directory
+    const searchDirs = [__dirname, path.join(__dirname, 'logs')];
 
     for (const logFile of this.logFiles) {
-      const filePath = path.join(__dirname, logFile);
-      try {
-        const stats = fs.statSync(filePath);
-        if (stats.mtime.getTime() > latestTime) {
-          latestTime = stats.mtime.getTime();
-          latestFile = logFile;
+      for (const searchDir of searchDirs) {
+        const filePath = path.join(searchDir, logFile);
+        try {
+          const stats = fs.statSync(filePath);
+          if (stats.mtime.getTime() > latestTime) {
+            latestTime = stats.mtime.getTime();
+            latestFile = logFile;
+            latestFilePath = filePath;
+          }
+        } catch (error) {
+          // File doesn't exist, skip
         }
-      } catch (error) {
-        // File doesn't exist, skip
       }
     }
 
     this.activeLogFile = latestFile;
+    this.activeLogFilePath = latestFilePath;
   }
 
   startTailing() {
-    const logPath = path.join(__dirname, this.activeLogFile);
+    const logPath = this.activeLogFilePath;
     
     // Use tail -f to follow the log file
     this.tailProcess = spawn('tail', ['-f', logPath], {
