@@ -1173,13 +1173,8 @@
 
                 // Handle session state events
                 this.socket.on('session-fresh', () => {
-                    console.log('Fresh terminal session started with wingman');
+                    console.log('Terminal session started with wingman');
                     // Could add UI indication that wingman is starting
-                });
-
-                this.socket.on('session-resume', () => {
-                    console.log('Resumed existing terminal session');
-                    // Could add UI indication that session was resumed
                 });
 
                 this.socket.on('terminal-output', (data) => {
