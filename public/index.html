@@ -1931,6 +1931,20 @@
             <div class="session-list" id="sessionList">
                 <!-- Sessions will be populated here -->
             </div>
+            
+            <!-- Archived Sessions Section (hidden by default) -->
+            <div id="archivedSection" style="display: none; margin-top: 2rem; padding: 1rem; border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-secondary);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="margin: 0; color: var(--text-primary);">Archived Sessions</h4>
+                    <div>
+                        <button id="deleteOldArchivedBtn" class="btn btn-danger" style="margin-right: 0.5rem;">Delete > 30 Days</button>
+                        <button id="hideArchivedBtn" class="btn btn-secondary">Hide</button>
+                    </div>
+                </div>
+                <div id="archivedSessionList" class="session-list">
+                    <!-- Archived sessions will be populated here -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2552,6 +2566,10 @@
                 safeAddEventListener(this.closeModal, 'closeModal', 'click', () => this.hideSessionModal());
                 safeAddEventListener(this.createNewSessionBtn, 'createNewSessionBtn', 'click', () => this.startSessionWizard());
                 
+                // Archive event listeners
+                safeAddEventListener(document.getElementById('hideArchivedBtn'), 'hideArchivedBtn', 'click', () => this.hideArchivedSessions());
+                safeAddEventListener(document.getElementById('deleteOldArchivedBtn'), 'deleteOldArchivedBtn', 'click', () => this.deleteOldArchivedSessions());
+                
                 // Wizard event listeners
                 safeAddEventListener(this.closeWizardModal, 'closeWizardModal', 'click', () => this.hideSessionWizard());
                 safeAddEventListener(this.wizardStep1Next, 'wizardStep1Next', 'click', () => this.wizardGoToStep(2));
@@ -3134,10 +3152,10 @@
             }
             
             updateGooseControls(active) {
-                this.sendBtn.disabled = !active;
-                this.sendCommandBtn.disabled = !active;
-                this.stopSessionBtn.disabled = !active;
-                this.startSessionBtn.disabled = active;
+                if (this.sendBtn) this.sendBtn.disabled = !active;
+                if (this.sendCommandBtn) this.sendCommandBtn.disabled = !active;
+                if (this.stopSessionBtn) this.stopSessionBtn.disabled = !active;
+                if (this.startSessionBtn) this.startSessionBtn.disabled = active;
                 
                 // Interrupt button is only enabled when active and processing
                 this.updateInterruptButton(active, false);
@@ -3713,7 +3731,10 @@
                 if (availableSessions.length > 0) {
                     content += `
                         <div class="modal-section">
-                            <h4>Available Sessions</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="margin: 0;">Available Sessions</h4>
+                                <a href="#" id="archiveAllLink" style="color: var(--accent-primary); text-decoration: none; font-size: 0.9rem; cursor: pointer;">[Archive All]</a>
+                            </div>
                             ${availableSessions.map(session => {
                                 const sessionName = session.id || session.name || 'Unnamed Session';
                                 const sessionDate = session.modified ? new Date(session.modified).toLocaleString() : 'Unknown date';
@@ -3725,6 +3746,7 @@
                                         </div>
                                         <div class="session-actions">
                                             <button class="btn btn-primary btn-resume" data-session="${sessionName}">Resume</button>
+                                            <button class="btn btn-secondary btn-archive" data-session="${sessionName}" style="background: #6b7280; border-color: #6b7280;">Archive</button>
                                             <button class="btn btn-danger btn-delete" data-session="${sessionName}">Delete</button>
                                         </div>
                                     </div>
@@ -3733,6 +3755,13 @@
                         </div>
                     `;
                 }
+                
+                // Add archived sessions link at the bottom if there are archived sessions
+                content += `
+                    <div style="text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-primary);">
+                        <a href="#" id="showArchivedLink" style="color: var(--accent-primary); text-decoration: none; font-size: 0.9rem; cursor: pointer;">Show Archived Sessions</a>
+                    </div>
+                `;
                 
                 if (runningSessions.length === 0 && availableSessions.length === 0) {
                     content = '<div class="empty-sessions">No sessions found</div>';
@@ -3882,6 +3911,26 @@
                         padding-bottom: 4px;
                         border-bottom: 1px solid var(--border-primary);
                     }
+                    
+                    .archived-session {
+                        background: var(--bg-primary);
+                        opacity: 0.95;
+                    }
+                    
+                    .archived-session .session-info {
+                        flex: 1;
+                    }
+                    
+                    .archived-session .session-name {
+                        font-weight: 600;
+                        color: var(--text-primary);
+                        margin-bottom: 4px;
+                    }
+                    
+                    .archived-session .session-date {
+                        font-size: 0.85rem;
+                        color: var(--text-secondary);
+                    }
                 `;
                 document.head.appendChild(style);
             }
@@ -3946,6 +3995,32 @@
                         this.deleteSession(btn.dataset.session);
                     });
                 });
+                
+                // Archive individual session functionality
+                document.querySelectorAll('.btn-archive').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.archiveSession(btn.dataset.session);
+                    });
+                });
+                
+                // Archive all sessions link
+                const archiveAllLink = document.getElementById('archiveAllLink');
+                if (archiveAllLink) {
+                    archiveAllLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.archiveAllAvailableSessions();
+                    });
+                }
+                
+                // Show archived sessions link
+                const showArchivedLink = document.getElementById('showArchivedLink');
+                if (showArchivedLink) {
+                    showArchivedLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.showArchivedSessions();
+                    });
+                }
             }
             
             async switchToSession(sessionId) {
@@ -4475,6 +4550,197 @@
                 }
             }
             
+            // Archive Methods
+            async archiveSession(sessionName) {
+                try {
+                    const response = await fetch('/api/sessions/archive', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionName })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showSessionModal(); // Refresh the session list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error archiving session:', error);
+                    this.appendText(`❌ Failed to archive session: ${error.message}\n`, 'system-message');
+                }
+            }
+            
+            async archiveAllAvailableSessions() {
+                if (!confirm('Archive all available sessions? They will be hidden from this list but can be restored later.')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/sessions/archive-all', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showSessionModal(); // Refresh the session list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error archiving sessions:', error);
+                    this.appendText(`❌ Failed to archive sessions: ${error.message}\n`, 'system-message');
+                }
+            }
+            
+            async showArchivedSessions() {
+                try {
+                    const [archivedResponse, configResponse] = await Promise.all([
+                        fetch('/api/sessions/archived'),
+                        fetch('/api/config')
+                    ]);
+                    const archivedSessions = await archivedResponse.json();
+                    const config = await configResponse.json();
+                    
+                    const archivedSection = document.getElementById('archivedSection');
+                    const archivedList = document.getElementById('archivedSessionList');
+                    
+                    if (archivedSessions.length === 0) {
+                        archivedList.innerHTML = '<p style="color: var(--text-secondary);">No archived sessions found</p>';
+                    } else {
+                        console.log('Rendering archived sessions:', archivedSessions);
+                        archivedList.innerHTML = archivedSessions.map(session => {
+                            console.log('Rendering session:', session.id, session.session_name);
+                            return `
+                            <div class="session-item archived-session" style="margin-bottom: 0.75rem;">
+                                <div class="session-info">
+                                    <div class="session-name">${session.session_name}</div>
+                                    <div class="session-date" style="font-size: 0.85rem; color: var(--text-secondary);">
+                                        Archived: ${new Date(session.archived_at).toLocaleString()}
+                                    </div>
+                                </div>
+                                <div class="session-actions">
+                                    <button data-action="restore" data-session-id="${session.id}" class="btn btn-primary">Restore</button>
+                                    <button data-action="delete" data-session-id="${session.id}" data-session-name="${session.session_name}" class="btn btn-danger">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                        }).join('');
+                    }
+                    
+                    // Update the delete button text with current config
+                    const deleteBtn = document.getElementById('deleteOldArchivedBtn');
+                    if (deleteBtn) {
+                        deleteBtn.textContent = `Delete > ${config.ARCHIVE_PURGE_DAYS} Days`;
+                    }
+                    
+                    // Remove old event listeners and add new ones for restore and delete buttons
+                    const newArchivedList = archivedList.cloneNode(true);
+                    archivedList.parentNode.replaceChild(newArchivedList, archivedList);
+                    
+                    newArchivedList.addEventListener('click', (e) => {
+                        const button = e.target.closest('button[data-action]');
+                        if (button) {
+                            const action = button.dataset.action;
+                            const sessionId = button.dataset.sessionId;
+                            const sessionName = button.dataset.sessionName;
+                            
+                            console.log('Archived session button clicked:', { action, sessionId, sessionName });
+                            
+                            if (action === 'restore') {
+                                this.restoreSession(sessionId);
+                            } else if (action === 'delete') {
+                                this.deleteArchivedSession(sessionId, sessionName);
+                            }
+                        }
+                    });
+                    
+                    archivedSection.style.display = 'block';
+                } catch (error) {
+                    console.error('Error loading archived sessions:', error);
+                    this.appendText(`❌ Failed to load archived sessions: ${error.message}\n`, 'system-message');
+                }
+            }
+            
+            hideArchivedSessions() {
+                document.getElementById('archivedSection').style.display = 'none';
+            }
+            
+            async deleteOldArchivedSessions() {
+                try {
+                    // Fetch config to get current ARCHIVE_PURGE_DAYS
+                    const configResponse = await fetch('/api/config');
+                    const config = await configResponse.json();
+                    
+                    const confirmMessage = `Are you sure you want to permanently delete all archived sessions older than ${config.ARCHIVE_PURGE_DAYS} days? This action cannot be undone.`;
+                    if (!confirm(confirmMessage)) {
+                        return;
+                    }
+                    
+                    const response = await fetch('/api/sessions/archived/old', {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showArchivedSessions(); // Refresh archived list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error deleting old archived sessions:', error);
+                    this.appendText(`❌ Error deleting old archived sessions: ${error.message}\n`, 'system-message');
+                }
+            }
+            
+            async restoreSession(sessionId) {
+                try {
+                    const response = await fetch(`/api/sessions/${sessionId}/restore`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showArchivedSessions(); // Refresh archived list
+                        this.showSessionModal(); // Refresh main list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error restoring session:', error);
+                    this.appendText(`❌ Failed to restore session: ${error.message}\n`, 'system-message');
+                }
+            }
+
+            async deleteArchivedSession(sessionId, sessionName) {
+                if (!confirm(`Are you sure you want to permanently delete the archived session "${sessionName}"? This action cannot be undone.`)) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/sessions/${sessionId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showArchivedSessions(); // Refresh archived list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error deleting archived session:', error);
+                    this.appendText(`❌ Error deleting archived session: ${error.message}\n`, 'system-message');
+                }
+            }
+            
             // Directory Browser Methods
             async showDirectoryBrowser() {
                 console.log('🔥 showDirectoryBrowser called');
@@ -4990,7 +5256,7 @@
         }
         
         // Initialize the app
-        new GooseStreamingApp();
+        window.app = new GooseStreamingApp();
     </script>
 </body>
 </html>

@@ -130,8 +130,10 @@ class GooseWebServer {
     });
 
     this.app.get('/api/config', (req, res) => {
+      const purgeDays = process.env.ARCHIVE_PURGE_DAYS !== undefined ? parseInt(process.env.ARCHIVE_PURGE_DAYS) : 30;
       res.json({
-        inputLength: parseInt(process.env.INPUT_LENGTH) || 5000
+        inputLength: parseInt(process.env.INPUT_LENGTH) || 5000,
+        ARCHIVE_PURGE_DAYS: purgeDays
       });
     });
 
@@ -905,7 +907,17 @@ class GooseWebServer {
         }
         
         const availableSessions = await this.multiSessionManager.getAvailableSessions();
-        res.json(availableSessions);
+        
+        // Filter out archived sessions from database
+        const db = require('./lib/database').getDatabase();
+        const archivedSessions = await db.getArchivedSessions();
+        const archivedSessionNames = archivedSessions.map(s => s.session_name);
+        
+        const nonArchivedSessions = availableSessions.filter(session => 
+          !archivedSessionNames.includes(session.id)
+        );
+        
+        res.json(nonArchivedSessions);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -1141,6 +1153,276 @@ class GooseWebServer {
         }
         
         res.json(sessionInfo);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Archive and Bulk Operations API Endpoints
+    
+    // Archive all sessions
+    this.app.post('/api/sessions/archive-all', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        
+        // Get all database sessions that are not already archived
+        const allDbSessions = await db.getAllSessions(true); // include archived to check
+        const sessionsToArchive = allDbSessions.filter(session => !session.archived);
+        
+        // Archive each session
+        let count = 0;
+        for (const session of sessionsToArchive) {
+          const success = await db.archiveSession(session.session_name);
+          if (success) count++;
+        }
+        
+        res.json({ success: true, message: `Archived ${count} sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Archive non-active sessions
+    this.app.post('/api/sessions/archive-non-active', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        
+        // Get list of currently running session names
+        const runningSessions = await this.multiSessionManager.getRunningSessions();
+        const runningSessionNames = Array.isArray(runningSessions) ? runningSessions.map(s => s.sessionName) : [];
+        
+        // Get all database sessions that are not running and not already archived
+        const allDbSessions = await db.getAllSessions(true); // include archived to check
+        const sessionsToArchive = allDbSessions.filter(session => 
+          !runningSessionNames.includes(session.session_name) && !session.archived
+        );
+        
+        // Archive each non-active session
+        let count = 0;
+        for (const session of sessionsToArchive) {
+          const success = await db.archiveSession(session.session_name);
+          if (success) count++;
+        }
+        
+        res.json({ success: true, message: `Archived ${count} non-active sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete all sessions
+    this.app.delete('/api/sessions/delete-all', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        
+        // Stop all running sessions first
+        const runningSessions = this.multiSessionManager.getRunningSessions();
+        for (const session of runningSessions) {
+          await this.multiSessionManager.stopSession(session.id);
+        }
+        
+        const count = await db.deleteAllSessions();
+        res.json({ success: true, message: `Deleted ${count} sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete non-active sessions
+    this.app.delete('/api/sessions/delete-non-active', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const count = await db.deleteNonActiveSessions();
+        res.json({ success: true, message: `Deleted ${count} non-active sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+
+    // Get archived sessions
+    this.app.get('/api/sessions/archived', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const sessions = await db.getArchivedSessions();
+        res.json(sessions);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Archive individual session by name
+    this.app.post('/api/sessions/archive', async (req, res) => {
+      try {
+        const { sessionName } = req.body;
+        if (!sessionName) {
+          return res.status(400).json({ error: 'sessionName is required' });
+        }
+
+        // Check if session is currently running
+        const runningSessions = await this.multiSessionManager.getRunningSessions();
+        const isRunning = Array.isArray(runningSessions) && runningSessions.some(s => s.sessionName === sessionName);
+        
+        if (isRunning) {
+          return res.status(400).json({ error: 'Cannot archive running session' });
+        }
+
+        const db = require('./lib/database').getDatabase();
+        
+        // Try to create the session in database if it doesn't exist
+        await db.getOrCreateSession(sessionName);
+        
+        const success = await db.archiveSession(sessionName);
+        if (success) {
+          res.json({ success: true, message: `Archived session: ${sessionName}` });
+        } else {
+          res.status(404).json({ error: 'Session not found or already archived' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Restore archived session
+    this.app.post('/api/sessions/:id/restore', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const success = await db.restoreSessionById(req.params.id);
+        if (success) {
+          res.json({ success: true, message: 'Session restored successfully' });
+        } else {
+          res.status(404).json({ error: 'Session not found or not archived' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete individual archived session
+    this.app.delete('/api/sessions/:id', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const fs = require('fs').promises;
+        const path = require('path');
+        const os = require('os');
+        
+        // Get session info first
+        const session = await db.getSessionById(req.params.id);
+        if (!session) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        
+        // Delete the session file from disk
+        try {
+          const gooseSessionsDir = path.join(os.homedir(), '.local', 'share', 'goose', 'sessions');
+          const sessionFilePath = path.join(gooseSessionsDir, `${session.session_name}.jsonl`);
+          await fs.unlink(sessionFilePath);
+          console.log(`Deleted session file: ${sessionFilePath}`);
+        } catch (fileError) {
+          console.warn(`Could not delete session file for "${session.session_name}":`, fileError.message);
+          // Continue with database deletion even if file deletion fails
+        }
+        
+        // Delete the session from database (this will cascade and delete messages too)
+        const success = await db.deleteSession(session.session_name);
+        if (success) {
+          res.json({ success: true, message: `Session "${session.session_name}" deleted successfully` });
+        } else {
+          res.status(404).json({ error: 'Session not found' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete archived session permanently
+    this.app.delete('/api/sessions/archived/:id', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const session = await db.getSessionById(req.params.id);
+        
+        if (!session) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        
+        if (!session.archived) {
+          return res.status(400).json({ error: 'Session must be archived before permanent deletion' });
+        }
+        
+        const success = await db.deleteSession(session.session_name);
+        if (success) {
+          res.json({ success: true, message: 'Session permanently deleted' });
+        } else {
+          res.status(404).json({ error: 'Failed to delete session' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Restore all archived sessions
+    this.app.post('/api/sessions/restore-all', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const count = await db.restoreAllArchivedSessions();
+        res.json({ success: true, message: `Restored ${count} sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete all archived sessions
+    this.app.delete('/api/sessions/archived', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const count = await db.deleteArchivedSessions();
+        res.json({ success: true, message: `Permanently deleted ${count} archived sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete archived sessions older than N days
+    this.app.delete('/api/sessions/archived/old', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const fs = require('fs').promises;
+        const path = require('path');
+        const os = require('os');
+        const purgeDays = process.env.ARCHIVE_PURGE_DAYS !== undefined ? parseInt(process.env.ARCHIVE_PURGE_DAYS) : 30;
+        
+        // Get list of sessions to delete first
+        const sessionsToDelete = await db.getOldArchivedSessions(purgeDays);
+        
+        if (sessionsToDelete.length === 0) {
+          return res.json({ success: true, message: `No archived sessions older than ${purgeDays} days found` });
+        }
+        
+        // Delete session files from disk
+        const gooseSessionsDir = path.join(os.homedir(), '.local', 'share', 'goose', 'sessions');
+        let filesDeleted = 0;
+        
+        for (const session of sessionsToDelete) {
+          try {
+            const sessionFilePath = path.join(gooseSessionsDir, `${session.session_name}.jsonl`);
+            await fs.unlink(sessionFilePath);
+            console.log(`Deleted session file: ${sessionFilePath}`);
+            filesDeleted++;
+          } catch (fileError) {
+            console.warn(`Could not delete session file for "${session.session_name}":`, fileError.message);
+            // Continue with other files even if one fails
+          }
+        }
+        
+        // Delete the old sessions from database
+        const deletedCount = await db.deleteOldArchivedSessions(purgeDays);
+        res.json({ 
+          success: true, 
+          message: `Permanently deleted ${deletedCount} archived sessions older than ${purgeDays} days (${filesDeleted} files deleted from disk)`,
+          count: deletedCount,
+          filesDeleted: filesDeleted,
+          days: purgeDays
+        });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
