@@ -677,6 +677,18 @@
                                 <span class="tmux-cmd-key">⌃B P</span>
                                 <span class="tmux-cmd-desc">Previous Window</span>
                             </div>
+                            <div class="tmux-cmd" data-cmd="up">
+                                <span class="tmux-cmd-key">↑</span>
+                                <span class="tmux-cmd-desc">Up Arrow</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="clear">
+                                <span class="tmux-cmd-key">clear</span>
+                                <span class="tmux-cmd-desc">Clear Screen</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="wingman">
+                                <span class="tmux-cmd-key">⌃D</span>
+                                <span class="tmux-cmd-desc">Exit & Run Wingman</span>
+                            </div>
                         </div>
                     </div>
                     <button id="tmux-cancel" class="tmux-btn cancel" title="Send Ctrl+C (Cancel/Interrupt)">
@@ -811,7 +823,7 @@
                     this.tmuxDropdownBtn.style.color = '';
                 }, 200);
                 
-                const prefix = '\\x02'; // Ctrl+B
+                const prefix = '\x02'; // Ctrl+B
                 
                 switch (command) {
                     case 'detach':
@@ -853,6 +865,16 @@
                     case 'prevwindow':
                         this.socket.emit('terminal-input', prefix);
                         setTimeout(() => this.socket.emit('terminal-input', 'p'), 100);
+                        break;
+                    case 'up':
+                        this.socket.emit('terminal-input', '\x1b[A'); // Up arrow escape sequence
+                        break;
+                    case 'clear':
+                        this.socket.emit('terminal-input', 'clear\r');
+                        break;
+                    case 'wingman':
+                        this.socket.emit('terminal-input', '\x04'); // Ctrl+D
+                        setTimeout(() => this.socket.emit('terminal-input', 'wingman\r'), 200);
                         break;
                 }
             }
