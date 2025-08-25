@@ -1194,14 +1194,11 @@ class GooseWebServer {
     // Terminal session state management
     const terminalState = {
       lastAuthTime: null,
-      lastTerminalTime: null,
-      authenticated: new Map(), // socketId -> timestamp
-      activeSessions: new Map()  // socketId -> { ptyProcess, startTime }
+      authenticated: new Map() // socketId -> timestamp
     };
 
-    // Get timeout values from environment (with defaults)
+    // Get PIN timeout from environment (with default)
     const PIN_TIMEOUT = parseInt(process.env.PIN_TIMEOUT) || 45; // seconds
-    const WINGMAN_TIMEOUT = parseInt(process.env.WINGMAN_TIMEOUT) || 3; // minutes
 
     this.terminalNamespace.on('connection', (socket) => {
       console.log('Terminal client connected');
@@ -1241,10 +1238,6 @@ class GooseWebServer {
           return;
         }
 
-        const now = Date.now();
-        const shouldStartFresh = !terminalState.lastTerminalTime || 
-          (now - terminalState.lastTerminalTime) > (WINGMAN_TIMEOUT * 60 * 1000);
-
         try {
           // Determine shell and platform
           const shell = os.platform() === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash';
@@ -1264,13 +1257,6 @@ class GooseWebServer {
 
           console.log('Terminal process started with PID:', ptyProcess.pid);
 
-          // Store session info
-          terminalState.activeSessions.set(socket.id, {
-            ptyProcess: ptyProcess,
-            startTime: now
-          });
-          terminalState.lastTerminalTime = now;
-
           // Send terminal output to client
           ptyProcess.onData((data) => {
             socket.emit('terminal-output', data);
@@ -1280,22 +1266,14 @@ class GooseWebServer {
           ptyProcess.onExit((exitCode) => {
             console.log('Terminal process exited with code:', exitCode);
             socket.emit('terminal-error', `Terminal process exited with code: ${exitCode}`);
-            terminalState.activeSessions.delete(socket.id);
           });
 
-          if (shouldStartFresh) {
-            // Get terminal command from environment or use default
-            const terminalCmd = process.env.TERMINALCMD || 'node wingman-cli.js';
-            
-            // Start fresh with wingman command
-            console.log('Starting fresh terminal session with wingman');
-            ptyProcess.write(`${terminalCmd}\r`);
-            socket.emit('session-fresh');
-          } else {
-            // Resume existing session without running wingman
-            console.log('Resuming terminal session without wingman autostart');
-            socket.emit('session-resume');
-          }
+          // Always start with wingman command after PIN authentication
+          const terminalCmd = process.env.TERMINALCMD || 'node wingman-cli.js';
+          
+          console.log('Starting terminal session with wingman command');
+          ptyProcess.write(`${terminalCmd}\r`);
+          socket.emit('session-fresh');
 
         } catch (error) {
           console.error('Error starting terminal:', error);
@@ -1320,12 +1298,6 @@ class GooseWebServer {
         
         // Clean up authentication state
         terminalState.authenticated.delete(socket.id);
-        
-        // Clean up session state
-        const sessionInfo = terminalState.activeSessions.get(socket.id);
-        if (sessionInfo) {
-          terminalState.activeSessions.delete(socket.id);
-        }
         
         // Kill terminal process
         if (ptyProcess) {
