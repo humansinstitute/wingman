@@ -5,9 +5,12 @@ const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
 const os = require('os');
+const pty = require('node-pty');
 const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
 const MultiSessionManager = require('./multi-session-manager');
+const mcpServerRegistry = require('./mcp-server-registry');
+const TriggerHandler = require('./lib/triggers/trigger-handler');
 
 // Clear recipe cache on server startup to ensure fresh data
 recipeManager.clearCache();
@@ -28,6 +31,9 @@ class GooseWebServer {
     // Initialize multi-session manager
     this.multiSessionManager = new MultiSessionManager();
     this.setupMultiSessionEvents();
+    
+    // Initialize trigger handler
+    this.triggerHandler = new TriggerHandler(this.multiSessionManager, recipeManager);
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -111,6 +117,10 @@ class GooseWebServer {
       res.sendFile(path.join(__dirname, 'public', 'recipes.html'));
     });
 
+    this.app.get('/deep-dive', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'deep-dive.html'));
+    });
+
     this.app.get('/api/conversation', (req, res) => {
       res.json(conversationManager.getConversation());
     });
@@ -120,8 +130,10 @@ class GooseWebServer {
     });
 
     this.app.get('/api/config', (req, res) => {
+      const purgeDays = process.env.ARCHIVE_PURGE_DAYS !== undefined ? parseInt(process.env.ARCHIVE_PURGE_DAYS) : 30;
       res.json({
-        inputLength: parseInt(process.env.INPUT_LENGTH) || 5000
+        inputLength: parseInt(process.env.INPUT_LENGTH) || 5000,
+        ARCHIVE_PURGE_DAYS: purgeDays
       });
     });
 
@@ -175,15 +187,51 @@ class GooseWebServer {
       }
     });
 
+    this.app.post('/api/goose/interrupt', async (req, res) => {
+      try {
+        const result = await this.multiSessionManager.interruptActiveSession();
+        
+        // Broadcast interrupt event to all clients
+        this.io.emit('sessionInterrupted', {
+          sessionId: result.sessionId,
+          timestamp: new Date().toISOString()
+        });
+        
+        res.json(result);
+      } catch (error) {
+        console.error('Error interrupting session:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     this.app.post('/api/goose/stop', async (req, res) => {
       try {
-        await conversationManager.stopGooseSession();
+        // First try to interrupt gracefully
+        try {
+          await this.multiSessionManager.interruptActiveSession();
+        } catch (interruptError) {
+          console.log('Could not interrupt gracefully, proceeding with force stop');
+        }
         
-        // Broadcast status update to all clients
-        this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+        // Then force stop
+        const result = await this.multiSessionManager.forceStopActiveSession();
         
-        res.json({ success: true });
+        // Broadcast session stopped event to all clients
+        this.io.emit('sessionForceStopped', {
+          sessionId: result.sessionId,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Also broadcast legacy status update for backward compatibility
+        this.io.emit('gooseStatusUpdate', {
+          active: false,
+          sessionName: null,
+          ready: false
+        });
+        
+        res.json(result);
       } catch (error) {
+        console.error('Error stopping session:', error);
         res.status(500).json({ error: error.message });
       }
     });
@@ -255,7 +303,7 @@ class GooseWebServer {
 
     this.app.post('/api/message', async (req, res) => {
       try {
-        const { content } = req.body;
+        const { content, settings } = req.body;
         
         // Debug logging for message content
         console.log('=== RECEIVED MESSAGE AT SERVER ===');
@@ -273,8 +321,8 @@ class GooseWebServer {
           });
         }
         
-        // Send message to active session
-        const result = await this.multiSessionManager.sendMessageToActiveSession(content);
+        // Send message to active session with settings
+        const result = await this.multiSessionManager.sendMessageToActiveSession(content, settings);
         
         res.json({ success: true, result });
       } catch (error) {
@@ -548,6 +596,137 @@ class GooseWebServer {
       }
     });
 
+    // MCP Server Registry API Endpoints
+    
+    // Get all registered MCP servers
+    this.app.get('/api/mcp-servers', async (req, res) => {
+      try {
+        const { includeUsage, sortBy } = req.query;
+        const servers = await mcpServerRegistry.getAllServers({ 
+          includeUsage: includeUsage === 'true', 
+          sortBy: sortBy || 'name' 
+        });
+        res.json(servers);
+      } catch (error) {
+        console.error('Error fetching MCP servers:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get registry statistics (must come before /:id route)
+    this.app.get('/api/mcp-servers/stats', async (req, res) => {
+      try {
+        const stats = await mcpServerRegistry.getStats();
+        res.json(stats);
+      } catch (error) {
+        console.error('Error fetching registry stats:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get a specific MCP server
+    this.app.get('/api/mcp-servers/:id', async (req, res) => {
+      try {
+        const server = await mcpServerRegistry.getServer(req.params.id);
+        if (!server) {
+          return res.status(404).json({ error: 'MCP server not found' });
+        }
+        res.json({ id: req.params.id, ...server });
+      } catch (error) {
+        console.error('Error fetching MCP server:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Register a new MCP server
+    this.app.post('/api/mcp-servers', async (req, res) => {
+      try {
+        const server = await mcpServerRegistry.registerServer(req.body);
+        res.status(201).json(server);
+      } catch (error) {
+        console.error('Error registering MCP server:', error);
+        res.status(400).json({ error: error.message });
+      }
+    });
+
+    // Update an existing MCP server
+    this.app.put('/api/mcp-servers/:id', async (req, res) => {
+      try {
+        const server = await mcpServerRegistry.updateServer(req.params.id, req.body);
+        res.json(server);
+      } catch (error) {
+        console.error('Error updating MCP server:', error);
+        if (error.message.includes('not found')) {
+          res.status(404).json({ error: error.message });
+        } else {
+          res.status(400).json({ error: error.message });
+        }
+      }
+    });
+
+    // Delete an MCP server
+    this.app.delete('/api/mcp-servers/:id', async (req, res) => {
+      try {
+        const result = await mcpServerRegistry.unregisterServer(req.params.id);
+        res.json(result);
+      } catch (error) {
+        console.error('Error deleting MCP server:', error);
+        if (error.message.includes('not found')) {
+          res.status(404).json({ error: error.message });
+        } else if (error.message.includes('still used by')) {
+          res.status(409).json({ error: error.message });
+        } else {
+          res.status(400).json({ error: error.message });
+        }
+      }
+    });
+
+    // Search MCP servers
+    this.app.post('/api/mcp-servers/search', async (req, res) => {
+      try {
+        const { query } = req.body;
+        if (!query) {
+          return res.status(400).json({ error: 'Search query is required' });
+        }
+        const servers = await mcpServerRegistry.searchServers(query);
+        res.json(servers);
+      } catch (error) {
+        console.error('Error searching MCP servers:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get MCP servers for a specific recipe
+    this.app.get('/api/mcp-servers/recipe/:recipeId', async (req, res) => {
+      try {
+        const servers = await mcpServerRegistry.getServersForRecipe(req.params.recipeId);
+        res.json(servers);
+      } catch (error) {
+        console.error('Error fetching recipe servers:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+
+    // Import servers from existing recipes (migration endpoint)
+    this.app.post('/api/mcp-servers/import-from-recipes', async (req, res) => {
+      try {
+        // Get all recipes to import servers from
+        const recipes = await recipeManager.getAllRecipes();
+        const result = await mcpServerRegistry.importFromRecipes(recipes);
+        
+        res.json({
+          success: true,
+          imported: result.importedServers.length,
+          errors: result.errors,
+          servers: result.importedServers
+        });
+      } catch (error) {
+        console.error('Error importing servers from recipes:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Directory browsing API
     this.app.get('/api/directories', async (req, res) => {
       try {
@@ -602,6 +781,106 @@ class GooseWebServer {
       }
     });
 
+    // Create directory endpoint
+    this.app.post('/api/create-directory', async (req, res) => {
+      try {
+        const fs = require('fs').promises;
+        const path = require('path');
+        
+        const { parentPath, folderName } = req.body;
+        
+        if (!parentPath || !folderName) {
+          return res.status(400).send('Parent path and folder name are required');
+        }
+        
+        // Validate folder name
+        if (!/^[a-zA-Z0-9_\-\s]+$/.test(folderName)) {
+          return res.status(400).send('Invalid folder name');
+        }
+        
+        // Security: Ensure we can't create directories outside reasonable bounds
+        const resolvedParentPath = path.resolve(parentPath);
+        const newDirPath = path.join(resolvedParentPath, folderName);
+        
+        // Check if directory already exists
+        try {
+          await fs.access(newDirPath);
+          return res.status(409).send('Directory already exists');
+        } catch (error) {
+          // Directory doesn't exist, which is what we want
+        }
+        
+        // Create the directory
+        await fs.mkdir(newDirPath, { recursive: false });
+        
+        res.json({ 
+          success: true, 
+          path: newDirPath 
+        });
+      } catch (error) {
+        console.error('Error creating directory:', error);
+        res.status(500).send(error.message);
+      }
+    });
+
+    // Triggers API
+    this.app.post('/api/triggers', async (req, res) => {
+      try {
+        const token = req.headers['trigger_token'] || req.headers['authorization']?.replace('Bearer ', '');
+        
+        const result = await this.triggerHandler.processTrigger(req.body, token);
+        res.json(result);
+      } catch (error) {
+        console.error('Trigger API error:', error);
+        
+        // Determine error code based on error message
+        let statusCode = 500;
+        let errorCode = 'INTERNAL_ERROR';
+        
+        if (error.message.includes('token')) {
+          statusCode = 401;
+          errorCode = 'INVALID_TOKEN';
+        } else if (error.message.includes('Recipe') && error.message.includes('not found')) {
+          statusCode = 404;
+          errorCode = 'RECIPE_NOT_FOUND';
+        } else if (error.message.includes('required')) {
+          statusCode = 400;
+          errorCode = 'MISSING_PARAMETER';
+        }
+        
+        res.status(statusCode).json({
+          success: false,
+          error: error.message,
+          code: errorCode
+        });
+      }
+    });
+    
+    // Get trigger logs (for debugging/monitoring)
+    this.app.get('/api/triggers/logs', (req, res) => {
+      const token = req.headers['trigger_token'] || req.headers['authorization']?.replace('Bearer ', '');
+      
+      try {
+        // Validate token for accessing logs
+        this.triggerHandler.validateToken(token);
+        
+        const limit = parseInt(req.query.limit) || 100;
+        const logs = this.triggerHandler.getTriggerLogs(limit);
+        
+        res.json({
+          success: true,
+          logs,
+          count: logs.length
+        });
+      } catch (error) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+          code: 'INVALID_TOKEN'
+        });
+      }
+    });
+
     // Multi-Session Management API Endpoints
     this.app.get('/api/sessions/running', async (req, res) => {
       try {
@@ -628,7 +907,17 @@ class GooseWebServer {
         }
         
         const availableSessions = await this.multiSessionManager.getAvailableSessions();
-        res.json(availableSessions);
+        
+        // Filter out archived sessions from database
+        const db = require('./lib/database').getDatabase();
+        const archivedSessions = await db.getArchivedSessions();
+        const archivedSessionNames = archivedSessions.map(s => s.session_name);
+        
+        const nonArchivedSessions = availableSessions.filter(session => 
+          !archivedSessionNames.includes(session.id)
+        );
+        
+        res.json(nonArchivedSessions);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -868,6 +1157,276 @@ class GooseWebServer {
         res.status(500).json({ error: error.message });
       }
     });
+
+    // Archive and Bulk Operations API Endpoints
+    
+    // Archive all sessions
+    this.app.post('/api/sessions/archive-all', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        
+        // Get all database sessions that are not already archived
+        const allDbSessions = await db.getAllSessions(true); // include archived to check
+        const sessionsToArchive = allDbSessions.filter(session => !session.archived);
+        
+        // Archive each session
+        let count = 0;
+        for (const session of sessionsToArchive) {
+          const success = await db.archiveSession(session.session_name);
+          if (success) count++;
+        }
+        
+        res.json({ success: true, message: `Archived ${count} sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Archive non-active sessions
+    this.app.post('/api/sessions/archive-non-active', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        
+        // Get list of currently running session names
+        const runningSessions = await this.multiSessionManager.getRunningSessions();
+        const runningSessionNames = Array.isArray(runningSessions) ? runningSessions.map(s => s.sessionName) : [];
+        
+        // Get all database sessions that are not running and not already archived
+        const allDbSessions = await db.getAllSessions(true); // include archived to check
+        const sessionsToArchive = allDbSessions.filter(session => 
+          !runningSessionNames.includes(session.session_name) && !session.archived
+        );
+        
+        // Archive each non-active session
+        let count = 0;
+        for (const session of sessionsToArchive) {
+          const success = await db.archiveSession(session.session_name);
+          if (success) count++;
+        }
+        
+        res.json({ success: true, message: `Archived ${count} non-active sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete all sessions
+    this.app.delete('/api/sessions/delete-all', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        
+        // Stop all running sessions first
+        const runningSessions = await this.multiSessionManager.getRunningSessions();
+        for (const session of runningSessions) {
+          await this.multiSessionManager.stopSession(session.id);
+        }
+        
+        const count = await db.deleteAllSessions();
+        res.json({ success: true, message: `Deleted ${count} sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete non-active sessions
+    this.app.delete('/api/sessions/delete-non-active', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const count = await db.deleteNonActiveSessions();
+        res.json({ success: true, message: `Deleted ${count} non-active sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+
+    // Get archived sessions
+    this.app.get('/api/sessions/archived', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const sessions = await db.getArchivedSessions();
+        res.json(sessions);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Archive individual session by name
+    this.app.post('/api/sessions/archive', async (req, res) => {
+      try {
+        const { sessionName } = req.body;
+        if (!sessionName) {
+          return res.status(400).json({ error: 'sessionName is required' });
+        }
+
+        // Check if session is currently running
+        const runningSessions = await this.multiSessionManager.getRunningSessions();
+        const isRunning = Array.isArray(runningSessions) && runningSessions.some(s => s.sessionName === sessionName);
+        
+        if (isRunning) {
+          return res.status(400).json({ error: 'Cannot archive running session' });
+        }
+
+        const db = require('./lib/database').getDatabase();
+        
+        // Try to create the session in database if it doesn't exist
+        await db.getOrCreateSession(sessionName);
+        
+        const success = await db.archiveSession(sessionName);
+        if (success) {
+          res.json({ success: true, message: `Archived session: ${sessionName}` });
+        } else {
+          res.status(404).json({ error: 'Session not found or already archived' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Restore archived session
+    this.app.post('/api/sessions/:id/restore', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const success = await db.restoreSessionById(req.params.id);
+        if (success) {
+          res.json({ success: true, message: 'Session restored successfully' });
+        } else {
+          res.status(404).json({ error: 'Session not found or not archived' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete individual archived session
+    this.app.delete('/api/sessions/:id', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const fs = require('fs').promises;
+        const path = require('path');
+        const os = require('os');
+        
+        // Get session info first
+        const session = await db.getSessionById(req.params.id);
+        if (!session) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        
+        // Delete the session file from disk
+        try {
+          const gooseSessionsDir = path.join(os.homedir(), '.local', 'share', 'goose', 'sessions');
+          const sessionFilePath = path.join(gooseSessionsDir, `${session.session_name}.jsonl`);
+          await fs.unlink(sessionFilePath);
+          console.log(`Deleted session file: ${sessionFilePath}`);
+        } catch (fileError) {
+          console.warn(`Could not delete session file for "${session.session_name}":`, fileError.message);
+          // Continue with database deletion even if file deletion fails
+        }
+        
+        // Delete the session from database (this will cascade and delete messages too)
+        const success = await db.deleteSession(session.session_name);
+        if (success) {
+          res.json({ success: true, message: `Session "${session.session_name}" deleted successfully` });
+        } else {
+          res.status(404).json({ error: 'Session not found' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete archived session permanently
+    this.app.delete('/api/sessions/archived/:id', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const session = await db.getSessionById(req.params.id);
+        
+        if (!session) {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        
+        if (!session.archived) {
+          return res.status(400).json({ error: 'Session must be archived before permanent deletion' });
+        }
+        
+        const success = await db.deleteSession(session.session_name);
+        if (success) {
+          res.json({ success: true, message: 'Session permanently deleted' });
+        } else {
+          res.status(404).json({ error: 'Failed to delete session' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Restore all archived sessions
+    this.app.post('/api/sessions/restore-all', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const count = await db.restoreAllArchivedSessions();
+        res.json({ success: true, message: `Restored ${count} sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete all archived sessions
+    this.app.delete('/api/sessions/archived', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const count = await db.deleteArchivedSessions();
+        res.json({ success: true, message: `Permanently deleted ${count} archived sessions` });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Delete archived sessions older than N days
+    this.app.delete('/api/sessions/archived/old', async (req, res) => {
+      try {
+        const db = require('./lib/database').getDatabase();
+        const fs = require('fs').promises;
+        const path = require('path');
+        const os = require('os');
+        const purgeDays = process.env.ARCHIVE_PURGE_DAYS !== undefined ? parseInt(process.env.ARCHIVE_PURGE_DAYS) : 30;
+        
+        // Get list of sessions to delete first
+        const sessionsToDelete = await db.getOldArchivedSessions(purgeDays);
+        
+        if (sessionsToDelete.length === 0) {
+          return res.json({ success: true, message: `No archived sessions older than ${purgeDays} days found` });
+        }
+        
+        // Delete session files from disk
+        const gooseSessionsDir = path.join(os.homedir(), '.local', 'share', 'goose', 'sessions');
+        let filesDeleted = 0;
+        
+        for (const session of sessionsToDelete) {
+          try {
+            const sessionFilePath = path.join(gooseSessionsDir, `${session.session_name}.jsonl`);
+            await fs.unlink(sessionFilePath);
+            console.log(`Deleted session file: ${sessionFilePath}`);
+            filesDeleted++;
+          } catch (fileError) {
+            console.warn(`Could not delete session file for "${session.session_name}":`, fileError.message);
+            // Continue with other files even if one fails
+          }
+        }
+        
+        // Delete the old sessions from database
+        const deletedCount = await db.deleteOldArchivedSessions(purgeDays);
+        res.json({ 
+          success: true, 
+          message: `Permanently deleted ${deletedCount} archived sessions older than ${purgeDays} days (${filesDeleted} files deleted from disk)`,
+          count: deletedCount,
+          filesDeleted: filesDeleted,
+          days: purgeDays
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
   }
 
   setupSocketHandlers() {
@@ -907,6 +1466,129 @@ class GooseWebServer {
         console.log('Client disconnected');
       });
     });
+
+    // Terminal namespace for Deep Dive feature
+    this.terminalNamespace = this.io.of('/terminal');
+    this.setupTerminalHandlers();
+  }
+
+  setupTerminalHandlers() {
+    // Terminal session state management
+    const terminalState = {
+      lastAuthTime: null,
+      authenticated: new Map() // socketId -> timestamp
+    };
+
+    // Get PIN timeout from environment (with default)
+    const PIN_TIMEOUT = parseInt(process.env.PIN_TIMEOUT) || 45; // seconds
+
+    this.terminalNamespace.on('connection', (socket) => {
+      console.log('Terminal client connected');
+      
+      let ptyProcess = null;
+      let authenticated = false;
+
+      // Check if authentication is still valid from recent connection
+      const now = Date.now();
+      if (terminalState.lastAuthTime && (now - terminalState.lastAuthTime) < (PIN_TIMEOUT * 1000)) {
+        authenticated = true;
+        terminalState.authenticated.set(socket.id, now);
+        socket.emit('auth-success');
+        console.log('Authentication still valid, skipping PIN entry');
+      } else {
+        // Request PIN entry
+        socket.emit('auth-required');
+      }
+
+      socket.on('authenticate', (pin) => {
+        const correctPin = process.env.PIN || '1234';
+        if (pin === correctPin) {
+          authenticated = true;
+          const authTime = Date.now();
+          terminalState.lastAuthTime = authTime;
+          terminalState.authenticated.set(socket.id, authTime);
+          socket.emit('auth-success');
+          console.log('Authentication successful');
+        } else {
+          socket.emit('auth-failed', 'Invalid PIN');
+        }
+      });
+
+      socket.on('start-terminal', (dimensions) => {
+        if (!authenticated) {
+          socket.emit('terminal-error', 'Not authenticated. Please enter PIN.');
+          return;
+        }
+
+        try {
+          // Determine shell and platform
+          const shell = os.platform() === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash';
+          
+          // Use provided dimensions or defaults
+          const cols = dimensions?.cols || 80;
+          const rows = dimensions?.rows || 24;
+          
+          // Spawn terminal process
+          ptyProcess = pty.spawn(shell, [], {
+            name: 'xterm-256color',
+            cols: cols,
+            rows: rows,
+            cwd: process.cwd(),
+            env: process.env
+          });
+
+          console.log('Terminal process started with PID:', ptyProcess.pid);
+
+          // Send terminal output to client
+          ptyProcess.onData((data) => {
+            socket.emit('terminal-output', data);
+          });
+
+          // Handle terminal exit
+          ptyProcess.onExit((exitCode) => {
+            console.log('Terminal process exited with code:', exitCode);
+            socket.emit('terminal-error', `Terminal process exited with code: ${exitCode}`);
+          });
+
+          // Always start with wingman command after PIN authentication
+          const terminalCmd = process.env.TERMINALCMD || 'node wingman-cli.js';
+          
+          console.log('Starting terminal session with wingman command');
+          ptyProcess.write(`${terminalCmd}\r`);
+          socket.emit('session-fresh');
+
+        } catch (error) {
+          console.error('Error starting terminal:', error);
+          socket.emit('terminal-error', error.message);
+        }
+      });
+
+      socket.on('terminal-input', (data) => {
+        if (ptyProcess) {
+          ptyProcess.write(data);
+        }
+      });
+
+      socket.on('terminal-resize', (dimensions) => {
+        if (ptyProcess) {
+          ptyProcess.resize(dimensions.cols, dimensions.rows);
+        }
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Terminal client disconnected');
+        
+        // Clean up authentication state
+        terminalState.authenticated.delete(socket.id);
+        
+        // Kill terminal process
+        if (ptyProcess) {
+          console.log('Killing terminal process with PID:', ptyProcess.pid);
+          ptyProcess.kill();
+          ptyProcess = null;
+        }
+      });
+    });
   }
 
   setupConversationSync() {
@@ -943,7 +1625,41 @@ class GooseWebServer {
     });
   }
 
-  start() {
+  async findAvailablePort(startPort) {
+    const net = require('net');
+
+    return new Promise((resolve) => {
+      const tryPort = (port) => {
+        const server = net.createServer();
+
+        server.once('error', () => {
+          server.close();
+          tryPort(port + 1);
+        });
+
+        server.once('listening', () => {
+          server.close(() => {
+            resolve(port);
+          });
+        });
+
+        server.listen(port, '0.0.0.0');
+      };
+
+      tryPort(startPort);
+    });
+  }
+
+  async start() {
+    const desiredPort = this.port;
+    const availablePort = await this.findAvailablePort(desiredPort);
+
+    if (availablePort !== desiredPort) {
+      console.log(`⚠️  Port ${desiredPort} is in use, using port ${availablePort} instead`);
+    }
+
+    this.port = availablePort;
+
     this.server.listen(this.port, () => {
       console.log(`🌐 Goose Web interface running at http://localhost:${this.port}`);
     });

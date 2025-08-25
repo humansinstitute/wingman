@@ -24,7 +24,7 @@ To configure Wingman with your preferred default browsing directory:
 3. **Other available configuration options**:
    ```bash
    NODE_ENV=development
-   PORT=3000
+   PORT=3000  # Default port, will auto-increment if in use
    DATABASE_PATH=./db/database.sqlite
 
    # Root directory for file browser
@@ -106,7 +106,7 @@ This makes it much easier to create new project directories and organize your de
    npm start
    ```
 
-2. **Open Wingman**: http://localhost:3000
+2. **Open Wingman**: http://localhost:3000 (or check console for actual port)
 
 3. **Test directory browsing**:
    - Click session dropdown → "+ New Session"

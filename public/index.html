@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wingman: Goose</title>
     <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png" id="favicon-light">
     <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png" id="favicon-dark" disabled>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <!-- Force refresh timestamp: 2025-08-21-01:23 -->
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -221,6 +222,127 @@
             margin-left: 0;
             font-weight: inherit;
             display: inline;
+        }
+
+        .working-directory-display {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 0.25rem;
+            font-weight: 400;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 300px;
+        }
+
+        .working-directory-display:empty {
+            display: none;
+        }
+        
+        /* Dark mode styling with green accent */
+        body.dark-theme .working-directory-display {
+            color: var(--accent-primary);
+        }
+        
+        .working-directory-info {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-right: 1rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .working-directory-info span {
+            font-weight: 400;
+        }
+        
+        /* Dark mode styling with green accent */
+        body.dark-theme .working-directory-info {
+            color: var(--accent-primary);
+        }
+        
+        body.dark-theme .working-directory-info span {
+            color: var(--accent-primary);
+        }
+        
+        .recipe-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 1rem;
+        }
+        
+        .recipe-pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-primary);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        
+        .recipe-pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .recipe-pagination button:hover:not(:disabled) {
+            background: var(--bg-secondary);
+        }
+        
+        /* Enhanced button styling */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+            border: 1px solid var(--accent-primary);
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-secondary);
+            border-color: var(--accent-secondary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-secondary);
+            transform: translateY(-1px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .wizard-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 1.5rem 0;
+        }
+        
+        .wizard-nav {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
         }
         
         .status-active {
@@ -438,6 +560,67 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        /* Floating interrupt button overlay */
+        .interrupt-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem !important;
+            background: var(--error-primary) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 50% !important;
+            cursor: pointer !important;
+            font-size: 1rem !important;
+            font-weight: 500 !important;
+            width: 4rem !important;
+            height: 4rem !important;
+            display: none !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s ease !important;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+            z-index: 1000 !important;
+        }
+
+        .interrupt-btn:hover {
+            background: #dc2626 !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4) !important;
+        }
+
+        .interrupt-btn:active {
+            transform: scale(0.95) !important;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3) !important;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .interrupt-btn {
+                bottom: 1rem !important;
+                right: 1rem !important;
+                width: 3.5rem !important;
+                height: 3.5rem !important;
+                padding: 0.75rem !important;
+            }
+        }
+
+        /* Spinner animation */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
         
         .btn-secondary {
@@ -1123,6 +1306,68 @@
             margin-bottom: 0;
         }
 
+        .setting-control {
+            margin-bottom: 1rem;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            opacity: 0;
+            position: absolute;
+            width: 0;
+            height: 0;
+        }
+
+        .checkmark {
+            width: 20px;
+            height: 20px;
+            background-color: var(--bg-secondary);
+            border: 2px solid var(--border-secondary);
+            border-radius: 4px;
+            margin-right: 0.75rem;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-container:hover .checkmark {
+            border-color: var(--accent-primary);
+        }
+
+        .checkbox-container input[type="checkbox"]:checked + .checkmark {
+            background-color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .checkbox-container input[type="checkbox"]:checked + .checkmark:after {
+            content: "";
+            position: absolute;
+            left: 6px;
+            top: 2px;
+            width: 6px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        .setting-label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .setting-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-left: 2.75rem;
+            line-height: 1.4;
+        }
+
         .settings-title {
             font-size: 1rem;
             font-weight: 600;
@@ -1170,7 +1415,55 @@
             min-height: 48px;
         }
 
-        /* Mobile hamburger menu */
+        /* Pull-to-refresh styles */
+        .pull-to-refresh {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100%);
+            background: var(--accent-primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0 0 12px 12px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            z-index: 1002;
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .pull-to-refresh.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .pull-to-refresh.refreshing {
+            background: var(--accent-secondary);
+        }
+        
+        .refresh-icon {
+            width: 16px;
+            height: 16px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .refresh-icon.idle {
+            animation: none;
+            border: none;
+            width: auto;
+            height: auto;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
         .mobile-menu-toggle {
             display: none;
             background: none;
@@ -1181,6 +1474,41 @@
             border-radius: 8px;
             transition: background 0.2s ease;
             color: var(--text-primary);
+        }
+        
+        /* Prevent iOS zoom on input focus */
+        input[type="text"],
+        input[type="password"], 
+        input[type="email"],
+        input[type="number"],
+        input[type="search"],
+        textarea,
+        select {
+            font-size: 16px !important;
+            transform-origin: left top;
+            transition: none !important;
+        }
+        
+        /* Override for mobile to ensure 16px minimum */
+        @media (max-width: 768px) {
+            input[type="text"],
+            input[type="password"], 
+            input[type="email"],
+            input[type="number"],
+            input[type="search"],
+            textarea,
+            select,
+            .form-input,
+            .goose-command-input,
+            .session-name-input {
+                font-size: 16px !important;
+                -webkit-text-size-adjust: 100%;
+            }
+            
+            /* Ensure message input is also 16px */
+            #messageInput {
+                font-size: 16px !important;
+            }
         }
 
         .mobile-menu-toggle:hover {
@@ -1276,14 +1604,18 @@
             #providerModelInfo {
                 display: none !important;
             }
+            #workingDirectoryInfo {
+                display: none !important;
+            }
 
             /* Re-enable send button on mobile */
             .input-container button#sendBtn {
                 display: block;
             }
 
-            /* Mobile textarea height limit (3 lines) */
+            /* Mobile textarea height - start with 2 lines, max 3 lines */
             .input-container textarea {
+                min-height: calc(2 * 1.5em + 1.5rem);
                 max-height: calc(3 * 1.5em + 1.5rem);
             }
 
@@ -1344,6 +1676,12 @@
     </style>
 </head>
 <body>
+    <!-- Pull-to-refresh indicator -->
+    <div id="pullToRefresh" class="pull-to-refresh">
+        <div id="refreshIcon" class="refresh-icon idle">⟳</div>
+        <span id="refreshText">Pull to refresh</span>
+    </div>
+    
     <div id="connectionBar" class="connection-bar"></div>
     <div class="header">
         <h1>
@@ -1355,6 +1693,9 @@
             <div id="providerModelInfo" class="provider-model-info" style="display: none;">
                 <span id="providerModelText"></span>
             </div>
+            <div id="workingDirectoryInfo" class="working-directory-info" style="display: none;">
+                <div id="workingDirectoryDisplay" class="working-directory-display"></div>
+            </div>
             <div id="gooseStatus" class="goose-status status-inactive">
                 <span id="sessionNameDisplay">No Session Active</span>
                 <span id="sessionCountBadge" class="session-count-badge" style="display: none;"></span>
@@ -1364,6 +1705,7 @@
             </button>
             <!-- Hidden elements for desktop use -->
             <a href="/recipes" class="btn-settings" aria-label="Recipe Manager" style="display: none; text-decoration: none;">📋</a>
+            <a href="/deep-dive" class="btn-settings" aria-label="Deep Dive Terminal" style="display: none; text-decoration: none;">🔍</a>
             <button id="settingsBtn" class="btn-settings" aria-label="Settings" style="display: none;">⚙️</button>
             <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" style="display: none;">
                 <span class="theme-icon-light">☀️</span>
@@ -1385,7 +1727,7 @@
             <!-- Session Status -->
             <div class="mobile-menu-item session-only">
                 <div id="mobileGooseStatus" class="goose-status status-inactive">
-                    No Session Active
+                    <span id="mobileSessionNameDisplay">No Session Active</span>
                 </div>
             </div>
             
@@ -1396,10 +1738,24 @@
                 </div>
             </div>
             
+            <!-- Working Directory Info -->
+            <div id="mobileWorkingDirectoryInfo" class="mobile-menu-item session-only" style="display: none;">
+                <div class="working-directory-info">
+                    <div id="mobileWorkingDirectoryDisplay" class="working-directory-display"></div>
+                </div>
+            </div>
+            
             <!-- Recipe Manager -->
             <div class="mobile-menu-item">
                 <a href="/recipes" style="text-decoration: none; color: inherit; width: 100%; display: block;">
                     📋 Recipe Manager
+                </a>
+            </div>
+            
+            <!-- Deep Dive Terminal -->
+            <div class="mobile-menu-item">
+                <a href="/deep-dive" style="text-decoration: none; color: inherit; width: 100%; display: block;">
+                    🔍 Deep Dive Terminal
                 </a>
             </div>
             
@@ -1430,34 +1786,16 @@
             </div>
             
             <div class="recipe-selector-content">
-                <div class="recipe-tabs">
-                    <button class="recipe-tab active" data-tab="popular">Popular</button>
-                    <button class="recipe-tab" data-tab="categories">Categories</button>
-                    <button class="recipe-tab" data-tab="search">Search</button>
+                <div class="search-box">
+                    <input type="text" id="recipeSearchInput" class="form-input" placeholder="Search recipes...">
                 </div>
-                
-                <div id="popular-recipes" class="recipe-tab-content active">
-                    <div class="recipe-grid" id="popularRecipeGrid">
-                        <!-- Popular recipes will be loaded here -->
-                    </div>
+                <div class="recipe-grid" id="allRecipeGrid">
+                    <!-- All recipes will be loaded here -->
                 </div>
-                
-                <div id="category-recipes" class="recipe-tab-content">
-                    <div class="category-list" id="categoryList">
-                        <!-- Categories will be loaded here -->
-                    </div>
-                    <div class="recipe-grid" id="categoryRecipeGrid">
-                        <!-- Category recipes will be loaded here -->
-                    </div>
-                </div>
-                
-                <div id="search-recipes" class="recipe-tab-content">
-                    <div class="search-box">
-                        <input type="text" id="recipeSearchInput" class="form-input" placeholder="Search recipes...">
-                    </div>
-                    <div class="recipe-grid" id="searchRecipeGrid">
-                        <!-- Search results will be loaded here -->
-                    </div>
+                <div class="recipe-pagination" id="recipePagination" style="display: none;">
+                    <button id="prevPageBtn" class="btn">Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPageBtn" class="btn">Next</button>
                 </div>
             </div>
 
@@ -1487,6 +1825,15 @@
             
             <div class="current-path" id="currentPath">/</div>
             
+            <div style="margin: 1rem 0; display: flex; gap: 1rem; align-items: center;">
+                <button id="createFolderBtn" class="btn btn-small btn-secondary">+ Create New Folder</button>
+                <div id="createFolderForm" style="display: none; flex: 1; gap: 0.5rem; align-items: center;">
+                    <input type="text" id="newFolderName" placeholder="Folder name" style="flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <button id="confirmCreateFolder" class="btn btn-small btn-primary">Create</button>
+                    <button id="cancelCreateFolder" class="btn btn-small btn-secondary">Cancel</button>
+                </div>
+            </div>
+            
             <div class="directory-browser" id="directoryBrowser">
                 <div class="loading" style="padding: 2rem; text-align: center;">Loading directories...</div>
             </div>
@@ -1501,6 +1848,11 @@
     <div class="chat-container">
         <div class="messages" id="messages"></div>
         <div class="loading" id="loading">Goose is thinking...</div>
+        
+        <!-- Floating interrupt button -->
+        <button id="interruptBtn" class="interrupt-btn" title="Stop current operation (Ctrl+C)" style="display: none;">
+            <span class="spinner"></span>
+        </button>
         
         <div class="input-container">
             <div class="input-row">
@@ -1527,6 +1879,20 @@
                 </div>
             </div>
             
+            <div class="settings-section">
+                <h4 class="settings-title">Interruption Behavior</h4>
+                <div class="setting-control">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="enableInterruptOnNewMessage" checked>
+                        <span class="checkmark"></span>
+                        <span class="setting-label">Interrupt on new message</span>
+                    </label>
+                    <div class="setting-description">
+                        When enabled, sending a new message while Goose is processing will automatically interrupt the current operation (like pressing Ctrl+C).
+                    </div>
+                </div>
+            </div>
+
             <div class="settings-section">
                 <h4 class="settings-title">Actions</h4>
                 <div class="action-controls">
@@ -1565,6 +1931,20 @@
             <div class="session-list" id="sessionList">
                 <!-- Sessions will be populated here -->
             </div>
+            
+            <!-- Archived Sessions Section (hidden by default) -->
+            <div id="archivedSection" style="display: none; margin-top: 2rem; padding: 1rem; border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-secondary);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="margin: 0; color: var(--text-primary);">Archived Sessions</h4>
+                    <div>
+                        <button id="deleteOldArchivedBtn" class="btn btn-danger" style="margin-right: 0.5rem;">Delete > 30 Days</button>
+                        <button id="hideArchivedBtn" class="btn btn-secondary">Hide</button>
+                    </div>
+                </div>
+                <div id="archivedSessionList" class="session-list">
+                    <!-- Archived sessions will be populated here -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1598,6 +1978,37 @@
                         <strong>Selected Recipe:</strong> <span id="wizardSelectedRecipeName"></span>
                         <p id="wizardSelectedRecipeDescription"></p>
                     </div>
+                    
+                    <!-- Provider Override Checkbox -->
+                    <div class="provider-override-section" style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="wizardOverrideProviders" style="margin: 0;">
+                            Override default model/provider for this session
+                        </label>
+                        
+                        <!-- Dynamic override form -->
+                        <div id="wizardProviderOverrideForm" class="provider-override-form" style="display: none; margin-top: 1rem;">
+                            <div id="wizardRecipeDefaultsDisplay" class="recipe-defaults-info" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 0.25rem; font-size: 0.875rem;">
+                                <strong>Recipe Defaults:</strong>
+                                <p id="wizardRecipeDefaultProvider">Provider: <span>-</span></p>
+                                <p id="wizardRecipeDefaultModel">Model: <span>-</span></p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="wizardOverrideProvider">Provider</label>
+                                <select id="wizardOverrideProvider" class="form-input">
+                                    <option value="">Use Recipe/Goose Default</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="wizardOverrideModelGroup" style="display: none;">
+                                <label class="form-label" for="wizardOverrideModel">Model</label>
+                                <select id="wizardOverrideModel" class="form-input">
+                                    <option value="">Use Provider Default</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="wizard-buttons">
@@ -1610,47 +2021,6 @@
                 </div>
             </div>
             
-            <!-- Step 2.5: Provider/Model Override (only shown when recipe is selected) -->
-            <div id="wizardStep2_5" class="wizard-step" style="display: none;">
-                <h4>Step 2.5: Provider/Model Override</h4>
-                <p style="margin-bottom: 1rem; color: var(--text-secondary);">Optionally override the provider/model for this session.</p>
-                
-                <div id="recipeDefaultsDisplay" class="recipe-defaults-info" style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem;">
-                    <strong>Recipe Defaults:</strong>
-                    <p id="recipeDefaultProvider">Provider: <span>-</span></p>
-                    <p id="recipeDefaultModel">Model: <span>-</span></p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="enableProviderOverride" class="form-label">
-                        <input type="checkbox" id="enableProviderOverride" style="margin-right: 0.5rem;">
-                        Override provider/model for this session
-                    </label>
-                </div>
-                
-                <div id="providerOverrideControls" style="display: none;">
-                    <div class="form-group">
-                        <label class="form-label" for="overrideProvider">Provider</label>
-                        <select id="overrideProvider" class="form-input">
-                            <option value="">Use Recipe/Goose Default</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group" id="overrideModelGroup" style="display: none;">
-                        <label class="form-label" for="overrideModel">Model</label>
-                        <select id="overrideModel" class="form-input">
-                            <option value="">Use Provider Default</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="wizard-buttons">
-                    <button id="wizardStep2_5Next" class="btn btn-primary">Next: Working Directory</button>
-                </div>
-                <div class="wizard-nav">
-                    <button id="wizardStep2_5Back" class="btn btn-secondary">← Back</button>
-                </div>
-            </div>
             
             <!-- Step 3: Working Directory -->
             <div id="wizardStep3" class="wizard-step" style="display: none;">
@@ -1683,18 +2053,37 @@
                 this.messagesDiv = document.getElementById('messages');
                 this.messageInput = document.getElementById('messageInput');
                 this.sendBtn = document.getElementById('sendBtn');
+                this.interruptBtn = document.getElementById('interruptBtn');
                 this.clearBtn = document.getElementById('clearBtn');
                 this.loading = document.getElementById('loading');
                 this.connectionBar = document.getElementById('connectionBar');
                 this.gooseStatus = document.getElementById('gooseStatus');
                 this.sessionNameDisplay = document.getElementById('sessionNameDisplay');
+                this.workingDirectoryDisplay = document.getElementById('workingDirectoryDisplay');
                 this.sessionCountBadge = document.getElementById('sessionCountBadge');
+                
+                // Pull-to-refresh elements
+                this.pullToRefresh = document.getElementById('pullToRefresh');
+                this.refreshIcon = document.getElementById('refreshIcon');
+                this.refreshText = document.getElementById('refreshText');
+                
+                // Pull-to-refresh state
+                this.pullStartY = 0;
+                this.pullCurrentY = 0;
+                this.pullThreshold = 80;
+                this.isPulling = false;
+                this.isRefreshing = false;
                 
                 // New provider/model display elements
                 this.providerModelInfo = document.getElementById('providerModelInfo');
                 this.providerModelText = document.getElementById('providerModelText');
                 this.mobileProviderModelInfo = document.getElementById('mobileProviderModelInfo');
                 this.mobileProviderModelText = document.getElementById('mobileProviderModelText');
+                
+                // Working directory display elements
+                this.workingDirectoryInfo = document.getElementById('workingDirectoryInfo');
+                this.mobileWorkingDirectoryInfo = document.getElementById('mobileWorkingDirectoryInfo');
+                this.mobileWorkingDirectoryDisplay = document.getElementById('mobileWorkingDirectoryDisplay');
                 
                 // Session search filter
                 this.sessionSearchFilter = document.getElementById('sessionSearchFilter');
@@ -1721,7 +2110,6 @@
                 this.closeWizardModal = document.getElementById('closeWizardModal');
                 this.wizardStep1 = document.getElementById('wizardStep1');
                 this.wizardStep2 = document.getElementById('wizardStep2');
-                this.wizardStep2_5 = document.getElementById('wizardStep2_5');
                 this.wizardStep3 = document.getElementById('wizardStep3');
                 this.wizardSessionName = document.getElementById('wizardSessionName');
                 this.wizardWorkingDirectory = document.getElementById('wizardWorkingDirectory');
@@ -1730,8 +2118,6 @@
                 this.wizardStep1Next = document.getElementById('wizardStep1Next');
                 this.wizardStep2Back = document.getElementById('wizardStep2Back');
                 this.wizardStep2Next = document.getElementById('wizardStep2Next');
-                this.wizardStep2_5Back = document.getElementById('wizardStep2_5Back');
-                this.wizardStep2_5Next = document.getElementById('wizardStep2_5Next');
                 this.wizardStep3Back = document.getElementById('wizardStep3Back');
                 this.wizardChooseRecipeBtn = document.getElementById('wizardChooseRecipeBtn');
                 this.wizardSkipRecipeBtn = document.getElementById('wizardSkipRecipeBtn');
@@ -1739,12 +2125,15 @@
                 this.wizardUseCurrentDirBtn = document.getElementById('wizardUseCurrentDirBtn');
                 this.wizardCreateSessionBtn = document.getElementById('wizardCreateSessionBtn');
                 
-                // Provider/Model override elements
-                this.enableProviderOverride = document.getElementById('enableProviderOverride');
-                this.providerOverrideControls = document.getElementById('providerOverrideControls');
-                this.overrideProvider = document.getElementById('overrideProvider');
-                this.overrideModel = document.getElementById('overrideModel');
-                this.overrideModelGroup = document.getElementById('overrideModelGroup');
+                // Provider/Model override elements (new wizard-based)
+                this.wizardOverrideProviders = document.getElementById('wizardOverrideProviders');
+                this.wizardProviderOverrideForm = document.getElementById('wizardProviderOverrideForm');
+                this.wizardOverrideProvider = document.getElementById('wizardOverrideProvider');
+                this.wizardOverrideModel = document.getElementById('wizardOverrideModel');
+                this.wizardOverrideModelGroup = document.getElementById('wizardOverrideModelGroup');
+                this.wizardRecipeDefaultsDisplay = document.getElementById('wizardRecipeDefaultsDisplay');
+                this.wizardRecipeDefaultProvider = document.getElementById('wizardRecipeDefaultProvider');
+                this.wizardRecipeDefaultModel = document.getElementById('wizardRecipeDefaultModel');
                 this.recipeDefaultProvider = document.getElementById('recipeDefaultProvider');
                 this.recipeDefaultModel = document.getElementById('recipeDefaultModel');
                 
@@ -1757,12 +2146,15 @@
                 this.settingsModal = document.getElementById('settingsModal');
                 this.settingsBtn = document.getElementById('settingsBtn');
                 this.closeSettingsModal = document.getElementById('closeSettingsModal');
+                this.enableInterruptOnNewMessage = document.getElementById('enableInterruptOnNewMessage');
                 
                 // Mobile menu elements
                 this.mobileMenu = document.getElementById('mobileMenu');
                 this.mobileMenuToggle = document.getElementById('mobileMenuToggle');
                 this.mobileMenuClose = document.getElementById('mobileMenuClose');
                 this.mobileGooseStatus = document.getElementById('mobileGooseStatus');
+                this.mobileSessionNameDisplay = document.getElementById('mobileSessionNameDisplay');
+                this.mobileWorkingDirectoryDisplay = document.getElementById('mobileWorkingDirectoryDisplay');
                 this.mobileThemeToggle = document.getElementById('mobileThemeToggle');
                 this.mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
                 
@@ -1772,13 +2164,18 @@
                 this.changeRecipeBtn = document.getElementById('changeRecipeBtn');
                 this.closeRecipeSelectorModal = document.getElementById('closeRecipeSelectorModal');
                 
-                this.recipeTabs = document.querySelectorAll('.recipe-tab');
-                this.recipeTabContents = document.querySelectorAll('.recipe-tab-content');
-                this.popularRecipeGrid = document.getElementById('popularRecipeGrid');
-                this.categoryList = document.getElementById('categoryList');
-                this.categoryRecipeGrid = document.getElementById('categoryRecipeGrid');
-                this.searchRecipeGrid = document.getElementById('searchRecipeGrid');
+                this.allRecipeGrid = document.getElementById('allRecipeGrid');
                 this.recipeSearchInput = document.getElementById('recipeSearchInput');
+                this.recipePagination = document.getElementById('recipePagination');
+                this.prevPageBtn = document.getElementById('prevPageBtn');
+                this.nextPageBtn = document.getElementById('nextPageBtn');
+                this.pageInfo = document.getElementById('pageInfo');
+                
+                // Recipe pagination state
+                this.currentPage = 1;
+                this.recipesPerPage = 10;
+                this.allRecipes = [];
+                this.filteredRecipes = [];
                 
                 this.selectedRecipeDisplay = document.getElementById('selectedRecipeDisplay');
                 this.selectedRecipeName = document.getElementById('selectedRecipeName');
@@ -1794,6 +2191,11 @@
                 this.directoryBrowser = document.getElementById('directoryBrowser');
                 this.selectDirectoryBtn = document.getElementById('selectDirectoryBtn');
                 this.cancelDirectorySelection = document.getElementById('cancelDirectorySelection');
+                this.createFolderBtn = document.getElementById('createFolderBtn');
+                this.createFolderForm = document.getElementById('createFolderForm');
+                this.newFolderName = document.getElementById('newFolderName');
+                this.confirmCreateFolder = document.getElementById('confirmCreateFolder');
+                this.cancelCreateFolder = document.getElementById('cancelCreateFolder');
                 
                 // Debug: Check if directory browser elements were found
                 console.log('Directory browser elements found:', {
@@ -1834,13 +2236,19 @@
                 
                 this.currentGooseStatus = null;
                 this.setupTheme();
+                this.setupPullToRefresh(); // Add pull-to-refresh functionality
+                this.preventMobileZoom(); // Prevent unwanted mobile zoom
                 this.loadProviders(); // Load provider/model options
+                this.loadSettings(); // Load user settings
                 this.setupEventListeners();
                 this.setupSocketListeners();
                 this.updateGooseControls(false);
                 
                 // Initialize working directory to current location
                 this.initializeWorkingDirectory();
+                
+                // Initialize provider/model display with defaults
+                this.showProviderModelDisplay('Goose Default', 'Default Model');
                 
                 // Load configuration and set input length
                 this.loadConfig();
@@ -1946,6 +2354,182 @@
                 this.mobileThemeToggle.addEventListener('click', toggleTheme);
             }
             
+            setupPullToRefresh() {
+                // Only enable on mobile and in PWA mode
+                if (!this.isMobile() && !this.isPWA()) {
+                    return;
+                }
+                
+                // Add touch event listeners only to the header area
+                const header = document.querySelector('.header');
+                if (header) {
+                    header.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+                    header.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+                    header.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+                }
+            }
+            
+            isMobile() {
+                return window.innerWidth <= 768;
+            }
+            
+            isPWA() {
+                return window.matchMedia('(display-mode: standalone)').matches ||
+                       window.navigator.standalone === true ||
+                       document.referrer.includes('android-app://');
+            }
+            
+            handleTouchStart(e) {
+                // Only trigger pull-to-refresh from header area
+                // No need to check scroll position since we're only listening to header
+                if (this.isInputFocused(e.target)) {
+                    return;
+                }
+                
+                this.pullStartY = e.touches[0].clientY;
+                this.isPulling = false;
+            }
+            
+            handleTouchMove(e) {
+                if (this.isRefreshing || this.isInputFocused(e.target)) {
+                    return;
+                }
+                
+                this.pullCurrentY = e.touches[0].clientY;
+                const pullDistance = this.pullCurrentY - this.pullStartY;
+                
+                // Only start pulling if moving down from the header
+                if (pullDistance > 0) {
+                    e.preventDefault(); // Prevent default scroll only in header area
+                    
+                    this.isPulling = true;
+                    const progress = Math.min(pullDistance / this.pullThreshold, 1);
+                    
+                    // Show the refresh indicator
+                    this.pullToRefresh.classList.add('visible');
+                    
+                    // Update the visual feedback
+                    if (pullDistance >= this.pullThreshold) {
+                        this.refreshText.textContent = 'Release to refresh';
+                        this.refreshIcon.style.transform = 'rotate(180deg)';
+                    } else {
+                        this.refreshText.textContent = 'Pull to refresh';
+                        this.refreshIcon.style.transform = `rotate(${progress * 180}deg)`;
+                    }
+                }
+            }
+            
+            handleTouchEnd(e) {
+                if (!this.isPulling || this.isRefreshing) {
+                    return;
+                }
+                
+                const pullDistance = this.pullCurrentY - this.pullStartY;
+                
+                if (pullDistance >= this.pullThreshold) {
+                    this.triggerRefresh();
+                } else {
+                    this.resetPullToRefresh();
+                }
+                
+                this.isPulling = false;
+            }
+            
+            isInputFocused(target) {
+                return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+            }
+            
+            async triggerRefresh() {
+                if (this.isRefreshing) return;
+                
+                this.isRefreshing = true;
+                this.pullToRefresh.classList.add('refreshing');
+                this.refreshText.textContent = 'Refreshing...';
+                this.refreshIcon.className = 'refresh-icon';
+                this.refreshIcon.textContent = '';
+                
+                try {
+                    // Wait a moment for the animation
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Reload the page
+                    window.location.reload();
+                } catch (error) {
+                    console.error('Refresh error:', error);
+                    this.resetPullToRefresh();
+                }
+            }
+            
+            resetPullToRefresh() {
+                this.pullToRefresh.classList.remove('visible', 'refreshing');
+                this.refreshText.textContent = 'Pull to refresh';
+                this.refreshIcon.className = 'refresh-icon idle';
+                this.refreshIcon.textContent = '⟳';
+                this.refreshIcon.style.transform = 'rotate(0deg)';
+                this.isRefreshing = false;
+                this.isPulling = false;
+            }
+            
+            preventMobileZoom() {
+                // Prevent pinch-to-zoom gestures
+                document.addEventListener('touchstart', function(event) {
+                    if (event.touches.length > 1) {
+                        event.preventDefault();
+                    }
+                }, { passive: false });
+                
+                // Prevent double-tap zoom, but only on input elements and buttons
+                let lastTouchEnd = 0;
+                document.addEventListener('touchend', function(event) {
+                    const target = event.target;
+                    const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON';
+                    
+                    if (isInput) {
+                        const now = (new Date()).getTime();
+                        if (now - lastTouchEnd <= 300) {
+                            event.preventDefault();
+                        }
+                        lastTouchEnd = now;
+                    }
+                }, { passive: false });
+                
+                // Set font size to 16px for all inputs to prevent iOS zoom
+                const inputs = document.querySelectorAll('input, textarea, select');
+                inputs.forEach(input => {
+                    if (!input.style.fontSize || parseFloat(input.style.fontSize) < 16) {
+                        input.style.fontSize = '16px';
+                    }
+                });
+                
+                // Also handle dynamically created inputs
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        mutation.addedNodes.forEach(function(node) {
+                            if (node.nodeType === 1) { // Element node
+                                const newInputs = node.querySelectorAll ? node.querySelectorAll('input, textarea, select') : [];
+                                newInputs.forEach(input => {
+                                    if (!input.style.fontSize || parseFloat(input.style.fontSize) < 16) {
+                                        input.style.fontSize = '16px';
+                                    }
+                                });
+                                
+                                // Check if the node itself is an input
+                                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(node.tagName)) {
+                                    if (!node.style.fontSize || parseFloat(node.style.fontSize) < 16) {
+                                        node.style.fontSize = '16px';
+                                    }
+                                }
+                            }
+                        });
+                    });
+                });
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            
             updateFavicon(isDark) {
                 const lightFavicon = document.getElementById('favicon-light');
                 const darkFavicon = document.getElementById('favicon-dark');
@@ -1970,6 +2554,7 @@
                 };
                 
                 safeAddEventListener(this.sendBtn, 'sendBtn', 'click', () => this.sendMessage());
+                safeAddEventListener(this.interruptBtn, 'interruptBtn', 'click', () => this.interruptGoose());
                 safeAddEventListener(this.clearBtn, 'clearBtn', 'click', () => this.clearConversation());
                 safeAddEventListener(this.startSessionBtn, 'startSessionBtn', 'click', () => this.startGooseSession());
                 safeAddEventListener(this.stopSessionBtn, 'stopSessionBtn', 'click', () => this.stopGooseSession());
@@ -1981,23 +2566,25 @@
                 safeAddEventListener(this.closeModal, 'closeModal', 'click', () => this.hideSessionModal());
                 safeAddEventListener(this.createNewSessionBtn, 'createNewSessionBtn', 'click', () => this.startSessionWizard());
                 
+                // Archive event listeners
+                safeAddEventListener(document.getElementById('hideArchivedBtn'), 'hideArchivedBtn', 'click', () => this.hideArchivedSessions());
+                safeAddEventListener(document.getElementById('deleteOldArchivedBtn'), 'deleteOldArchivedBtn', 'click', () => this.deleteOldArchivedSessions());
+                
                 // Wizard event listeners
                 safeAddEventListener(this.closeWizardModal, 'closeWizardModal', 'click', () => this.hideSessionWizard());
                 safeAddEventListener(this.wizardStep1Next, 'wizardStep1Next', 'click', () => this.wizardGoToStep(2));
                 safeAddEventListener(this.wizardStep2Back, 'wizardStep2Back', 'click', () => this.wizardGoToStep(1));
-                safeAddEventListener(this.wizardStep2Next, 'wizardStep2Next', 'click', () => this.wizardGoToProviderStep());
-                safeAddEventListener(this.wizardStep2_5Back, 'wizardStep2_5Back', 'click', () => this.wizardGoToStep(2));
-                safeAddEventListener(this.wizardStep2_5Next, 'wizardStep2_5Next', 'click', () => this.wizardGoToStep(3));
-                safeAddEventListener(this.wizardStep3Back, 'wizardStep3Back', 'click', () => this.wizardGoToProviderStep());
+                safeAddEventListener(this.wizardStep2Next, 'wizardStep2Next', 'click', () => this.wizardGoToStep(3));
+                safeAddEventListener(this.wizardStep3Back, 'wizardStep3Back', 'click', () => this.wizardGoToStep(2));
                 safeAddEventListener(this.wizardChooseRecipeBtn, 'wizardChooseRecipeBtn', 'click', () => this.wizardChooseRecipe());
                 safeAddEventListener(this.wizardSkipRecipeBtn, 'wizardSkipRecipeBtn', 'click', () => this.wizardSkipRecipe());
                 safeAddEventListener(this.wizardBrowseDirectoryBtn, 'wizardBrowseDirectoryBtn', 'click', () => this.wizardBrowseDirectory());
                 safeAddEventListener(this.wizardUseCurrentDirBtn, 'wizardUseCurrentDirBtn', 'click', () => this.wizardUseCurrentDirectory());
                 safeAddEventListener(this.wizardCreateSessionBtn, 'wizardCreateSessionBtn', 'click', () => this.wizardCreateSession());
                 
-                // Provider/Model override event listeners
-                safeAddEventListener(this.enableProviderOverride, 'enableProviderOverride', 'change', () => this.toggleProviderOverride());
-                safeAddEventListener(this.overrideProvider, 'overrideProvider', 'change', () => this.onOverrideProviderChange());
+                // Wizard Provider/Model override event listeners
+                safeAddEventListener(this.wizardOverrideProviders, 'wizardOverrideProviders', 'change', () => this.toggleWizardProviderOverride());
+                safeAddEventListener(this.wizardOverrideProvider, 'wizardOverrideProvider', 'change', () => this.onWizardOverrideProviderChange());
                 
                 // Recipe selector modal event listeners
                 safeAddEventListener(this.selectRecipeBtn, 'selectRecipeBtn', 'click', () => this.showRecipeSelectorModal());
@@ -2086,13 +2673,62 @@
                     console.error('❌ cancelDirectorySelection element not found');
                 }
                 
-                // Recipe selection event listeners
-                this.recipeTabs.forEach(tab => {
-                    tab.addEventListener('click', () => this.switchRecipeTab(tab.dataset.tab));
+                // Create folder event listeners
+                if (this.createFolderBtn) {
+                    this.createFolderBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.showCreateFolderForm();
+                    });
+                }
+                
+                if (this.confirmCreateFolder) {
+                    this.confirmCreateFolder.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.createNewFolder();
+                    });
+                }
+                
+                if (this.cancelCreateFolder) {
+                    this.cancelCreateFolder.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.hideCreateFolderForm();
+                    });
+                }
+                
+                if (this.newFolderName) {
+                    this.newFolderName.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            this.createNewFolder();
+                        } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            this.hideCreateFolderForm();
+                        }
+                    });
+                }
+                
+                // Recipe search event listener
+                this.recipeSearchInput.addEventListener('input', (e) => {
+                    this.filterAndDisplayRecipes(e.target.value);
                 });
                 
-                this.recipeSearchInput.addEventListener('input', (e) => {
-                    this.searchRecipes(e.target.value);
+                // Pagination event listeners
+                this.prevPageBtn.addEventListener('click', () => {
+                    if (this.currentPage > 1) {
+                        this.currentPage--;
+                        this.displayCurrentPage();
+                    }
+                });
+                
+                this.nextPageBtn.addEventListener('click', () => {
+                    const totalPages = Math.ceil(this.filteredRecipes.length / this.recipesPerPage);
+                    if (this.currentPage < totalPages) {
+                        this.currentPage++;
+                        this.displayCurrentPage();
+                    }
                 });
                 
                 // Session search filter
@@ -2105,6 +2741,22 @@
                 // Settings modal event listeners
                 this.settingsBtn.addEventListener('click', () => this.showSettingsModal());
                 this.closeSettingsModal.addEventListener('click', () => this.hideSettingsModal());
+                
+                // Settings change listeners
+                this.enableInterruptOnNewMessage.addEventListener('change', () => {
+                    this.saveSettings();
+                });
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl+C to interrupt (like in CLI)
+                    if (e.ctrlKey && e.key === 'c' && !e.target.matches('input, textarea')) {
+                        e.preventDefault();
+                        if (this.interruptBtn && this.interruptBtn.style.display !== 'none') {
+                            this.interruptGoose();
+                        }
+                    }
+                });
                 
                 // Close modals when clicking overlay
                 this.sessionModal.addEventListener('click', (e) => {
@@ -2173,6 +2825,8 @@
             setupSocketListeners() {
                 this.socket.on('connect', () => {
                     this.connectionBar.classList.remove('disconnected');
+                    // Immediately check for active sessions when reconnecting
+                    this.updateActiveSessionFromRunning();
                 });
                 
                 this.socket.on('disconnect', () => {
@@ -2202,6 +2856,22 @@
                 this.socket.on('gooseError', (error) => {
                     this.appendText(`❌ Goose Error: ${error}\\n`, 'system-message');
                     this.scrollToBottom();
+                });
+
+                // Listen for interruption events
+                this.socket.on('sessionInterrupted', (data) => {
+                    console.log('Session interrupted:', data);
+                    this.updateInterruptButton(true, false);
+                });
+
+                this.socket.on('sessionForceStopped', (data) => {
+                    console.log('Session force stopped:', data);
+                    this.updateInterruptButton(false, false);
+                });
+
+                this.socket.on('processingComplete', (data) => {
+                    console.log('Processing complete:', data);
+                    this.updateInterruptButton(true, false);
                 });
                 
                 // Multi-session event listeners
@@ -2278,13 +2948,15 @@
                         this.updateGooseStatus({
                             active: true,
                             sessionName: activeSession.sessionName,
-                            ready: true
+                            ready: true,
+                            workingDirectory: activeSession.workingDirectory
                         });
                     } else {
                         this.updateGooseStatus({
                             active: false,
                             sessionName: null,
-                            ready: false
+                            ready: false,
+                            workingDirectory: null
                         });
                     }
                 } catch (error) {
@@ -2301,8 +2973,39 @@
                     
                     // Just show the session name without "Active"
                     this.sessionNameDisplay.textContent = status.sessionName || 'Unknown Session';
+                    
+                    // Update working directory display
+                    if (this.workingDirectoryDisplay && status.workingDirectory) {
+                        this.workingDirectoryDisplay.textContent = status.workingDirectory;
+                        this.workingDirectoryDisplay.title = status.workingDirectory; // Full path on hover
+                        this.workingDirectoryInfo.style.display = 'flex';
+                    } else if (this.workingDirectoryDisplay) {
+                        this.workingDirectoryDisplay.textContent = '';
+                        this.workingDirectoryInfo.style.display = 'none';
+                    }
+                    
+                    // Update mobile working directory display
+                    if (this.mobileWorkingDirectoryDisplay && status.workingDirectory) {
+                        this.mobileWorkingDirectoryDisplay.textContent = status.workingDirectory;
+                        this.mobileWorkingDirectoryDisplay.title = status.workingDirectory;
+                        this.mobileWorkingDirectoryInfo.style.display = 'block';
+                    } else if (this.mobileWorkingDirectoryDisplay) {
+                        this.mobileWorkingDirectoryDisplay.textContent = '';
+                        this.mobileWorkingDirectoryInfo.style.display = 'none';
+                    }
+                    
                     statusEl.className = statusClass;
-                    mobileStatusEl.textContent = status.sessionName || 'Unknown Session';
+                    
+                    // Update mobile displays
+                    if (this.mobileSessionNameDisplay) {
+                        this.mobileSessionNameDisplay.textContent = status.sessionName || 'Unknown Session';
+                    }
+                    if (this.mobileWorkingDirectoryDisplay && status.workingDirectory) {
+                        this.mobileWorkingDirectoryDisplay.textContent = status.workingDirectory;
+                        this.mobileWorkingDirectoryDisplay.title = status.workingDirectory;
+                    } else if (this.mobileWorkingDirectoryDisplay) {
+                        this.mobileWorkingDirectoryDisplay.textContent = '';
+                    }
                     mobileStatusEl.className = statusClass;
                 } else {
                     const statusText = 'No Session Active';
@@ -2310,19 +3013,40 @@
                     
                     // Update session name display
                     this.sessionNameDisplay.textContent = statusText;
+                    
+                    // Clear working directory display
+                    if (this.workingDirectoryDisplay) {
+                        this.workingDirectoryDisplay.textContent = '';
+                        this.workingDirectoryInfo.style.display = 'none';
+                    }
+                    
+                    // Clear mobile working directory display
+                    if (this.mobileWorkingDirectoryDisplay) {
+                        this.mobileWorkingDirectoryDisplay.textContent = '';
+                        this.mobileWorkingDirectoryInfo.style.display = 'none';
+                    }
+                    
                     statusEl.className = statusClass;
-                    mobileStatusEl.textContent = statusText;
+                    
+                    // Update mobile displays  
+                    if (this.mobileSessionNameDisplay) {
+                        this.mobileSessionNameDisplay.textContent = statusText;
+                    }
+                    if (this.mobileWorkingDirectoryDisplay) {
+                        this.mobileWorkingDirectoryDisplay.textContent = '';
+                    }
                     mobileStatusEl.className = statusClass;
                 }
                 
                 // Load and update running sessions count
                 this.loadRunningSessions();
                 
-                // Update provider/model display
+                // Update provider/model display - always show, even with defaults
                 if (status.active && status.sessionName) {
                     this.updateProviderModelDisplay(status.sessionName);
                 } else {
-                    this.hideProviderModelDisplay();
+                    // Show default provider/model when no active session
+                    this.showProviderModelDisplay('Goose Default', 'Default Model');
                 }
                 
                 this.updateGooseControls(status.active);
@@ -2345,19 +3069,17 @@
                         if (infoResponse.ok) {
                             const sessionInfo = await infoResponse.json();
                             
-                            if (sessionInfo.provider || sessionInfo.model) {
-                                const provider = sessionInfo.provider || 'Default';
-                                const model = sessionInfo.model || 'Default';
-                                
-                                this.showProviderModelDisplay(provider, model);
-                            } else {
-                                this.hideProviderModelDisplay();
-                            }
+                            // Always show provider/model display, use defaults if not specified
+                            const provider = sessionInfo.provider || 'Goose Default';
+                            const model = sessionInfo.model || 'Default Model';
+                            
+                            this.showProviderModelDisplay(provider, model);
                         }
                     }
                 } catch (error) {
                     console.warn('Could not load session provider/model info:', error);
-                    this.hideProviderModelDisplay();
+                    // Show default provider/model when info unavailable
+                    this.showProviderModelDisplay('Goose Default', 'Default Model');
                 }
             }
             
@@ -2430,15 +3152,30 @@
             }
             
             updateGooseControls(active) {
-                this.sendBtn.disabled = !active;
-                this.sendCommandBtn.disabled = !active;
-                this.stopSessionBtn.disabled = !active;
-                this.startSessionBtn.disabled = active;
+                if (this.sendBtn) this.sendBtn.disabled = !active;
+                if (this.sendCommandBtn) this.sendCommandBtn.disabled = !active;
+                if (this.stopSessionBtn) this.stopSessionBtn.disabled = !active;
+                if (this.startSessionBtn) this.startSessionBtn.disabled = active;
+                
+                // Interrupt button is only enabled when active and processing
+                this.updateInterruptButton(active, false);
                 
                 if (!active) {
                     this.messageInput.placeholder = 'Start a Goose session first...';
                 } else {
                     this.messageInput.placeholder = 'Type your message to Goose...';
+                }
+            }
+
+            updateInterruptButton(sessionActive, isProcessing = false) {
+                if (!this.interruptBtn) return;
+                
+                if (sessionActive && isProcessing) {
+                    this.interruptBtn.style.display = 'flex';
+                    this.interruptBtn.title = 'Stop current operation (Ctrl+C)';
+                } else {
+                    this.interruptBtn.style.display = 'none';
+                    this.interruptBtn.title = 'Stop current operation (Ctrl+C)';
                 }
             }
             
@@ -2539,13 +3276,19 @@
                 this.sendBtn.disabled = true;
                 this.loading.style.display = 'block';
                 
+                // Enable interrupt button while processing
+                this.updateInterruptButton(true, true);
+                
                 try {
                     const response = await fetch('/api/message', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ content })
+                        body: JSON.stringify({ 
+                            content,
+                            settings: this.settings 
+                        })
                     });
                     
                     if (!response.ok) {
@@ -2560,6 +3303,9 @@
                 } finally {
                     this.sendBtn.disabled = false;
                     this.loading.style.display = 'none';
+                    
+                    // Disable interrupt button when done processing
+                    this.updateInterruptButton(true, false);
                 }
             }
             
@@ -2595,6 +3341,37 @@
                 }
             }
             
+            async interruptGoose() {
+                try {
+                    console.log('🛑 Interrupting Goose...');
+                    
+                    const response = await fetch('/api/goose/interrupt', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.appendText('🛑 Interrupted current operation\\n', 'system-message');
+                        this.scrollToBottom();
+                        
+                        // Update interrupt button state
+                        this.updateInterruptButton(true, false);
+                    } else {
+                        const error = await response.json();
+                        this.appendText(`❌ Failed to interrupt: ${error.error}\\n`, 'system-message');
+                        this.scrollToBottom();
+                    }
+                    
+                } catch (error) {
+                    console.error('Error interrupting Goose:', error);
+                    this.appendText(`❌ Failed to interrupt Goose: ${error.message}\\n`, 'system-message');
+                    this.scrollToBottom();
+                }
+            }
+
             async stopGooseSession() {
                 try {
                     const response = await fetch('/api/goose/stop', {
@@ -2709,9 +3486,9 @@
 
             // Recipe Selector Modal Methods
             async showRecipeSelectorModal() {
-                // Load popular recipes on first show
-                if (!this.popularRecipeGrid.innerHTML.trim()) {
-                    await this.loadPopularRecipes();
+                // Load all recipes on first show
+                if (this.allRecipes.length === 0) {
+                    await this.loadAllRecipes();
                 }
                 
                 this.recipeSelectorModal.classList.add('show');
@@ -2796,6 +3573,41 @@
             
             hideSettingsModal() {
                 this.settingsModal.classList.remove('show');
+            }
+
+            loadSettings() {
+                try {
+                    const settings = JSON.parse(localStorage.getItem('wingman-settings')) || {};
+                    
+                    // Default settings
+                    const defaults = {
+                        enableInterruptOnNewMessage: true
+                    };
+                    
+                    // Merge with defaults
+                    this.settings = { ...defaults, ...settings };
+                    
+                    // Apply settings to UI
+                    if (this.enableInterruptOnNewMessage) {
+                        this.enableInterruptOnNewMessage.checked = this.settings.enableInterruptOnNewMessage;
+                    }
+                } catch (error) {
+                    console.error('Error loading settings:', error);
+                    this.settings = { enableInterruptOnNewMessage: true };
+                }
+            }
+
+            saveSettings() {
+                try {
+                    this.settings = {
+                        enableInterruptOnNewMessage: this.enableInterruptOnNewMessage?.checked ?? true
+                    };
+                    
+                    localStorage.setItem('wingman-settings', JSON.stringify(this.settings));
+                    console.log('Settings saved:', this.settings);
+                } catch (error) {
+                    console.error('Error saving settings:', error);
+                }
             }
             
             showMobileMenu() {
@@ -2919,7 +3731,10 @@
                 if (availableSessions.length > 0) {
                     content += `
                         <div class="modal-section">
-                            <h4>Available Sessions</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="margin: 0;">Available Sessions</h4>
+                                <a href="#" id="archiveAllLink" style="color: var(--accent-primary); text-decoration: none; font-size: 0.9rem; cursor: pointer;">[Archive All]</a>
+                            </div>
                             ${availableSessions.map(session => {
                                 const sessionName = session.id || session.name || 'Unnamed Session';
                                 const sessionDate = session.modified ? new Date(session.modified).toLocaleString() : 'Unknown date';
@@ -2931,6 +3746,7 @@
                                         </div>
                                         <div class="session-actions">
                                             <button class="btn btn-primary btn-resume" data-session="${sessionName}">Resume</button>
+                                            <button class="btn btn-secondary btn-archive" data-session="${sessionName}" style="background: #6b7280; border-color: #6b7280;">Archive</button>
                                             <button class="btn btn-danger btn-delete" data-session="${sessionName}">Delete</button>
                                         </div>
                                     </div>
@@ -2939,6 +3755,13 @@
                         </div>
                     `;
                 }
+                
+                // Add archived sessions link at the bottom if there are archived sessions
+                content += `
+                    <div style="text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-primary);">
+                        <a href="#" id="showArchivedLink" style="color: var(--accent-primary); text-decoration: none; font-size: 0.9rem; cursor: pointer;">Show Archived Sessions</a>
+                    </div>
+                `;
                 
                 if (runningSessions.length === 0 && availableSessions.length === 0) {
                     content = '<div class="empty-sessions">No sessions found</div>';
@@ -3088,6 +3911,26 @@
                         padding-bottom: 4px;
                         border-bottom: 1px solid var(--border-primary);
                     }
+                    
+                    .archived-session {
+                        background: var(--bg-primary);
+                        opacity: 0.95;
+                    }
+                    
+                    .archived-session .session-info {
+                        flex: 1;
+                    }
+                    
+                    .archived-session .session-name {
+                        font-weight: 600;
+                        color: var(--text-primary);
+                        margin-bottom: 4px;
+                    }
+                    
+                    .archived-session .session-date {
+                        font-size: 0.85rem;
+                        color: var(--text-secondary);
+                    }
                 `;
                 document.head.appendChild(style);
             }
@@ -3152,6 +3995,32 @@
                         this.deleteSession(btn.dataset.session);
                     });
                 });
+                
+                // Archive individual session functionality
+                document.querySelectorAll('.btn-archive').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.archiveSession(btn.dataset.session);
+                    });
+                });
+                
+                // Archive all sessions link
+                const archiveAllLink = document.getElementById('archiveAllLink');
+                if (archiveAllLink) {
+                    archiveAllLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.archiveAllAvailableSessions();
+                    });
+                }
+                
+                // Show archived sessions link
+                const showArchivedLink = document.getElementById('showArchivedLink');
+                if (showArchivedLink) {
+                    showArchivedLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.showArchivedSessions();
+                    });
+                }
             }
             
             async switchToSession(sessionId) {
@@ -3305,18 +4174,80 @@
             }
             
             // Recipe Methods
-            async loadPopularRecipes() {
+            async loadAllRecipes() {
                 try {
-                    const response = await fetch('/api/recipes/popular?limit=6');
+                    const response = await fetch('/api/recipes');
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
                     }
                     const recipes = await response.json();
-                    this.renderRecipeGrid(recipes, this.popularRecipeGrid);
+                    
+                    // Sort by most recently used if usage data available, then alphabetical
+                    this.allRecipes = recipes.sort((a, b) => {
+                        // Check if we have usage data
+                        const aLastUsed = a.lastUsed ? new Date(a.lastUsed) : null;
+                        const bLastUsed = b.lastUsed ? new Date(b.lastUsed) : null;
+                        
+                        if (aLastUsed && bLastUsed) {
+                            return bLastUsed - aLastUsed; // Most recent first
+                        } else if (aLastUsed) {
+                            return -1; // a has usage data, b doesn't - a comes first
+                        } else if (bLastUsed) {
+                            return 1; // b has usage data, a doesn't - b comes first
+                        } else {
+                            return a.name.localeCompare(b.name); // Alphabetical
+                        }
+                    });
+                    
+                    this.filteredRecipes = [...this.allRecipes];
+                    this.currentPage = 1;
+                    this.displayCurrentPage();
                 } catch (error) {
-                    console.error('Error loading popular recipes:', error);
-                    this.popularRecipeGrid.innerHTML = '<p class="text-muted">Failed to load popular recipes</p>';
+                    console.error('Error loading recipes:', error);
+                    this.allRecipeGrid.innerHTML = '<p class="text-muted">Failed to load recipes</p>';
                 }
+            }
+            
+            filterAndDisplayRecipes(searchTerm) {
+                if (!searchTerm.trim()) {
+                    this.filteredRecipes = [...this.allRecipes];
+                } else {
+                    const term = searchTerm.toLowerCase();
+                    this.filteredRecipes = this.allRecipes.filter(recipe => {
+                        return (
+                            recipe.name.toLowerCase().includes(term) ||
+                            (recipe.description && recipe.description.toLowerCase().includes(term)) ||
+                            (recipe.categories && recipe.categories.some(cat => cat.toLowerCase().includes(term))) ||
+                            (recipe.tags && recipe.tags.some(tag => tag.toLowerCase().includes(term)))
+                        );
+                    });
+                }
+                
+                this.currentPage = 1;
+                this.displayCurrentPage();
+            }
+            
+            displayCurrentPage() {
+                const startIndex = (this.currentPage - 1) * this.recipesPerPage;
+                const endIndex = startIndex + this.recipesPerPage;
+                const recipesToShow = this.filteredRecipes.slice(startIndex, endIndex);
+                
+                this.renderRecipeGrid(recipesToShow, this.allRecipeGrid);
+                this.updatePaginationControls();
+            }
+            
+            updatePaginationControls() {
+                const totalPages = Math.ceil(this.filteredRecipes.length / this.recipesPerPage);
+                
+                if (totalPages <= 1) {
+                    this.recipePagination.style.display = 'none';
+                    return;
+                }
+                
+                this.recipePagination.style.display = 'flex';
+                this.pageInfo.textContent = `Page ${this.currentPage} of ${totalPages}`;
+                this.prevPageBtn.disabled = this.currentPage <= 1;
+                this.nextPageBtn.disabled = this.currentPage >= totalPages;
             }
             
             async loadCategories() {
@@ -3503,24 +4434,6 @@
                 });
             }
             
-            switchRecipeTab(tabName) {
-                // Update tab buttons
-                this.recipeTabs.forEach(tab => {
-                    tab.classList.toggle('active', tab.dataset.tab === tabName);
-                });
-                
-                // Update tab content
-                this.recipeTabContents.forEach(content => {
-                    content.classList.toggle('active', content.id === `${tabName}-recipes`);
-                });
-                
-                // Load content if needed
-                if (tabName === 'popular' && !this.popularRecipeGrid.innerHTML.trim()) {
-                    this.loadPopularRecipes();
-                } else if (tabName === 'categories' && !this.categoryList.innerHTML.trim()) {
-                    this.loadCategories();
-                }
-            }
             
             getParameterValues() {
                 if (!this.selectedRecipe?.parameters) return {};
@@ -3637,6 +4550,197 @@
                 }
             }
             
+            // Archive Methods
+            async archiveSession(sessionName) {
+                try {
+                    const response = await fetch('/api/sessions/archive', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionName })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showSessionModal(); // Refresh the session list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error archiving session:', error);
+                    this.appendText(`❌ Failed to archive session: ${error.message}\n`, 'system-message');
+                }
+            }
+            
+            async archiveAllAvailableSessions() {
+                if (!confirm('Archive all available sessions? They will be hidden from this list but can be restored later.')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/sessions/archive-all', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showSessionModal(); // Refresh the session list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error archiving sessions:', error);
+                    this.appendText(`❌ Failed to archive sessions: ${error.message}\n`, 'system-message');
+                }
+            }
+            
+            async showArchivedSessions() {
+                try {
+                    const [archivedResponse, configResponse] = await Promise.all([
+                        fetch('/api/sessions/archived'),
+                        fetch('/api/config')
+                    ]);
+                    const archivedSessions = await archivedResponse.json();
+                    const config = await configResponse.json();
+                    
+                    const archivedSection = document.getElementById('archivedSection');
+                    const archivedList = document.getElementById('archivedSessionList');
+                    
+                    if (archivedSessions.length === 0) {
+                        archivedList.innerHTML = '<p style="color: var(--text-secondary);">No archived sessions found</p>';
+                    } else {
+                        console.log('Rendering archived sessions:', archivedSessions);
+                        archivedList.innerHTML = archivedSessions.map(session => {
+                            console.log('Rendering session:', session.id, session.session_name);
+                            return `
+                            <div class="session-item archived-session" style="margin-bottom: 0.75rem;">
+                                <div class="session-info">
+                                    <div class="session-name">${session.session_name}</div>
+                                    <div class="session-date" style="font-size: 0.85rem; color: var(--text-secondary);">
+                                        Archived: ${new Date(session.archived_at).toLocaleString()}
+                                    </div>
+                                </div>
+                                <div class="session-actions">
+                                    <button data-action="restore" data-session-id="${session.id}" class="btn btn-primary">Restore</button>
+                                    <button data-action="delete" data-session-id="${session.id}" data-session-name="${session.session_name}" class="btn btn-danger">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                        }).join('');
+                    }
+                    
+                    // Update the delete button text with current config
+                    const deleteBtn = document.getElementById('deleteOldArchivedBtn');
+                    if (deleteBtn) {
+                        deleteBtn.textContent = `Delete > ${config.ARCHIVE_PURGE_DAYS} Days`;
+                    }
+                    
+                    // Remove old event listeners and add new ones for restore and delete buttons
+                    const newArchivedList = archivedList.cloneNode(true);
+                    archivedList.parentNode.replaceChild(newArchivedList, archivedList);
+                    
+                    newArchivedList.addEventListener('click', (e) => {
+                        const button = e.target.closest('button[data-action]');
+                        if (button) {
+                            const action = button.dataset.action;
+                            const sessionId = button.dataset.sessionId;
+                            const sessionName = button.dataset.sessionName;
+                            
+                            console.log('Archived session button clicked:', { action, sessionId, sessionName });
+                            
+                            if (action === 'restore') {
+                                this.restoreSession(sessionId);
+                            } else if (action === 'delete') {
+                                this.deleteArchivedSession(sessionId, sessionName);
+                            }
+                        }
+                    });
+                    
+                    archivedSection.style.display = 'block';
+                } catch (error) {
+                    console.error('Error loading archived sessions:', error);
+                    this.appendText(`❌ Failed to load archived sessions: ${error.message}\n`, 'system-message');
+                }
+            }
+            
+            hideArchivedSessions() {
+                document.getElementById('archivedSection').style.display = 'none';
+            }
+            
+            async deleteOldArchivedSessions() {
+                try {
+                    // Fetch config to get current ARCHIVE_PURGE_DAYS
+                    const configResponse = await fetch('/api/config');
+                    const config = await configResponse.json();
+                    
+                    const confirmMessage = `Are you sure you want to permanently delete all archived sessions older than ${config.ARCHIVE_PURGE_DAYS} days? This action cannot be undone.`;
+                    if (!confirm(confirmMessage)) {
+                        return;
+                    }
+                    
+                    const response = await fetch('/api/sessions/archived/old', {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showArchivedSessions(); // Refresh archived list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error deleting old archived sessions:', error);
+                    this.appendText(`❌ Error deleting old archived sessions: ${error.message}\n`, 'system-message');
+                }
+            }
+            
+            async restoreSession(sessionId) {
+                try {
+                    const response = await fetch(`/api/sessions/${sessionId}/restore`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showArchivedSessions(); // Refresh archived list
+                        this.showSessionModal(); // Refresh main list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error restoring session:', error);
+                    this.appendText(`❌ Failed to restore session: ${error.message}\n`, 'system-message');
+                }
+            }
+
+            async deleteArchivedSession(sessionId, sessionName) {
+                if (!confirm(`Are you sure you want to permanently delete the archived session "${sessionName}"? This action cannot be undone.`)) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/sessions/${sessionId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.appendText(`✅ ${result.message}\n`, 'system-message');
+                        this.showArchivedSessions(); // Refresh archived list
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    console.error('Error deleting archived session:', error);
+                    this.appendText(`❌ Error deleting archived session: ${error.message}\n`, 'system-message');
+                }
+            }
+            
             // Directory Browser Methods
             async showDirectoryBrowser() {
                 console.log('🔥 showDirectoryBrowser called');
@@ -3744,6 +4848,58 @@
                 });
             }
             
+            showCreateFolderForm() {
+                this.createFolderBtn.style.display = 'none';
+                this.createFolderForm.style.display = 'flex';
+                this.newFolderName.value = '';
+                this.newFolderName.focus();
+            }
+            
+            hideCreateFolderForm() {
+                this.createFolderBtn.style.display = 'inline-block';
+                this.createFolderForm.style.display = 'none';
+                this.newFolderName.value = '';
+            }
+            
+            async createNewFolder() {
+                const folderName = this.newFolderName.value.trim();
+                if (!folderName) {
+                    alert('Please enter a folder name');
+                    return;
+                }
+                
+                // Validate folder name (no special characters)
+                if (!/^[a-zA-Z0-9_\-\s]+$/.test(folderName)) {
+                    alert('Folder name can only contain letters, numbers, spaces, hyphens, and underscores');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/create-directory', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            parentPath: this.selectedDirectory || this.currentPath.textContent,
+                            folderName: folderName
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        // Refresh the directory listing
+                        await this.loadDirectories(this.selectedDirectory || this.currentPath.textContent);
+                        this.hideCreateFolderForm();
+                    } else {
+                        const error = await response.text();
+                        alert(`Failed to create folder: ${error}`);
+                    }
+                } catch (error) {
+                    console.error('Error creating folder:', error);
+                    alert('Failed to create folder. Please try again.');
+                }
+            }
+            
             
             async initializeWorkingDirectory() {
                 try {
@@ -3803,7 +4959,6 @@
                 // Hide all steps
                 this.wizardStep1.style.display = 'none';
                 this.wizardStep2.style.display = 'none';
-                this.wizardStep2_5.style.display = 'none';
                 this.wizardStep3.style.display = 'none';
                 
                 // Show current step
@@ -3814,10 +4969,6 @@
                     case 2:
                         this.wizardStep2.style.display = 'block';
                         this.updateStep2State();
-                        break;
-                    case 2.5:
-                        this.wizardStep2_5.style.display = 'block';
-                        this.updateProviderStepDisplay();
                         break;
                     case 3:
                         this.wizardStep3.style.display = 'block';
@@ -3840,29 +4991,72 @@
                 this.showWizardStep(step);
             }
             
-            wizardGoToProviderStep() {
-                // Only show provider step if recipe is selected
-                if (this.wizardData.selectedRecipe && this.wizardData.selectedRecipe !== false) {
-                    this.updateProviderStepDisplay();
-                    this.showWizardStep(2.5);
-                } else {
-                    // Skip provider step if no recipe
-                    this.wizardGoToStep(3);
+            updateWizardProviderDisplay() {
+                // Show recipe's default provider/model in the wizard
+                const recipe = this.wizardData.selectedRecipe;
+                const recipeProvider = recipe?.settings?.goose_provider || 'Goose Default';
+                const recipeModel = recipe?.settings?.goose_model || 'Default';
+                
+                if (this.wizardRecipeDefaultProvider) {
+                    this.wizardRecipeDefaultProvider.querySelector('span').textContent = recipeProvider;
+                }
+                if (this.wizardRecipeDefaultModel) {
+                    this.wizardRecipeDefaultModel.querySelector('span').textContent = recipeModel;
                 }
             }
             
-            updateProviderStepDisplay() {
-                // Show recipe's default provider/model
-                const recipe = this.wizardData.selectedRecipe;
-                const recipeProvider = recipe?.settings?.goose_provider || 'Goose Default';
-                const recipeModel = recipe?.settings?.goose_model || 'Provider Default';
+            toggleWizardProviderOverride() {
+                const isChecked = this.wizardOverrideProviders.checked;
+                this.wizardProviderOverrideForm.style.display = isChecked ? 'block' : 'none';
                 
-                this.recipeDefaultProvider.querySelector('span').textContent = recipeProvider;
-                this.recipeDefaultModel.querySelector('span').textContent = recipeModel;
+                if (isChecked) {
+                    // Populate provider dropdown and show recipe defaults
+                    this.populateWizardProviderDropdowns();
+                    this.updateWizardProviderDisplay();
+                }
+            }
+            
+            async populateWizardProviderDropdowns() {
+                // Populate provider dropdown
+                if (this.wizardOverrideProvider) {
+                    this.wizardOverrideProvider.innerHTML = '<option value="">Use Recipe/Goose Default</option>';
+                    
+                    this.availableProviders.forEach(provider => {
+                        const option = document.createElement('option');
+                        option.value = provider.id;
+                        option.textContent = provider.name;
+                        if (!provider.configured) {
+                            option.disabled = true;
+                            option.textContent += ' (Not Configured)';
+                        }
+                        this.wizardOverrideProvider.appendChild(option);
+                    });
+                }
+            }
+            
+            onWizardOverrideProviderChange() {
+                const selectedProvider = this.wizardOverrideProvider.value;
                 
-                // Reset override controls
-                this.enableProviderOverride.checked = false;
-                this.toggleProviderOverride();
+                if (!selectedProvider) {
+                    this.wizardOverrideModelGroup.style.display = 'none';
+                    return;
+                }
+                
+                // Load models for selected provider
+                const provider = this.availableProviders.find(p => p.id === selectedProvider);
+                if (provider && provider.models && provider.models.length > 0) {
+                    this.wizardOverrideModelGroup.style.display = 'block';
+                    this.wizardOverrideModel.innerHTML = '<option value="">Use Provider Default</option>';
+                    
+                    provider.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        this.wizardOverrideModel.appendChild(option);
+                    });
+                } else {
+                    this.wizardOverrideModelGroup.style.display = 'none';
+                }
             }
             
             toggleProviderOverride() {
@@ -3921,11 +5115,11 @@
                 
                 // Collect provider override if enabled
                 let providerOverride = null;
-                if (this.enableProviderOverride && this.enableProviderOverride.checked) {
-                    if (this.overrideProvider.value || this.overrideModel.value) {
+                if (this.wizardOverrideProviders && this.wizardOverrideProviders.checked) {
+                    if (this.wizardOverrideProvider.value || this.wizardOverrideModel.value) {
                         providerOverride = {
-                            provider: this.overrideProvider.value || null,
-                            model: this.overrideModel.value || null
+                            provider: this.wizardOverrideProvider.value || null,
+                            model: this.wizardOverrideModel.value || null
                         };
                     }
                 }
@@ -4062,7 +5256,7 @@
         }
         
         // Initialize the app
-        new GooseStreamingApp();
+        window.app = new GooseStreamingApp();
     </script>
 </body>
 </html>

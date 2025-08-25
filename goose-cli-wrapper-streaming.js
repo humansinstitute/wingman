@@ -23,6 +23,8 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     this.flushTimer = null;
     this.isResuming = false;
     this.initialHistoryLoaded = false;
+    this.isProcessing = false;
+    this.pendingInterrupt = false;
   }
 
   async start() {
@@ -83,9 +85,18 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       console.log(`Starting Goose ${command}: goose ${command} ${args.join(' ')}`);
       console.log(`Working directory: ${workingDir}`);
       
+      // Add session context to environment variables for MCP servers
+      const sessionEnv = {
+        ...process.env,
+        WINGMAN_SESSION_ID: this.sessionId,
+        WINGMAN_SESSION_NAME: this.sessionName || this.sessionId,
+        WINGMAN_WORKING_DIR: workingDir
+      };
+      
       this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: workingDir
+        cwd: workingDir,
+        env: sessionEnv
       });
 
       this.gooseProcess.stdout.on('data', (data) => {
@@ -152,6 +163,13 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         console.log('🎯 Detected Goose is ready for input!');
         this.isReady = true;
         this.emit('ready');
+      }
+      
+      // Mark as no longer processing when Goose is ready for new input
+      if (this.isProcessing) {
+        console.log('✅ Goose finished processing and is ready for new input');
+        this.isProcessing = false;
+        this.emit('processingComplete', { timestamp: new Date().toISOString() });
       }
       
       if (this.isResuming && !this.initialHistoryLoaded) {
@@ -395,10 +413,22 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     console.log('Contains newlines:', message.includes('\n'));
     console.log('Newline count:', (message.match(/\n/g) || []).length);
     console.log('Raw message:', JSON.stringify(message));
+    console.log('Is processing:', this.isProcessing);
     console.log('=================================');
+
+    // If we're currently processing and this is a new message, check settings before interrupting
+    if (this.isProcessing && this.options.enableInterruptOnNewMessage !== false) {
+      console.log('🛑 Interrupting current operation for new message (enabled by settings)');
+      await this.interrupt();
+    } else if (this.isProcessing) {
+      console.log('⚠️ Goose is currently processing. New message will queue until current operation completes.');
+    }
 
     // Flush any pending content before new message
     this.flushBuffer(new Date().toISOString());
+
+    // Mark as processing
+    this.isProcessing = true;
 
     return new Promise((resolve) => {
       // For multi-line messages, convert to single line to prevent line-by-line processing
@@ -421,6 +451,54 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     }
 
     this.gooseProcess.stdin.write(command + '\n');
+  }
+
+  async interrupt() {
+    if (!this.gooseProcess || !this.isProcessing) {
+      return;
+    }
+
+    console.log('🛑 Sending interrupt signal (Ctrl+C) to Goose process');
+    
+    try {
+      // Send SIGINT (Ctrl+C equivalent) to interrupt current operation
+      this.gooseProcess.kill('SIGINT');
+      
+      // Mark as no longer processing
+      this.isProcessing = false;
+      this.pendingInterrupt = false;
+      
+      // Emit interrupt event
+      this.emit('interrupted', { timestamp: new Date().toISOString() });
+      
+      // Wait a brief moment for the interrupt to take effect
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('✅ Interrupt signal sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending interrupt signal:', error);
+      this.isProcessing = false;
+    }
+  }
+
+  async forceStop() {
+    console.log('🔥 Force stopping Goose session');
+    if (this.gooseProcess) {
+      this.isProcessing = false;
+      this.pendingInterrupt = false;
+      
+      // Send /exit command first
+      try {
+        this.gooseProcess.stdin.write('/exit\n');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.log('Could not send /exit command:', error);
+      }
+      
+      // Then kill the process
+      this.gooseProcess.kill('SIGTERM');
+      this.emit('forceStopped', { timestamp: new Date().toISOString() });
+    }
   }
 
   async stop() {
@@ -484,9 +562,18 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       console.log(`Resuming Goose ${command}: goose ${command} ${args.join(' ')}`);
       console.log(`Working directory: ${workingDir}`);
       
+      // Add session context to environment variables for MCP servers
+      const sessionEnv = {
+        ...process.env,
+        WINGMAN_SESSION_ID: this.sessionId,
+        WINGMAN_SESSION_NAME: this.sessionName || this.sessionId,
+        WINGMAN_WORKING_DIR: workingDir
+      };
+      
       this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: workingDir
+        cwd: workingDir,
+        env: sessionEnv
       });
 
       this.gooseProcess.stdout.on('data', (data) => {

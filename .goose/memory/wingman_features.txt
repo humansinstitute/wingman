@@ -1,0 +1,6 @@
+# api triggers automation business_process integration external_systems
+Triggers API Feature (015): External API integration for Wingman that allows programmatic triggering of Goose sessions. Key components: POST /api/triggers endpoint, TRIGGER_TOKEN authentication, recipe ID management with copy functionality in Recipe Manager, webhook and file output delivery to temp/output/<datetime>_<sessionID>/, JSON-aware output handling, comprehensive logging. Implementation: 4 phases, 16 story points, 4 weeks total. Minimal changes approach extending existing Express.js server infrastructure.
+
+# oauth2 authentication security user-management
+OAuth2 User Authentication Feature Plan: Comprehensive user authentication system for Wingman using OAuth2 providers (Google, GitHub, Microsoft). Includes user management, session persistence, role-based access control, API protection, and integration with existing Goose sessions. Implementation phases: 1) Core OAuth2 setup, 2) User management & UI, 3) API security integration, 4) Advanced features. Estimated 20-24 story points over 5-6 weeks.
+

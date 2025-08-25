@@ -48,10 +48,11 @@ show_main_menu() {
     echo -e "${GREEN}7.${NC} Launch Claude Code"
     echo -e "${GREEN}8.${NC} Launch Editor"
     echo -e "${GREEN}9.${NC} Project Info"
+    echo -e "${GREEN}10.${NC} PR Review"
     echo
     echo -e "${RED}0.${NC} Exit"
     echo
-    echo -n "Select option [0-9]: "
+    echo -n "Select option [0-10]: "
 }
 
 show_scripts_menu() {
@@ -417,6 +418,130 @@ show_project_info() {
     read
 }
 
+pr_review() {
+    clear_screen
+    print_header
+    echo -e "${WHITE}PR Review Setup:${NC}"
+    echo
+    
+    echo -n "Paste GitHub PR link (e.g., https://github.com/owner/repo/pull/123): "
+    read pr_link
+    
+    if [[ -z "$pr_link" ]]; then
+        echo -e "${RED}PR link cannot be empty!${NC}"
+        sleep 2
+        return
+    fi
+    
+    # Extract PR number and repo info from the link
+    if [[ "$pr_link" =~ github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
+        local owner="${BASH_REMATCH[1]}"
+        local repo="${BASH_REMATCH[2]}"
+        local pr_number="${BASH_REMATCH[3]}"
+        
+        echo
+        echo -e "${CYAN}Repository:${NC} $owner/$repo"
+        echo -e "${CYAN}PR Number:${NC} $pr_number"
+        echo
+        
+        # Fetch PR info using gh CLI if available
+        if command -v gh >/dev/null 2>&1; then
+            echo -e "${YELLOW}Fetching PR information...${NC}"
+            local pr_info=$(gh pr view "$pr_link" --json headRefName,baseRefName 2>/dev/null)
+            
+            if [[ -n "$pr_info" ]]; then
+                local branch_name=$(echo "$pr_info" | jq -r '.headRefName' 2>/dev/null)
+                local base_branch=$(echo "$pr_info" | jq -r '.baseRefName' 2>/dev/null)
+                
+                if [[ -z "$branch_name" ]] || [[ "$branch_name" == "null" ]]; then
+                    echo -n "Enter branch name for PR review: "
+                    read branch_name
+                    branch_name="pr-review-${pr_number}-${branch_name}"
+                else
+                    branch_name="pr-review-${pr_number}-${branch_name}"
+                fi
+            else
+                echo -e "${YELLOW}Could not fetch PR info. Creating review branch...${NC}"
+                branch_name="pr-review-${pr_number}"
+            fi
+        else
+            echo -e "${YELLOW}GitHub CLI not found. Creating review branch...${NC}"
+            branch_name="pr-review-${pr_number}"
+        fi
+        
+        # Create worktree for PR review
+        local worktree_path=".worktrees/${branch_name}"
+        
+        echo
+        echo -e "${YELLOW}Creating worktree for PR review...${NC}"
+        
+        # Check if worktree already exists
+        if git worktree list | grep -q "$worktree_path"; then
+            echo -e "${YELLOW}Worktree already exists. Switching to it...${NC}"
+        else
+            # Fetch the PR branch
+            echo -e "${YELLOW}Fetching PR branch...${NC}"
+            git fetch origin pull/${pr_number}/head:${branch_name} 2>/dev/null || {
+                echo -e "${YELLOW}Could not fetch PR directly. Trying alternative method...${NC}"
+                # Create a new worktree from main and we'll checkout the PR later
+                git worktree add "$worktree_path" -b "$branch_name" main
+            }
+            
+            # If fetch succeeded, create worktree from the fetched branch
+            if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
+                git worktree add "$worktree_path" "$branch_name" 2>/dev/null || {
+                    # Worktree might already exist, just use it
+                    echo -e "${YELLOW}Using existing branch${NC}"
+                }
+            fi
+        fi
+        
+        echo
+        echo -e "${GREEN}Worktree created at: $worktree_path${NC}"
+        echo -e "${YELLOW}Switching to PR review worktree and starting npm...${NC}"
+        echo
+        
+        # Change to the worktree directory and run npm start
+        cd "$worktree_path"
+        
+        # Install dependencies if needed
+        if [[ -f "package.json" ]]; then
+            echo -e "${YELLOW}Installing dependencies...${NC}"
+            npm install
+            echo
+        fi
+        
+        echo -e "${GREEN}Starting application...${NC}"
+        echo -e "${CYAN}You are now in the PR review worktree${NC}"
+        echo -e "${CYAN}Type 'exit' to return to the main menu${NC}"
+        echo
+        
+        # Start npm and then drop into a shell
+        npm start &
+        local npm_pid=$!
+        
+        # Give npm a moment to start
+        sleep 2
+        
+        echo
+        echo -e "${GREEN}Application started (PID: $npm_pid)${NC}"
+        echo -e "${CYAN}You can now review the PR. The application is running in the background.${NC}"
+        echo
+        
+        # Start an interactive shell in the worktree
+        exec $SHELL
+        
+    else
+        echo -e "${RED}Invalid GitHub PR link format!${NC}"
+        echo -e "${YELLOW}Expected format: https://github.com/owner/repo/pull/123${NC}"
+        sleep 3
+    fi
+    
+    echo
+    echo -n "Press Enter to continue..."
+    read
+}
+
 main_loop() {
     while true; do
         clear_screen
@@ -433,8 +558,9 @@ main_loop() {
             7) launch_claude ;;
             8) launch_editor ;;
             9) show_project_info ;;
+            10) pr_review ;;
             0) echo -e "${GREEN}Goodbye!${NC}"; exit 0 ;;
-            *) echo -e "${RED}Invalid choice! Please select 0-9.${NC}"; sleep 1 ;;
+            *) echo -e "${RED}Invalid choice! Please select 0-10.${NC}"; sleep 1 ;;
         esac
     done
 }
