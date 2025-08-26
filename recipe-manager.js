@@ -3,16 +3,23 @@ const path = require('path');
 const crypto = require('crypto');
 const EventEmitter = require('events');
 const GooseConfigService = require('./goose-config-service');
+const WingmanConfig = require('./lib/wingman-config');
+const CompatibilityAdapter = require('./lib/compatibility-adapter');
 
 class RecipeManager extends EventEmitter {
   constructor() {
     super();
-    this.recipesDir = path.join(__dirname, 'recipes');
-    this.metadataFile = path.join(this.recipesDir, 'metadata.json');
-    this.categoriesFile = path.join(this.recipesDir, 'categories.json');
+    
+    // Initialize Wingman configuration system
+    this.wingmanConfig = null;
+    this.compatibilityAdapter = null;
+    this.recipesDir = null; // Will be set by wingman config
+    this.metadataFile = null;
+    this.categoriesFile = null;
     this.cache = new Map();
     this.metadata = {};
     this.categories = [];
+    this.isLegacyMode = false;
     
     // Initialize Goose config service
     this.gooseConfig = new GooseConfigService();
@@ -43,6 +50,21 @@ class RecipeManager extends EventEmitter {
 
   async initializeStorage() {
     try {
+      // Initialize Wingman configuration system
+      this.wingmanConfig = await WingmanConfig.create();
+      
+      // Initialize compatibility adapter
+      this.compatibilityAdapter = new CompatibilityAdapter(this.wingmanConfig);
+      await this.compatibilityAdapter.init();
+      
+      // Get paths from compatibility adapter
+      this.isLegacyMode = this.compatibilityAdapter.isLegacyMode;
+      this.recipesDir = await this.compatibilityAdapter.getRecipesPath();
+      
+      // Set up paths based on current mode
+      this.metadataFile = path.join(this.recipesDir, 'metadata.json');
+      this.categoriesFile = path.join(this.recipesDir, 'categories.json');
+
       // Create recipes directory structure
       await fs.mkdir(this.recipesDir, { recursive: true });
       await fs.mkdir(path.join(this.recipesDir, 'built-in'), { recursive: true });
@@ -56,18 +78,11 @@ class RecipeManager extends EventEmitter {
         console.warn('Could not initialize Goose config service:', error.message);
       }
 
-      // Load or create metadata
-      try {
-        const metadataData = await fs.readFile(this.metadataFile, 'utf8');
-        this.metadata = JSON.parse(metadataData);
-      } catch (error) {
-        this.metadata = {
-          recipes: {},
-          usage: {},
-          lastUpdated: new Date().toISOString()
-        };
-        await this.saveMetadata();
-      }
+      // Load metadata using compatibility adapter
+      this.metadata = await this.compatibilityAdapter.loadMetadata();
+      
+      // Ensure metadata is saved to current location
+      await this.compatibilityAdapter.saveMetadata(this.metadata);
 
       // Load or create categories
       try {
@@ -86,6 +101,14 @@ class RecipeManager extends EventEmitter {
         ];
         await this.saveCategories();
       }
+
+      // Log current configuration status
+      console.log(`Recipe Manager initialized in ${this.isLegacyMode ? 'legacy' : 'centralized'} mode`);
+      console.log(`Recipes directory: ${this.recipesDir}`);
+      
+      // Show migration warning if needed
+      this.compatibilityAdapter.showMigrationWarning();
+      
     } catch (error) {
       console.error('Error initializing recipe storage:', error);
     }
@@ -93,7 +116,11 @@ class RecipeManager extends EventEmitter {
 
   async saveMetadata() {
     try {
-      await fs.writeFile(this.metadataFile, JSON.stringify(this.metadata, null, 2));
+      if (this.compatibilityAdapter) {
+        await this.compatibilityAdapter.saveMetadata(this.metadata);
+      } else {
+        await fs.writeFile(this.metadataFile, JSON.stringify(this.metadata, null, 2));
+      }
     } catch (error) {
       console.error('Error saving metadata:', error);
     }
@@ -705,6 +732,133 @@ class RecipeManager extends EventEmitter {
   clearCache() {
     this.cache.clear();
     console.log('Recipe cache cleared');
+  }
+
+  // Migration support methods
+  async getMigrationStatus() {
+    if (!this.wingmanConfig) {
+      return { available: false, needed: false };
+    }
+
+    return {
+      available: true,
+      needed: await this.wingmanConfig.needsMigration(),
+      currentMode: this.isLegacyMode ? 'legacy' : 'centralized',
+      legacyPath: this.isLegacyMode ? this.recipesDir : await this.wingmanConfig.getLegacyRecipesPath(),
+      centralizedPath: this.wingmanConfig.getRecipesPath(),
+      version: this.wingmanConfig.getVersion()
+    };
+  }
+
+  async canMigrate() {
+    const status = await this.getMigrationStatus();
+    return status.needed && status.available;
+  }
+
+  // Get current configuration details for diagnostics
+  getCurrentConfig() {
+    return {
+      isLegacyMode: this.isLegacyMode,
+      recipesDir: this.recipesDir,
+      version: this.wingmanConfig?.getVersion() || 'unknown',
+      worktree: this.wingmanConfig?.getWorktreeId() || 'unknown',
+      migrationNeeded: this.metadata?.system?.migrationNeeded || false
+    };
+  }
+
+  // Execute migration to centralized system
+  async migrateToCentralized() {
+    if (!await this.canMigrate()) {
+      throw new Error('Migration not available or not needed');
+    }
+
+    const MigrationTool = require('./scripts/migrate-to-centralized');
+    const migration = new MigrationTool();
+    migration.dryRun = false;
+    migration.interactive = false;
+    
+    await migration.run();
+    
+    // Reinitialize with new configuration
+    await this.initializeStorage();
+    
+    return {
+      success: true,
+      message: 'Migration to centralized system completed successfully',
+      newRecipesPath: this.recipesDir
+    };
+  }
+
+  // Helper method to trigger migration from CLI or UI
+  async runMigrationScript(dryRun = false) {
+    const path = require('path');
+    const { spawn } = require('child_process');
+    
+    const scriptPath = path.join(__dirname, 'scripts', 'migrate-to-centralized.js');
+    const args = [];
+    
+    if (dryRun) {
+      args.push('--dry-run');
+    }
+    args.push('--no-interactive');
+    
+    return new Promise((resolve, reject) => {
+      const migration = spawn('node', [scriptPath, ...args], {
+        stdio: 'inherit'
+      });
+      
+      migration.on('close', (code) => {
+        if (code === 0) {
+          resolve({ success: true, code });
+        } else {
+          reject(new Error(`Migration script exited with code ${code}`));
+        }
+      });
+      
+      migration.on('error', reject);
+    });
+  }
+
+  // Compatibility helper methods
+  async getCompatibilityStatus() {
+    return this.compatibilityAdapter?.getCompatibilityStatus() || {
+      isLegacyMode: false,
+      currentMode: 'centralized',
+      migrationAvailable: false,
+      version: '2.0',
+      worktree: 'unknown'
+    };
+  }
+
+  async migrateRecipe(recipeId) {
+    if (!this.compatibilityAdapter) {
+      throw new Error('Compatibility adapter not initialized');
+    }
+    return await this.compatibilityAdapter.migrateRecipe(recipeId);
+  }
+
+  async cleanupLegacyFiles() {
+    if (!this.compatibilityAdapter) {
+      throw new Error('Compatibility adapter not initialized');
+    }
+    return await this.compatibilityAdapter.cleanupLegacyFiles();
+  }
+
+  async listAllRecipesWithSource() {
+    if (this.compatibilityAdapter) {
+      return await this.compatibilityAdapter.listAllRecipes();
+    }
+    
+    // Fallback to normal listing
+    const recipes = await this.getAllRecipes();
+    return recipes.map(recipe => ({
+      ...recipe,
+      _source: {
+        path: path.join(this.recipesDir, recipe.source || 'user', `${recipe.id}.json`),
+        mode: 'centralized',
+        worktree: this.wingmanConfig?.getWorktreeId() || 'unknown'
+      }
+    }));
   }
 
   // New method to get available providers

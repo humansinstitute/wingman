@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
 const SessionAwareGooseCLIWrapper = require('./session-aware-goose-wrapper');
 const { getDatabase } = require('./lib/database');
+const WingmanConfig = require('./lib/wingman-config');
 
 class SimplifiedSessionAnalytics {
   constructor() {
@@ -105,6 +106,7 @@ class MultiSessionManager extends EventEmitter {
     this.analytics = new SimplifiedSessionAnalytics();
     this.db = getDatabase();
     this.dbInitialized = false;
+    this.wingmanConfig = null;
     
     this.init();
   }
@@ -112,9 +114,14 @@ class MultiSessionManager extends EventEmitter {
   async init() {
     try {
       if (!this.dbInitialized) {
+        // Initialize Wingman configuration for worktree support
+        this.wingmanConfig = await WingmanConfig.create();
+        
         await this.db.init();
         await this.extendDatabaseSchema();
         this.dbInitialized = true;
+        
+        console.log(`MultiSessionManager initialized for worktree: ${this.wingmanConfig.getWorktreeId()}`);
       }
     } catch (error) {
       console.error('Failed to initialize MultiSessionManager:', error);
@@ -187,12 +194,14 @@ class MultiSessionManager extends EventEmitter {
     // Set up event forwarding with session context
     this.setupSessionEvents(sessionId, wrapper);
     
-    // Store session with provider/model metadata
+    // Store session with provider/model and worktree metadata
     this.sessions.set(sessionId, wrapper);
     await this.saveSessionMetadata(sessionId, {
       ...options,
       provider: finalProvider,
-      model: finalModel
+      model: finalModel,
+      worktreeId: this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main',
+      originalWorktree: this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main'
     });
     
     // Initialize empty conversation cache for new session
@@ -373,11 +382,13 @@ class MultiSessionManager extends EventEmitter {
   }
   
   async resumeSession(sessionName) {
+    console.log(`Attempting to resume session: ${sessionName}`);
+    
     // Check if session is already running
     for (const [id, session] of this.sessions.entries()) {
       const metadata = this.sessionMetadata.get(id);
       if (metadata && metadata.sessionName === sessionName) {
-        // Session already running, just switch to it
+        console.log(`Session ${sessionName} already running, switching to it`);
         return this.switchSession(id);
       }
     }
@@ -387,8 +398,49 @@ class MultiSessionManager extends EventEmitter {
     if (this.dbInitialized) {
       try {
         sessionContext = await this.db.getSessionContext(sessionName) || {};
+        console.log(`Retrieved session context for ${sessionName}:`, {
+          hasRecipe: !!sessionContext.recipeId,
+          worktree: sessionContext.worktree || 'unknown',
+          extensions: sessionContext.extensions?.length || 0
+        });
       } catch (error) {
         console.error('Error retrieving session context:', error);
+      }
+    }
+    
+    // Check if session exists in database
+    const sessionRecord = await this.db.getSession(sessionName);
+    if (!sessionRecord) {
+      throw new Error(`Session '${sessionName}' not found in database`);
+    }
+    
+    // Handle cross-worktree session restoration
+    const currentWorktree = this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main';
+    const sessionWorktree = sessionRecord.worktree_id || sessionRecord.original_worktree || 'main';
+    
+    if (sessionWorktree !== currentWorktree) {
+      console.log(`Cross-worktree restoration: ${sessionWorktree} → ${currentWorktree}`);
+      // Update session worktree in database
+      await this.db.updateSessionWorktree(sessionName, currentWorktree);
+    }
+    
+    // Verify recipe availability for cross-worktree restoration
+    if (sessionContext.recipeId) {
+      try {
+        const RecipeManager = require('./recipe-manager');
+        const recipe = await RecipeManager.getRecipe(sessionContext.recipeId);
+        if (!recipe) {
+          console.warn(`Recipe ${sessionContext.recipeId} not found in current worktree ${currentWorktree}`);
+          console.warn('Session will be resumed without recipe context');
+          delete sessionContext.recipeId;
+          delete sessionContext.recipeConfig;
+        } else {
+          console.log(`Recipe ${recipe.name} found and available for session restoration`);
+        }
+      } catch (error) {
+        console.error('Error checking recipe availability:', error);
+        delete sessionContext.recipeId;
+        delete sessionContext.recipeConfig;
       }
     }
     
@@ -795,6 +847,73 @@ class MultiSessionManager extends EventEmitter {
     } catch (error) {
       console.warn(`Could not restore provider/model for session ${sessionId}:`, error.message);
     }
+  }
+
+  // Get sessions by worktree
+  async getSessionsByWorktree(worktreeId = null, includeArchived = false) {
+    if (!this.dbInitialized) {
+      await this.init();
+    }
+    
+    const targetWorktree = worktreeId || (this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main');
+    
+    try {
+      return await this.db.getSessionsByWorktree(targetWorktree, includeArchived);
+    } catch (error) {
+      console.error('Error getting sessions by worktree:', error);
+      return [];
+    }
+  }
+
+  // Get all sessions with worktree information
+  async getAllSessionsWithWorktree(includeArchived = false) {
+    if (!this.dbInitialized) {
+      await this.init();
+    }
+    
+    try {
+      return await this.db.getAllSessionsWithWorktree(includeArchived);
+    } catch (error) {
+      console.error('Error getting sessions with worktree info:', error);
+      return [];
+    }
+  }
+
+  // Get cross-worktree session summary
+  async getCrossWorktreeAnalysis() {
+    const allSessions = await this.getAllSessionsWithWorktree(true);
+    const analysis = {
+      totalSessions: allSessions.length,
+      byWorktree: {},
+      crossWorktreeSessions: 0,
+      currentWorktree: this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main'
+    };
+    
+    for (const session of allSessions) {
+      const worktree = session.worktree_id || session.original_worktree || 'main';
+      
+      if (!analysis.byWorktree[worktree]) {
+        analysis.byWorktree[worktree] = {
+          count: 0,
+          active: 0,
+          archived: 0
+        };
+      }
+      
+      analysis.byWorktree[worktree].count++;
+      if (session.archived) {
+        analysis.byWorktree[worktree].archived++;
+      } else {
+        analysis.byWorktree[worktree].active++;
+      }
+      
+      // Count sessions that have moved between worktrees
+      if (session.original_worktree !== session.worktree_id) {
+        analysis.crossWorktreeSessions++;
+      }
+    }
+    
+    return analysis;
   }
 }
 
