@@ -3458,6 +3458,27 @@
                 });
             }
             
+            async refreshSessionList() {
+                try {
+                    // Fetch both running and available sessions with cache busting
+                    const [runningResponse, availableResponse] = await Promise.all([
+                        fetch(`/api/sessions/running?t=${Date.now()}`),
+                        fetch(`/api/sessions/available?t=${Date.now()}`)
+                    ]);
+                    
+                    const runningSessions = await runningResponse.json();
+                    const availableSessions = await availableResponse.json();
+                    
+                    console.log('DEBUG: Refreshed running sessions:', runningSessions);
+                    console.log('DEBUG: Refreshed available sessions:', availableSessions);
+                    
+                    this.populateEnhancedSessionList(runningSessions, availableSessions);
+                } catch (error) {
+                    console.error('Error refreshing sessions:', error);
+                    this.appendText(`❌ Failed to refresh sessions: ${error.message}\\n`, 'system-message');
+                }
+            }
+            
             async showSessionModal() {
                 try {
                     // Fetch both running and available sessions
@@ -3469,6 +3490,8 @@
                     const runningSessions = await runningResponse.json();
                     const availableSessions = await availableResponse.json();
                     
+                    console.log('DEBUG: Running sessions from backend:', runningSessions);
+                    console.log('DEBUG: Available sessions from backend:', availableSessions);
                     
                     this.populateEnhancedSessionList(runningSessions, availableSessions);
                     this.sessionModal.classList.add('show');
@@ -3692,6 +3715,12 @@
             }
             
             renderSessionList(runningSessions, availableSessions) {
+                console.log('DEBUG: renderSessionList called with:', {
+                    runningSessions,
+                    availableSessions,
+                    runningCount: runningSessions.length
+                });
+                
                 this.sessionList.innerHTML = '';
                 
                 let content = '';
@@ -3701,7 +3730,9 @@
                     content += `
                         <div class="modal-section">
                             <h4>Running Sessions</h4>
-                            ${runningSessions.map(session => `
+                            ${runningSessions.map((session, index) => {
+                                console.log(`DEBUG: Rendering running session ${index}:`, session);
+                                return `
                                 <div class="session-item ${session.isActive ? 'active-session' : ''}" data-session-id="${session.sessionId}">
                                     <div class="session-info">
                                         <div class="session-name">${session.sessionName}</div>
@@ -3722,7 +3753,8 @@
                                         </button>
                                     </div>
                                 </div>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </div>
                     `;
                 }
@@ -4088,7 +4120,7 @@
                         }
                         
                         // Refresh the session modal
-                        this.showSessionModal();
+                        await this.refreshSessionList();
                         
                     } else {
                         throw new Error('Failed to stop session');
@@ -4522,6 +4554,8 @@
                     return;
                 }
                 
+                console.log(`Attempting to delete session: ${sessionName}`);
+                
                 try {
                     const response = await fetch('/api/goose/delete', {
                         method: 'POST',
@@ -4532,15 +4566,19 @@
                     });
                     
                     const result = await response.json();
+                    console.log('Delete response:', result);
                     
                     if (result.success) {
+                        console.log(`Session deleted successfully: ${sessionName}`);
                         this.appendText(`✅ Deleted session: ${sessionName}\\n`, 'system-message');
                         this.scrollToBottom();
                         
-                        // Refresh the session list
-                        this.showSessionModal();
+                        // Refresh the session list while keeping modal open
+                        console.log('Refreshing session list after deletion...');
+                        await this.refreshSessionList();
+                        console.log('Session list refreshed');
                     } else {
-                        throw new Error(result.error);
+                        throw new Error(result.error || 'Unknown error');
                     }
                     
                 } catch (error) {
@@ -4562,7 +4600,7 @@
                     const result = await response.json();
                     if (result.success) {
                         this.appendText(`✅ ${result.message}\n`, 'system-message');
-                        this.showSessionModal(); // Refresh the session list
+                        await this.refreshSessionList(); // Refresh the session list
                     } else {
                         throw new Error(result.error);
                     }
@@ -4586,7 +4624,7 @@
                     const result = await response.json();
                     if (result.success) {
                         this.appendText(`✅ ${result.message}\n`, 'system-message');
-                        this.showSessionModal(); // Refresh the session list
+                        await this.refreshSessionList(); // Refresh the session list
                     } else {
                         throw new Error(result.error);
                     }
@@ -4708,7 +4746,7 @@
                     if (result.success) {
                         this.appendText(`✅ ${result.message}\n`, 'system-message');
                         this.showArchivedSessions(); // Refresh archived list
-                        this.showSessionModal(); // Refresh main list
+                        await this.refreshSessionList(); // Refresh main list
                     } else {
                         throw new Error(result.error);
                     }
