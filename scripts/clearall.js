@@ -48,17 +48,22 @@ class GooseCleanup {
     
     let clearedCount = 0;
     
+    // Check both root directory and logs/ directory
+    const searchDirs = [this.projectDir, path.join(this.projectDir, 'logs')];
+
     for (const logFile of this.logFiles) {
-      const filePath = path.join(this.projectDir, logFile);
-      
-      try {
-        await fs.access(filePath);
-        await fs.unlink(filePath);
-        console.log(chalk.gray(`   ✓ Deleted: ${logFile}`));
-        clearedCount++;
-      } catch (error) {
-        if (error.code !== 'ENOENT') {
-          console.log(chalk.yellow(`   ⚠ Could not delete ${logFile}: ${error.message}`));
+      for (const searchDir of searchDirs) {
+        const filePath = path.join(searchDir, logFile);
+
+        try {
+          await fs.access(filePath);
+          await fs.unlink(filePath);
+          console.log(chalk.gray(`   ✓ Deleted: ${filePath.replace(this.projectDir, '.')}`));
+          clearedCount++;
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            console.log(chalk.yellow(`   ⚠ Could not delete ${logFile}: ${error.message}`));
+          }
         }
       }
     }
