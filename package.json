@@ -15,6 +15,7 @@
     "menu": "./menu.sh",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
+    "test": "jest",
     "migrate-recipes": "node scripts/migrate-to-centralized.js",
     "migrate-recipes:dry-run": "node scripts/migrate-to-centralized.js --dry-run",
     "test:centralized": "node tests/centralized-recipes.test.js",

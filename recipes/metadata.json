@@ -186,5 +186,12 @@
       "lastUsed": "2025-08-26T03:26:46.828Z"
     }
   },
-  "lastUpdated": "2025-08-22T09:20:00.000Z"
+  "lastUpdated": "2025-08-22T09:20:00.000Z",
+  "system": {
+    "version": "1.0",
+    "mode": "legacy",
+    "worktree": "rcplive",
+    "compatibilityMode": true,
+    "lastUpdated": "2025-08-26T06:30:53.923Z"
+  }
 }
