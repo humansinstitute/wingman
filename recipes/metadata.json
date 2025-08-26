@@ -1,11 +1,5 @@
 {
   "recipes": {
-    "772e2f6e7d048c68d44ece141143ea32": {
-      "name": "Code Review",
-      "path": "/Users/mini/code/wingman/recipes/user/772e2f6e7d048c68d44ece141143ea32.json",
-      "createdAt": "2025-08-19T02:17:40.577Z",
-      "updatedAt": "2025-08-22T07:24:20.365Z"
-    },
     "7c7583b29306b0cee9edb8bcda89e9d2": {
       "name": "Planner",
       "path": "/Users/mini/code/wingman/recipes/user/7c7583b29306b0cee9edb8bcda89e9d2.json",
@@ -18,16 +12,16 @@
       "createdAt": "2025-08-20T09:28:24.587Z",
       "updatedAt": "2025-08-20T09:30:18.197Z"
     },
-    "e24a0f1cc8dd9b607780cdf47055aaa3": {
-      "name": "Test RTB",
-      "path": "/Users/mini/code/wingman/recipes/user/e24a0f1cc8dd9b607780cdf47055aaa3.json",
-      "createdAt": "2025-08-22T07:30:16.410Z",
-      "updatedAt": "2025-08-22T09:16:39.067Z"
+    "1e8f3f116887fdf84388266dba40ff03": {
+      "name": "Writing Assistant",
+      "path": "/Users/mini/code/wingman/recipes/user/1e8f3f116887fdf84388266dba40ff03.json",
+      "createdAt": "2025-08-25T05:25:11.158Z",
+      "updatedAt": "2025-08-26T03:26:18.341Z"
     }
   },
   "usage": {
     "7c7583b29306b0cee9edb8bcda89e9d2": {
-      "count": 20,
+      "count": 21,
       "sessions": [
         {
           "sessionId": "recipe-Planner-1755577954767",
@@ -108,24 +102,17 @@
         {
           "sessionId": "Minor fixes on mobile",
           "timestamp": "2025-08-22T23:38:12.780Z"
+        },
+        {
+          "sessionId": "Testing the no extension CLI",
+          "timestamp": "2025-08-26T05:59:23.164Z"
         }
       ],
       "firstUsed": "2025-08-19T04:32:34.778Z",
-      "lastUsed": "2025-08-22T23:38:12.780Z"
-    },
-    "772e2f6e7d048c68d44ece141143ea32": {
-      "count": 1,
-      "sessions": [
-        {
-          "sessionId": "withrec",
-          "timestamp": "2025-08-19T06:53:05.889Z"
-        }
-      ],
-      "firstUsed": "2025-08-19T06:53:05.889Z",
-      "lastUsed": "2025-08-19T06:53:05.889Z"
+      "lastUsed": "2025-08-26T05:59:23.164Z"
     },
     "fc2a7ed7e0fa93f5f5f28648b683efb1": {
-      "count": 5,
+      "count": 11,
       "sessions": [
         {
           "sessionId": "Test Read Only",
@@ -146,41 +133,57 @@
         {
           "sessionId": "Hengestr",
           "timestamp": "2025-08-21T13:14:12.811Z"
+        },
+        {
+          "sessionId": "Test Planner WRiter",
+          "timestamp": "2025-08-25T05:44:30.728Z"
+        },
+        {
+          "sessionId": "Planing",
+          "timestamp": "2025-08-25T13:36:51.935Z"
+        },
+        {
+          "sessionId": "Update Product List",
+          "timestamp": "2025-08-25T23:33:13.346Z"
+        },
+        {
+          "sessionId": "Audit MCP for Refactor",
+          "timestamp": "2025-08-26T05:29:35.874Z"
+        },
+        {
+          "sessionId": "Update Docs",
+          "timestamp": "2025-08-26T05:37:33.618Z"
+        },
+        {
+          "sessionId": "new test readonly",
+          "timestamp": "2025-08-26T07:58:26.656Z"
         }
       ],
       "firstUsed": "2025-08-20T09:31:33.039Z",
-      "lastUsed": "2025-08-21T13:14:12.811Z"
+      "lastUsed": "2025-08-26T07:58:26.656Z"
     },
-    "e24a0f1cc8dd9b607780cdf47055aaa3": {
-      "count": 6,
+    "1e8f3f116887fdf84388266dba40ff03": {
+      "count": 4,
       "sessions": [
         {
-          "sessionId": "Return to base",
-          "timestamp": "2025-08-22T07:42:12.014Z"
+          "sessionId": "Writing Assistant",
+          "timestamp": "2025-08-25T05:25:38.876Z"
         },
         {
-          "sessionId": "Dynamic Payload Test",
-          "timestamp": "2025-08-22T08:52:28.696Z"
+          "sessionId": "Writing",
+          "timestamp": "2025-08-25T05:53:47.680Z"
         },
         {
-          "sessionId": "Content Extraction Test",
-          "timestamp": "2025-08-22T08:52:30.704Z"
+          "sessionId": "Update Prod Brief Simpler",
+          "timestamp": "2025-08-26T00:23:37.404Z"
         },
         {
-          "sessionId": "Debug Session",
-          "timestamp": "2025-08-22T09:02:48.727Z"
-        },
-        {
-          "sessionId": "Multi-Tool Test",
-          "timestamp": "2025-08-22T09:05:44.329Z"
-        },
-        {
-          "sessionId": "1755854252454mfe2kvmg7",
-          "timestamp": "2025-08-22T09:17:51.168Z"
+          "sessionId": "Writing Coach",
+          "timestamp": "2025-08-26T03:26:46.828Z"
         }
       ],
-      "firstUsed": "2025-08-22T07:42:12.014Z",
-      "lastUsed": "2025-08-22T09:17:51.168Z"
+      "firstUsed": "2025-08-25T05:25:38.876Z",
+      "lastUsed": "2025-08-26T03:26:46.828Z"
     }
   },
   "lastUpdated": "2025-08-22T09:20:00.000Z"

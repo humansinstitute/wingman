@@ -28,11 +28,13 @@
       "updatedAt": "2025-08-20T13:47:13.901Z",
       "usedByRecipes": [
         "7c7583b29306b0cee9edb8bcda89e9d2",
-        "fc2a7ed7e0fa93f5f5f28648b683efb1"
+        "fc2a7ed7e0fa93f5f5f28648b683efb1",
+        "207d12f991f77920d23487241c85f71b",
+        "1e8f3f116887fdf84388266dba40ff03"
       ],
       "isPublic": true,
       "isBuiltIn": true,
-      "lastUsed": "2025-08-20T13:49:12.734Z"
+      "lastUsed": "2025-08-26T03:26:18.347Z"
     },
     "filesread-267750c3": {
       "id": "filesread-267750c3",
@@ -94,11 +96,13 @@
       "createdAt": "2025-08-20T13:47:13.901Z",
       "updatedAt": "2025-08-20T13:47:13.901Z",
       "usedByRecipes": [
-        "fc2a7ed7e0fa93f5f5f28648b683efb1"
+        "fc2a7ed7e0fa93f5f5f28648b683efb1",
+        "207d12f991f77920d23487241c85f71b",
+        "1e8f3f116887fdf84388266dba40ff03"
       ],
       "isPublic": true,
       "isBuiltIn": true,
-      "lastUsed": "2025-08-20T13:49:12.734Z"
+      "lastUsed": "2025-08-26T03:26:18.347Z"
     },
     "gitmcp-e02a6082": {
       "id": "gitmcp-e02a6082",
@@ -160,9 +164,12 @@
       "version": "1.0.0",
       "createdAt": "2025-08-20T13:47:13.901Z",
       "updatedAt": "2025-08-20T13:47:13.901Z",
-      "usedByRecipes": [],
+      "usedByRecipes": [
+        "207d12f991f77920d23487241c85f71b"
+      ],
       "isPublic": true,
-      "isBuiltIn": true
+      "isBuiltIn": true,
+      "lastUsed": "2025-08-25T13:42:45.678Z"
     },
     "brave-search-d68742af": {
       "id": "brave-search-d68742af",
@@ -191,9 +198,13 @@
       "version": "1.0.0",
       "createdAt": "2025-08-20T13:47:13.901Z",
       "updatedAt": "2025-08-20T13:47:13.901Z",
-      "usedByRecipes": [],
+      "usedByRecipes": [
+        "207d12f991f77920d23487241c85f71b",
+        "1e8f3f116887fdf84388266dba40ff03"
+      ],
       "isPublic": true,
-      "isBuiltIn": true
+      "isBuiltIn": true,
+      "lastUsed": "2025-08-26T03:26:18.348Z"
     },
     "postgres-ed63b59b": {
       "id": "postgres-ed63b59b",
@@ -256,7 +267,8 @@
       "updatedAt": "2025-08-20T13:47:13.902Z",
       "usedByRecipes": [],
       "isPublic": true,
-      "isBuiltIn": true
+      "isBuiltIn": true,
+      "lastUsed": "2025-08-25T13:16:45.134Z"
     },
     "sqlite-41f43a1b": {
       "id": "sqlite-41f43a1b",
@@ -347,13 +359,10 @@
       "version": "1.0.0",
       "createdAt": "2025-08-22T06:15:26.023Z",
       "updatedAt": "2025-08-22T06:15:26.024Z",
-      "usedByRecipes": [
-        "772e2f6e7d048c68d44ece141143ea32",
-        "e24a0f1cc8dd9b607780cdf47055aaa3"
-      ],
+      "usedByRecipes": [],
       "isPublic": true,
       "isBuiltIn": true,
-      "lastUsed": "2025-08-22T09:16:39.070Z"
+      "lastUsed": "2025-08-25T07:42:26.179Z"
     },
     "wingman-rtb-06dbb607": {
       "id": "wingman-rtb-06dbb607",
@@ -391,6 +400,6 @@
   "metadata": {
     "version": "1.0.0",
     "createdAt": "2025-08-20T13:47:13.900Z",
-    "lastUpdated": "2025-08-22T09:16:39.070Z"
+    "lastUpdated": "2025-08-26T09:13:01.490Z"
   }
 }
