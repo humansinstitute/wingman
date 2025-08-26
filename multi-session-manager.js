@@ -662,15 +662,19 @@ class MultiSessionManager extends EventEmitter {
   async getRunningSessions() {
     const running = [];
     
+    console.log('DEBUG: sessions Map size:', this.sessions.size);
+    console.log('DEBUG: sessions Map keys:', Array.from(this.sessions.keys()));
+    
     for (const [sessionId, session] of this.sessions.entries()) {
       const metadata = this.sessionMetadata.get(sessionId);
+      console.log(`DEBUG: Checking session ${sessionId}, isReady: ${session.isReady}, hasMetadata: ${!!metadata}`);
       if (session.isReady && metadata) {
         // If session has null provider/model but has a recipeId, try to restore from recipe
         if ((!metadata.provider || !metadata.model) && metadata.recipeId) {
           await this.restoreProviderModelFromRecipe(sessionId, metadata.recipeId);
         }
         
-        running.push({
+        const sessionData = {
           sessionId,
           sessionName: metadata.sessionName,
           isActive: sessionId === this.activeSessionId,
@@ -678,10 +682,14 @@ class MultiSessionManager extends EventEmitter {
           createdAt: metadata.createdAt,
           workingDirectory: metadata.workingDirectory,
           metadata
-        });
+        };
+        console.log(`DEBUG: Adding session to running list:`, sessionData);
+        running.push(sessionData);
       }
     }
     
+    console.log(`DEBUG: Final running sessions array length: ${running.length}`);
+    console.log('DEBUG: Final running sessions:', JSON.stringify(running, null, 2));
     return running;
   }
   
