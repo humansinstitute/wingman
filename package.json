@@ -14,7 +14,8 @@
     "worktree:create": "./scripts/worktree-create.sh",
     "menu": "./menu.sh",
     "db:migrate": "node scripts/migrate.js",
-    "db:seed": "node scripts/seed.js"
+    "db:seed": "node scripts/seed.js",
+    "test": "jest"
   },
   "dependencies": {
     "@xterm/xterm": "^5.5.0",
