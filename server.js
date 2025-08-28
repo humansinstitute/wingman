@@ -1,8 +1,18 @@
+// Load Wingman application configuration
 require('dotenv').config();
+
+// Also load MCP server secrets from ~/.wingman/.env if available
+const path = require('path');
+const os = require('os');
+const fs = require('fs');
+const mcpEnvPath = path.join(os.homedir(), '.wingman', '.env');
+if (fs.existsSync(mcpEnvPath)) {
+  require('dotenv').config({ path: mcpEnvPath });
+  console.log('✅ Loaded MCP server environment from ~/.wingman/.env');
+}
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const path = require('path');
 const cors = require('cors');
 const os = require('os');
 const pty = require('node-pty');
