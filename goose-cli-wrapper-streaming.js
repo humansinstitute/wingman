@@ -2,6 +2,10 @@ const { spawn } = require('child_process');
 const EventEmitter = require('events');
 const fs = require('fs').promises;
 const path = require('path');
+const ephemeralConfig = require('./runtime/ephemeral-goose-config');
+const secretInjector = require('./secrets/secret-injector');
+const preflightEngine = require('./preflight/preflight-engine');
+const failureHandler = require('./runtime/failure-handler');
 
 class StreamingGooseCLIWrapper extends EventEmitter {
   constructor(options = {}) {
@@ -25,6 +29,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     this.initialHistoryLoaded = false;
     this.isProcessing = false;
     this.pendingInterrupt = false;
+    this.stderrBuffer = ''; // Buffer stderr for failure analysis
   }
 
   async start() {
@@ -32,34 +37,31 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       let args;
       let command;
       
-      // If we have a recipe, use 'goose run' instead of 'goose session'
-      if (this.options.recipeConfig || this.options.recipePath) {
-        command = 'run';
-        args = [];
+      // ENFORCEMENT: Always use recipes-only execution (T-001)
+      // If no recipe is provided, create a minimal recipe from extensions/builtins
+      let recipePath = this.options.recipePath;
+      
+      if (!recipePath) {
+        // Convert legacy extensions/builtins to a recipe config
+        const recipeConfig = this.options.recipeConfig || {
+          name: this.options.sessionName || `session-${Date.now()}`,
+          description: 'Auto-generated recipe from legacy configuration',
+          extensions: this.convertToRecipeExtensions(),
+          system_prompt: this.options.systemPrompt || ''
+        };
         
-        let recipePath = this.options.recipePath;
-        
-        // If we have recipe config but no path, create a temp file
-        if (this.options.recipeConfig && !recipePath) {
-          recipePath = await this.createTempRecipeFile(this.options.recipeConfig);
-        }
-        
-        if (recipePath) {
-          args.push('--recipe', recipePath);
-        }
-        
-        // Add interactive flag to continue in chat mode
-        args.push('--interactive');
-        
-        // Add session name
-        args.push('--name', this.options.sessionName);
-        
-        // Note: We can't use --text with --recipe, so we'll send the prompt after startup
-      } else {
-        // Regular session without recipe
-        command = 'session';
-        args = ['--name', this.options.sessionName];
+        recipePath = await this.createTempRecipeFile(recipeConfig);
       }
+      
+      // Always use 'goose run' with recipe
+      command = 'run';
+      args = ['--recipe', recipePath];
+      
+      // Add interactive flag to continue in chat mode
+      args.push('--interactive');
+      
+      // Add session name
+      args.push('--name', this.options.sessionName);
       
       if (this.options.debug) {
         args.push('--debug');
@@ -69,29 +71,57 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         args.push('--max-turns', this.options.maxTurns.toString());
       }
       
-      // Only add extensions and builtins if not using a recipe
-      // When using recipes, extensions and builtins are defined in the recipe file
-      if (!this.options.recipeConfig && !this.options.recipePath) {
-        this.options.extensions.forEach(ext => {
-          args.push('--with-extension', ext);
-        });
-        
-        this.options.builtins.forEach(builtin => {
-          args.push('--with-builtin', builtin);
-        });
-      }
-      
       const workingDir = this.options.workingDirectory || process.cwd();
       console.log(`Starting Goose ${command}: goose ${command} ${args.join(' ')}`);
       console.log(`Working directory: ${workingDir}`);
       
+      // T-003: Create ephemeral config and set GOOSE_CONFIG_PATH
+      const { path: configPath } = await ephemeralConfig.createEphemeralConfig(
+        this.options.sessionName,
+        {
+          provider: this.options.provider,
+          model: this.options.model
+        }
+      );
+      
       // Add session context to environment variables for MCP servers
-      const sessionEnv = {
+      let sessionEnv = {
         ...process.env,
+        GOOSE_CONFIG_PATH: configPath, // Zero-default enforcement
         WINGMAN_SESSION_ID: this.sessionId,
         WINGMAN_SESSION_NAME: this.sessionName || this.sessionId,
         WINGMAN_WORKING_DIR: workingDir
       };
+      
+      // Inject required secrets for the recipe
+      if (recipePath) {
+        try {
+          const recipeData = await fs.readFile(recipePath, 'utf-8');
+          const recipe = JSON.parse(recipeData);
+          
+          // Add recipe-declared servers to the hybrid config
+          if (recipe.extensions && recipe.extensions.length > 0) {
+            await ephemeralConfig.addRecipeServers(configPath, recipe.extensions);
+          }
+          
+          const secretResult = await secretInjector.buildSessionEnv({
+            recipe: recipe,
+            selectedServers: recipe.extensions
+          });
+          
+          if (secretResult.success) {
+            sessionEnv = secretResult.env;
+            
+            // T-016: Log active extensions and injected env key names (no values)
+            this.logSessionStartup(recipe, secretResult.injected);
+          } else if (secretResult.missing.length > 0) {
+            console.warn(`⚠️ Missing ${secretResult.missing.length} required secrets`);
+            console.warn('   Session may have limited functionality');
+          }
+        } catch (error) {
+          console.warn(`Failed to inject secrets: ${error.message}`);
+        }
+      }
       
       this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -104,8 +134,13 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       });
 
       this.gooseProcess.stderr.on('data', (data) => {
-        console.error('Goose stderr:', data.toString());
-        this.emit('error', data.toString());
+        const stderrOutput = data.toString();
+        console.error('Goose stderr:', stderrOutput);
+        
+        // Buffer stderr for failure analysis
+        this.stderrBuffer += stderrOutput;
+        
+        this.emit('error', stderrOutput);
       });
 
       let processExited = false;
@@ -114,11 +149,19 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         console.log(`Goose process exited with code ${code}`);
         this.isReady = false;
         processExited = true;
-        this.emit('close', code);
         
-        // If process exits with non-zero code during startup, reject
+        // T-015: Handle process failures with readable errors
         if (code !== 0) {
-          reject(new Error(`Goose process exited with code ${code}`));
+          const failureResult = failureHandler.handleProcessFailure(
+            this.options.sessionName,
+            code,
+            this.stderrBuffer || ''
+          );
+          
+          this.emit('processFailure', failureResult);
+          reject(new Error(failureResult.message));
+        } else {
+          this.emit('close', code);
         }
       });
 
@@ -511,6 +554,10 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         }
       }, 5000);
     }
+    
+    // Clean up ephemeral config and failure state
+    await ephemeralConfig.cleanupSession(this.options.sessionName);
+    failureHandler.resetSession(this.options.sessionName);
   }
 
   async listSessions() {
@@ -562,9 +609,19 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       console.log(`Resuming Goose ${command}: goose ${command} ${args.join(' ')}`);
       console.log(`Working directory: ${workingDir}`);
       
+      // T-003: Create ephemeral config for resumed session too
+      const { path: configPath } = await ephemeralConfig.createEphemeralConfig(
+        sessionName,
+        {
+          provider: this.options.provider,
+          model: this.options.model
+        }
+      );
+      
       // Add session context to environment variables for MCP servers
       const sessionEnv = {
         ...process.env,
+        GOOSE_CONFIG_PATH: configPath, // Zero-default enforcement
         WINGMAN_SESSION_ID: this.sessionId,
         WINGMAN_SESSION_NAME: this.sessionName || this.sessionId,
         WINGMAN_WORKING_DIR: workingDir
@@ -604,6 +661,33 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     });
   }
   
+  convertToRecipeExtensions() {
+    // Convert legacy extensions/builtins arrays to recipe format
+    const extensions = [];
+    
+    // Convert extensions (assuming they're just names for now)
+    this.options.extensions.forEach(ext => {
+      if (typeof ext === 'string') {
+        // Legacy format: just the extension name
+        extensions.push({ name: ext });
+      } else {
+        // Already in object format
+        extensions.push(ext);
+      }
+    });
+    
+    // Convert builtins (same approach)
+    this.options.builtins.forEach(builtin => {
+      if (typeof builtin === 'string') {
+        extensions.push({ name: builtin, isBuiltin: true });
+      } else {
+        extensions.push(builtin);
+      }
+    });
+    
+    return extensions;
+  }
+
   async createTempRecipeFile(recipe) {
     const tempDir = path.join(__dirname, 'temp');
     await fs.mkdir(tempDir, { recursive: true });
@@ -676,6 +760,37 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     } catch (error) {
       console.error('Error loading session history:', error);
     }
+  }
+
+  /**
+   * Log session startup details (T-016)
+   * @private
+   */
+  logSessionStartup(recipe, injectedSecrets) {
+    const timestamp = new Date().toISOString();
+    
+    console.log(`\n[${timestamp}] [RUNTIME] Session Starting`);
+    console.log(`  Recipe: ${recipe.name} (${recipe.id})`);
+    console.log(`  Session: ${this.options.sessionName}`);
+    
+    // Log active extensions
+    const extensions = recipe.extensions || [];
+    console.log(`  Active Extensions: ${extensions.length}`);
+    extensions.forEach((ext, index) => {
+      const name = ext.name || ext;
+      console.log(`    ${index + 1}. ${name}`);
+    });
+    
+    // Log injected environment key names (NEVER log values)
+    if (injectedSecrets && injectedSecrets.length > 0) {
+      console.log(`  Injected Environment Keys: ${injectedSecrets.length}`);
+      injectedSecrets.forEach(secret => {
+        console.log(`    - ${secret.key} (for ${secret.server})`);
+      });
+    }
+    
+    console.log(`  Working Directory: ${this.options.workingDirectory || process.cwd()}`);
+    console.log(`  Zero-Default Config: Enforced\n`);
   }
 
   async deleteSession(sessionName) {

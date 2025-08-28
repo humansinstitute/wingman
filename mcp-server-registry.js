@@ -1,4 +1,5 @@
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const EventEmitter = require('events');
@@ -8,8 +9,11 @@ class MCPServerRegistry extends EventEmitter {
     super();
     this.registryDir = path.join(__dirname, 'recipes');
     this.registryFile = path.join(this.registryDir, 'mcp-servers.json');
+    this.lockFile = path.join(this.registryDir, 'mcp-servers.lock');
+    this.backupFile = path.join(this.registryDir, 'mcp-servers.bak');
     this.cache = new Map();
     this.servers = {};
+    this.isWriting = false;
     
     this.initializeStorage();
   }
@@ -41,13 +45,96 @@ class MCPServerRegistry extends EventEmitter {
   }
 
   async saveRegistry() {
+    // T-004: Implement atomic writes with file locking
+    if (this.isWriting) {
+      // Wait for current write to complete
+      await new Promise(resolve => {
+        const checkWrite = setInterval(() => {
+          if (!this.isWriting) {
+            clearInterval(checkWrite);
+            resolve();
+          }
+        }, 50);
+      });
+    }
+    
+    this.isWriting = true;
+    
     try {
+      // Acquire lock
+      await this.acquireLock();
+      
+      // Create backup of current file if it exists
+      try {
+        await fs.access(this.registryFile);
+        await fs.copyFile(this.registryFile, this.backupFile);
+      } catch (error) {
+        // File doesn't exist yet, no backup needed
+      }
+      
+      // Update metadata
       this.servers.metadata.lastUpdated = new Date().toISOString();
-      await fs.writeFile(this.registryFile, JSON.stringify(this.servers, null, 2));
+      
+      // Write to temp file first (atomic write pattern)
+      const tempFile = `${this.registryFile}.tmp`;
+      await fs.writeFile(tempFile, JSON.stringify(this.servers, null, 2), 'utf-8');
+      
+      // Atomic rename (on POSIX systems)
+      await fs.rename(tempFile, this.registryFile);
+      
+      // Release lock
+      await this.releaseLock();
+      
       this.emit('registryUpdated', this.servers);
+      console.log('✅ Registry saved with atomic write');
     } catch (error) {
+      // Try to restore from backup if write failed
+      try {
+        await fs.copyFile(this.backupFile, this.registryFile);
+        console.warn('⚠️ Registry write failed, restored from backup');
+      } catch (restoreError) {
+        // Backup restore failed too
+      }
+      
       console.error('Error saving MCP server registry:', error);
       throw new Error(`Failed to save registry: ${error.message}`);
+    } finally {
+      this.isWriting = false;
+      await this.releaseLock(); // Ensure lock is released
+    }
+  }
+
+  async acquireLock(maxWaitMs = 5000) {
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWaitMs) {
+      try {
+        // Try to create lock file exclusively
+        const fd = await fs.open(this.lockFile, 'wx');
+        await fd.close();
+        return; // Lock acquired
+      } catch (error) {
+        if (error.code === 'EEXIST') {
+          // Lock exists, wait and retry
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } else {
+          throw error;
+        }
+      }
+    }
+    
+    // Timeout - force acquire by removing stale lock
+    console.warn('⚠️ Force acquiring stale lock');
+    await this.releaseLock();
+    const fd = await fs.open(this.lockFile, 'wx');
+    await fd.close();
+  }
+
+  async releaseLock() {
+    try {
+      await fs.unlink(this.lockFile);
+    } catch (error) {
+      // Lock file doesn't exist, already released
     }
   }
 

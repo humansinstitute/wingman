@@ -635,6 +635,46 @@
             color: var(--text-muted);
         }
 
+        .builtins-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+        }
+
+        .builtin-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .builtin-option input[type="checkbox"] {
+            margin-top: 0.25rem;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-primary);
+        }
+
+        .builtin-option label {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .builtin-option label strong {
+            display: block;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .builtin-option label small {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -667,6 +707,7 @@
             Recipe Manager
         </h1>
         <div class="nav-links">
+            <a href="/mcp-servers" class="nav-link">🔌 MCP Servers</a>
             <a href="/" class="nav-link">← Back to Chat</a>
         </div>
     </div>
@@ -786,8 +827,44 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="recipeBuiltins">Built-ins (comma-separated)</label>
-                    <input type="text" id="recipeBuiltins" class="form-input" placeholder="e.g., developer, shell" value="developer">
+                    <label class="form-label" for="recipeBuiltins">Goose Built-ins</label>
+                    <div id="builtinsContainer" class="builtins-container">
+                        <div class="builtin-option">
+                            <input type="checkbox" id="builtin-developer" value="developer" checked>
+                            <label for="builtin-developer">
+                                <strong>Developer</strong>
+                                <small>Provides a set of general development tools that are useful for software development</small>
+                            </label>
+                        </div>
+                        <div class="builtin-option">
+                            <input type="checkbox" id="builtin-computercontroller" value="computercontroller">
+                            <label for="builtin-computercontroller">
+                                <strong>Computer Controller</strong>
+                                <small>Provides general computer control tools for webscraping, file caching, and automations</small>
+                            </label>
+                        </div>
+                        <div class="builtin-option">
+                            <input type="checkbox" id="builtin-memory" value="memory">
+                            <label for="builtin-memory">
+                                <strong>Memory</strong>
+                                <small>Teaches Goose to remember your preferences as you use it</small>
+                            </label>
+                        </div>
+                        <div class="builtin-option">
+                            <input type="checkbox" id="builtin-tutorial" value="tutorial">
+                            <label for="builtin-tutorial">
+                                <strong>Tutorial</strong>
+                                <small>Provides interactive tutorials for learning about Goose</small>
+                            </label>
+                        </div>
+                        <div class="builtin-option">
+                            <input type="checkbox" id="builtin-jetbrains" value="jetbrains">
+                            <label for="builtin-jetbrains">
+                                <strong>JetBrains</strong>
+                                <small>Integration with JetBrains IDEs for enhanced development workflows</small>
+                            </label>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -973,7 +1050,7 @@
                 this.recipeTags = document.getElementById('recipeTags');
                 this.recipeInstructions = document.getElementById('recipeInstructions');
                 this.recipePrompt = document.getElementById('recipePrompt');
-                this.recipeBuiltins = document.getElementById('recipeBuiltins');
+                // Built-ins are now handled via checkboxes, no single element needed
                 
                 // Provider/Model elements
                 this.recipeProvider = document.getElementById('recipeProvider');
@@ -1334,7 +1411,10 @@
                 this.currentRecipe = null;
                 this.modalTitle.textContent = 'Create New Recipe';
                 this.recipeForm.reset();
-                this.recipeBuiltins.value = 'developer';
+                // Reset builtin checkboxes - developer checked by default
+                document.querySelectorAll('.builtin-option input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = checkbox.value === 'developer';
+                });
                 
                 // Reset provider/model fields
                 this.recipeProvider.value = '';
@@ -1358,7 +1438,11 @@
                 this.recipeTags.value = recipe.tags.join(', ');
                 this.recipeInstructions.value = recipe.instructions || '';
                 this.recipePrompt.value = recipe.prompt || '';
-                this.recipeBuiltins.value = recipe.builtins?.join(', ') || '';
+                // Set builtin checkboxes based on recipe
+                const builtins = recipe.builtins || [];
+                document.querySelectorAll('.builtin-option input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = builtins.includes(checkbox.value);
+                });
                 
                 // Load provider/model settings
                 if (recipe.settings) {
@@ -1626,7 +1710,7 @@
                         instructions: this.recipeInstructions.value.trim() || undefined,
                         prompt: this.recipePrompt.value.trim() || undefined,
                         extensions: this.currentRecipeExtensions || [],
-                        builtins: this.recipeBuiltins.value.split(',').map(builtin => builtin.trim()).filter(builtin => builtin)
+                        builtins: Array.from(document.querySelectorAll('.builtin-option input[type="checkbox"]:checked')).map(checkbox => checkbox.value)
                     };
                     
                     // Add provider/model settings if specified

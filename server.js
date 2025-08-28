@@ -121,6 +121,10 @@ class GooseWebServer {
       res.sendFile(path.join(__dirname, 'public', 'deep-dive.html'));
     });
 
+    this.app.get('/mcp-servers', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'mcp-servers.html'));
+    });
+
     this.app.get('/api/conversation', (req, res) => {
       res.json(conversationManager.getConversation());
     });
@@ -1423,6 +1427,137 @@ class GooseWebServer {
           filesDeleted: filesDeleted,
           days: purgeDays
         });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // ============ SECRET MANAGEMENT ENDPOINTS (T-009) ============
+    
+    // Get preflight status for a recipe
+    this.app.get('/api/recipes/:id/preflight', async (req, res) => {
+      try {
+        const recipeManager = require('./recipe-manager');
+        const preflightEngine = require('./preflight/preflight-engine');
+        
+        await recipeManager.initializeStorage();
+        const recipe = await recipeManager.getRecipe(req.params.id);
+        
+        if (!recipe) {
+          return res.status(404).json({ error: 'Recipe not found' });
+        }
+        
+        const preflight = await preflightEngine.runPreflight(recipe);
+        res.json(preflight);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Get missing secrets with instructions
+    this.app.get('/api/recipes/:id/missing-secrets', async (req, res) => {
+      try {
+        const recipeManager = require('./recipe-manager');
+        const preflightEngine = require('./preflight/preflight-engine');
+        
+        await recipeManager.initializeStorage();
+        const recipe = await recipeManager.getRecipe(req.params.id);
+        
+        if (!recipe) {
+          return res.status(404).json({ error: 'Recipe not found' });
+        }
+        
+        const missing = await preflightEngine.getMissingSecretsWithInstructions(recipe);
+        res.json(missing);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Check keychain access
+    this.app.get('/api/secrets/test-access', async (req, res) => {
+      try {
+        const keychainService = require('./secrets/keychain-service');
+        const hasAccess = await keychainService.testAccess();
+        
+        res.json({ 
+          hasAccess,
+          message: hasAccess ? 'Keychain access confirmed' : 'Keychain access failed'
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Set a secret in keychain
+    this.app.post('/api/secrets/:server/:key', async (req, res) => {
+      try {
+        const keychainService = require('./secrets/keychain-service');
+        const { server, key } = req.params;
+        const { value } = req.body;
+        
+        if (!value) {
+          return res.status(400).json({ error: 'Secret value is required' });
+        }
+        
+        const secretRef = { server, key };
+        await keychainService.writeSecret(secretRef, value);
+        
+        res.json({ 
+          success: true,
+          message: `Secret ${key} set for ${server}`,
+          keychainName: keychainService.formatKeychainName(secretRef)
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Check if a secret exists
+    this.app.get('/api/secrets/:server/:key', async (req, res) => {
+      try {
+        const keychainService = require('./secrets/keychain-service');
+        const { server, key } = req.params;
+        
+        const secretRef = { server, key };
+        const result = await keychainService.readSecret(secretRef);
+        
+        res.json({ 
+          exists: result.exists,
+          keychainName: keychainService.formatKeychainName(secretRef),
+          hasValue: result.exists && !!result.value
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Delete a secret from keychain
+    this.app.delete('/api/secrets/:server/:key', async (req, res) => {
+      try {
+        const keychainService = require('./secrets/keychain-service');
+        const { server, key } = req.params;
+        
+        const secretRef = { server, key };
+        await keychainService.deleteSecret(secretRef);
+        
+        res.json({ 
+          success: true,
+          message: `Secret ${key} deleted for ${server}`
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Test a specific MCP server
+    this.app.post('/api/mcp-servers/:name/test', async (req, res) => {
+      try {
+        const preflightEngine = require('./preflight/preflight-engine');
+        const serverName = req.params.name;
+        
+        const testResult = await preflightEngine.testServer(serverName);
+        res.json(testResult);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
