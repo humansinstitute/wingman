@@ -8,6 +8,7 @@
 const EventEmitter = require('events');
 const keychainService = require('./keychain-service');
 const secretRequirements = require('./secret-requirements');
+const envFileLoader = require('./env-file-loader');
 
 class SecretInjector extends EventEmitter {
   constructor() {
@@ -50,30 +51,60 @@ class SecretInjector extends EventEmitter {
         
         for (const key of requiredKeys) {
           const secretRef = { server: serverName, key };
+          let secretFound = false;
           
           try {
-            // Try to read from keychain
-            const result = await keychainService.readSecret(secretRef);
+            // Try .env file first if not already loaded
+            if (!envFileLoader.loaded) {
+              await envFileLoader.load();
+            }
             
-            if (result.exists && result.value) {
-              // Inject into environment
-              env[key] = result.value;
-              injected.push({
-                server: serverName,
-                key: key,
-                injected: true
-              });
+            if (envFileLoader.has(key)) {
+              const value = envFileLoader.get(key);
+              if (value) {
+                // Inject from .env file
+                env[key] = value;
+                injected.push({
+                  server: serverName,
+                  key: key,
+                  source: '.env',
+                  injected: true
+                });
+                
+                console.log(`✅ Injected ${key} for ${serverName} (from .env)`);
+                secretFound = true;
+              }
+            }
+            
+            // If not found in .env, try keychain
+            if (!secretFound) {
+              const result = await keychainService.readSecret(secretRef);
               
-              console.log(`✅ Injected ${key} for ${serverName}`);
-            } else {
-              // Track missing secret
+              if (result.exists && result.value) {
+                // Inject from keychain
+                env[key] = result.value;
+                injected.push({
+                  server: serverName,
+                  key: key,
+                  source: 'keychain',
+                  injected: true
+                });
+                
+                console.log(`✅ Injected ${key} for ${serverName} (from keychain)`);
+                secretFound = true;
+              }
+            }
+            
+            // If still not found, track as missing
+            if (!secretFound) {
               missing.push({
                 server: serverName,
                 key: key,
-                keychainName: keychainService.formatKeychainName(secretRef)
+                keychainName: keychainService.formatKeychainName(secretRef),
+                envFile: envFileLoader.envPath
               });
               
-              console.warn(`⚠️ Missing secret: ${key} for ${serverName}`);
+              console.warn(`⚠️ Missing secret: ${key} for ${serverName} (checked .env and keychain)`);
             }
           } catch (error) {
             errors.push({
@@ -87,6 +118,7 @@ class SecretInjector extends EventEmitter {
               server: serverName,
               key: key,
               keychainName: keychainService.formatKeychainName(secretRef),
+              envFile: envFileLoader.envPath,
               error: error.message
             });
           }
@@ -121,12 +153,16 @@ class SecretInjector extends EventEmitter {
     if (injected.length > 0) {
       console.log('   Injected keys:');
       injected.forEach(item => {
-        console.log(`     - ${item.key} (${item.server})`);
+        const source = item.source ? ` from ${item.source}` : '';
+        console.log(`     - ${item.key} (${item.server})${source}`);
       });
     }
     
     if (missing.length > 0) {
       console.log(`   Missing: ${missing.length} secret(s)`);
+      console.log('   Add missing secrets to either:');
+      console.log(`     - ~/.wingman/.env file`);
+      console.log(`     - Keychain (use: security add-generic-password -a Wingman -s "Wingman:ServerName:KEY" -w "value")`);
       missing.forEach(item => {
         console.log(`     - ${item.key} (${item.server})`);
       });

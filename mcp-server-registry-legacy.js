@@ -1,77 +1,34 @@
-/**
- * MCPServerRegistry (Refactored)
- * Now uses ServerConfigManager for improved secret management and user configs
- */
-
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const os = require('os');
 const crypto = require('crypto');
 const EventEmitter = require('events');
-const serverConfigManager = require('./server-config-manager');
 
 class MCPServerRegistry extends EventEmitter {
   constructor() {
     super();
-    
-    // Legacy paths for backward compatibility
-    this.legacyRegistryDir = path.join(__dirname, 'recipes');
-    this.legacyRegistryFile = path.join(this.legacyRegistryDir, 'mcp-servers.json');
-    
-    // Use ServerConfigManager for new path
-    this.configManager = serverConfigManager;
-    
+    this.registryDir = path.join(__dirname, 'recipes');
+    this.registryFile = path.join(this.registryDir, 'mcp-servers.json');
+    this.lockFile = path.join(this.registryDir, 'mcp-servers.lock');
+    this.backupFile = path.join(this.registryDir, 'mcp-servers.bak');
     this.cache = new Map();
     this.servers = {};
     this.isWriting = false;
-    this.useLegacy = false; // Will be determined during initialization
     
     this.initializeStorage();
   }
 
   async initializeStorage() {
     try {
-      // Try to initialize with new ServerConfigManager first
-      const initialized = await this.configManager.initialize();
-      
-      if (initialized) {
-        // Use new config system
-        this.servers = this.configManager.servers;
-        this.useLegacy = false;
-        console.log('✅ Using new MCP server configuration from ~/.wingman/mcp-servers/');
-      } else {
-        // Fall back to legacy if new system fails
-        console.log('⚠️ Falling back to legacy configuration...');
-        await this.loadLegacyConfig();
-      }
-      
-      // Set up event forwarding from config manager
-      this.configManager.on('configSaved', (config) => {
-        this.servers = config;
-        this.emit('registryUpdated', config);
-      });
-      
-    } catch (error) {
-      console.error('Error initializing MCP server registry:', error);
-      // Try legacy as last resort
-      await this.loadLegacyConfig();
-    }
-  }
+      // Ensure registry directory exists
+      await fs.mkdir(this.registryDir, { recursive: true });
 
-  async loadLegacyConfig() {
-    try {
-      // Ensure legacy directory exists
-      await fs.mkdir(this.legacyRegistryDir, { recursive: true });
-
-      // Load legacy registry
+      // Load or create server registry
       try {
-        const registryData = await fs.readFile(this.legacyRegistryFile, 'utf8');
+        const registryData = await fs.readFile(this.registryFile, 'utf8');
         this.servers = JSON.parse(registryData);
-        this.useLegacy = true;
-        console.log('⚠️ Loaded legacy configuration. Run migration script to update.');
       } catch (error) {
-        // No legacy config either, create empty
+        // Create initial registry with some common servers
         this.servers = {
           servers: {},
           metadata: {
@@ -80,20 +37,15 @@ class MCPServerRegistry extends EventEmitter {
             lastUpdated: new Date().toISOString()
           }
         };
+        await this.saveRegistry();
       }
     } catch (error) {
-      console.error('Error loading legacy config:', error);
+      console.error('Error initializing MCP server registry:', error);
     }
   }
 
   async saveRegistry() {
-    // Use new config manager if not in legacy mode
-    if (!this.useLegacy) {
-      await this.configManager.saveConfig(this.servers);
-      return;
-    }
-    
-    // Legacy save implementation
+    // T-004: Implement atomic writes with file locking
     if (this.isWriting) {
       // Wait for current write to complete
       await new Promise(resolve => {
@@ -113,10 +65,9 @@ class MCPServerRegistry extends EventEmitter {
       await this.acquireLock();
       
       // Create backup of current file if it exists
-      const backupFile = path.join(this.legacyRegistryDir, 'mcp-servers.bak');
       try {
-        await fs.access(this.legacyRegistryFile);
-        await fs.copyFile(this.legacyRegistryFile, backupFile);
+        await fs.access(this.registryFile);
+        await fs.copyFile(this.registryFile, this.backupFile);
       } catch (error) {
         // File doesn't exist yet, no backup needed
       }
@@ -125,22 +76,21 @@ class MCPServerRegistry extends EventEmitter {
       this.servers.metadata.lastUpdated = new Date().toISOString();
       
       // Write to temp file first (atomic write pattern)
-      const tempFile = `${this.legacyRegistryFile}.tmp`;
+      const tempFile = `${this.registryFile}.tmp`;
       await fs.writeFile(tempFile, JSON.stringify(this.servers, null, 2), 'utf-8');
       
       // Atomic rename (on POSIX systems)
-      await fs.rename(tempFile, this.legacyRegistryFile);
+      await fs.rename(tempFile, this.registryFile);
       
       // Release lock
       await this.releaseLock();
       
       this.emit('registryUpdated', this.servers);
-      console.log('✅ Registry saved with atomic write (legacy)');
+      console.log('✅ Registry saved with atomic write');
     } catch (error) {
       // Try to restore from backup if write failed
-      const backupFile = path.join(this.legacyRegistryDir, 'mcp-servers.bak');
       try {
-        await fs.copyFile(backupFile, this.legacyRegistryFile);
+        await fs.copyFile(this.backupFile, this.registryFile);
         console.warn('⚠️ Registry write failed, restored from backup');
       } catch (restoreError) {
         // Backup restore failed too
@@ -150,20 +100,17 @@ class MCPServerRegistry extends EventEmitter {
       throw new Error(`Failed to save registry: ${error.message}`);
     } finally {
       this.isWriting = false;
+      await this.releaseLock(); // Ensure lock is released
     }
   }
 
   async acquireLock(maxWaitMs = 5000) {
-    const lockFile = this.useLegacy ? 
-      path.join(this.legacyRegistryDir, 'mcp-servers.lock') :
-      path.join(this.configManager.getUserConfigDir(), '.servers.lock');
-    
     const startTime = Date.now();
     
     while (Date.now() - startTime < maxWaitMs) {
       try {
         // Try to create lock file exclusively
-        const fd = await fs.open(lockFile, 'wx');
+        const fd = await fs.open(this.lockFile, 'wx');
         await fd.close();
         return; // Lock acquired
       } catch (error) {
@@ -179,17 +126,13 @@ class MCPServerRegistry extends EventEmitter {
     // Timeout - force acquire by removing stale lock
     console.warn('⚠️ Force acquiring stale lock');
     await this.releaseLock();
-    const fd = await fs.open(lockFile, 'wx');
+    const fd = await fs.open(this.lockFile, 'wx');
     await fd.close();
   }
 
   async releaseLock() {
-    const lockFile = this.useLegacy ? 
-      path.join(this.legacyRegistryDir, 'mcp-servers.lock') :
-      path.join(this.configManager.getUserConfigDir(), '.servers.lock');
-    
     try {
-      await fs.unlink(lockFile);
+      await fs.unlink(this.lockFile);
     } catch (error) {
       // Lock file doesn't exist, already released
     }
@@ -242,19 +185,6 @@ class MCPServerRegistry extends EventEmitter {
 
   // Register a new MCP server
   async registerServer(serverConfig) {
-    if (!this.useLegacy) {
-      // Use new config manager
-      await this.configManager.upsertServer(serverConfig);
-      this.servers = this.configManager.servers;
-      
-      // Clear cache
-      this.cache.delete(serverConfig.id);
-      
-      this.emit('serverRegistered', serverConfig);
-      return serverConfig;
-    }
-    
-    // Legacy implementation
     const serverId = serverConfig.id || this.generateServerId(serverConfig.name);
     
     const server = {
@@ -298,25 +228,6 @@ class MCPServerRegistry extends EventEmitter {
 
   // Update an existing server
   async updateServer(serverId, updates) {
-    if (!this.useLegacy) {
-      // Use new config manager
-      const existingServer = this.configManager.getServer(serverId);
-      if (!existingServer) {
-        throw new Error(`Server ${serverId} not found`);
-      }
-      
-      const updatedServer = { ...existingServer, ...updates, id: serverId };
-      await this.configManager.upsertServer(updatedServer);
-      this.servers = this.configManager.servers;
-      
-      // Clear cache
-      this.cache.delete(serverId);
-      
-      this.emit('serverUpdated', updatedServer);
-      return updatedServer;
-    }
-    
-    // Legacy implementation
     const existingServer = this.servers.servers[serverId];
     if (!existingServer) {
       throw new Error(`Server ${serverId} not found`);
@@ -344,34 +255,6 @@ class MCPServerRegistry extends EventEmitter {
 
   // Remove a server from registry
   async unregisterServer(serverId) {
-    if (!this.useLegacy) {
-      // Use new config manager
-      const server = this.configManager.getServer(serverId);
-      if (!server) {
-        throw new Error(`Server ${serverId} not found`);
-      }
-      
-      // Check if server is in use
-      if (server.usedByRecipes && server.usedByRecipes.length > 0) {
-        throw new Error(`Cannot remove server ${serverId}: still used by ${server.usedByRecipes.length} recipe(s)`);
-      }
-
-      // Don't allow removal of built-in servers
-      if (server.isBuiltIn) {
-        throw new Error('Cannot remove built-in servers');
-      }
-      
-      await this.configManager.removeServer(serverId);
-      this.servers = this.configManager.servers;
-      
-      // Clear cache
-      this.cache.delete(serverId);
-      
-      this.emit('serverUnregistered', { id: serverId, server });
-      return { success: true };
-    }
-    
-    // Legacy implementation
     const server = this.servers.servers[serverId];
     if (!server) {
       throw new Error(`Server ${serverId} not found`);
@@ -456,36 +339,6 @@ class MCPServerRegistry extends EventEmitter {
         server.cmd.toLowerCase().includes(queryLower)
       )
       .map(([id, server]) => ({ id, ...server }));
-  }
-
-  // Check if a server requires migration (has hardcoded secrets)
-  serverNeedsMigration(server) {
-    if (!server.args) return false;
-    
-    for (const arg of server.args) {
-      if (typeof arg === 'string') {
-        // Check for hardcoded API keys
-        if (arg.includes('tvly-') || arg.includes('ghp_') || arg.includes('BSA-')) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  // Get migration status
-  async getMigrationStatus() {
-    const allServers = await this.getAllServers();
-    const needMigration = allServers.filter(server => this.serverNeedsMigration(server));
-    
-    return {
-      usingLegacy: this.useLegacy,
-      totalServers: allServers.length,
-      serversNeedingMigration: needMigration.length,
-      serversNeedingMigrationIds: needMigration.map(s => s.id),
-      newConfigPath: this.configManager.getUserConfigPath(),
-      legacyConfigPath: this.legacyRegistryFile
-    };
   }
 
   // Convert extension config to server config for registry
@@ -581,8 +434,7 @@ class MCPServerRegistry extends EventEmitter {
       customServers: customCount,
       totalUsage,
       averageUsage: Math.round(avgUsage * 100) / 100,
-      lastUpdated: this.servers.metadata.lastUpdated,
-      migrationStatus: await this.getMigrationStatus()
+      lastUpdated: this.servers.metadata.lastUpdated
     };
   }
 
@@ -633,5 +485,4 @@ class MCPServerRegistry extends EventEmitter {
   }
 }
 
-// Export singleton instance
 module.exports = new MCPServerRegistry();
