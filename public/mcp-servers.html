@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Server Catalog - Wingman: Goose</title>
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- iOS specific meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Wingman">
+    <link rel="apple-touch-icon" href="Wingman_Goose_Logo_Light.png">
+    
+    <!-- Android/Chrome -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#059669">
+    
+    <!-- Windows -->
+    <meta name="msapplication-TileColor" content="#059669">
+    <meta name="msapplication-TileImage" content="Wingman_Goose_Logo_Light.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS Variables for theming */
+        :root {
+            /* Light theme (default) */
+            --bg-gradient-start: #f9f9f9;
+            --bg-gradient-end: #f5f5f0;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafaf9;
+            --bg-tertiary: #f5f5f4;
+            --text-primary: #1c1917;
+            --text-secondary: #44403c;
+            --text-tertiary: #57534e;
+            --text-muted: #78716c;
+            --text-disabled: #a8a29e;
+            --border-primary: #e7e5e4;
+            --border-secondary: #d6d3d1;
+            --accent-primary: #059669;
+            --accent-secondary: #047857;
+            --accent-tertiary: #065f46;
+            --accent-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fecaca;
+            --success: #10b981;
+            --success-light: #dcfce7;
+            --info: #3b82f6;
+            --info-light: #dbeafe;
+        }
+
+        /* Dark theme */
+        [data-theme="dark"] {
+            --bg-gradient-start: #1c1917;
+            --bg-gradient-end: #292524;
+            --bg-primary: #1c1917;
+            --bg-secondary: #292524;
+            --bg-tertiary: #44403c;
+            --text-primary: #fafaf9;
+            --text-secondary: #e7e5e4;
+            --text-tertiary: #d6d3d1;
+            --text-muted: #a8a29e;
+            --text-disabled: #57534e;
+            --border-primary: #44403c;
+            --border-secondary: #57534e;
+            --accent-primary: #10b981;
+            --accent-secondary: #059669;
+            --accent-tertiary: #047857;
+            --accent-light: #022c22;
+            --warning: #f59e0b;
+            --warning-light: #451a03;
+            --danger: #ef4444;
+            --danger-light: #450a0a;
+            --success: #10b981;
+            --success-light: #022c22;
+            --info: #3b82f6;
+            --info-light: #1e3a8a;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-primary);
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-primary);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+            border-color: var(--accent-primary);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-primary);
+            border-radius: 0.5rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+
+        .button {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .button:hover {
+            background: var(--accent-secondary);
+        }
+
+        .button.secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+        }
+
+        .button.secondary:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .server-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .server-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-color: var(--accent-primary);
+        }
+
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .server-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .server-category {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .server-description {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .server-command {
+            background: var(--bg-tertiary);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+            margin-bottom: 1rem;
+            overflow-x: auto;
+        }
+
+        .server-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tag {
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+        }
+
+        .server-env-keys {
+            margin-bottom: 1rem;
+        }
+
+        .env-keys-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .env-key {
+            background: var(--warning-light);
+            color: var(--warning);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            margin-right: 0.5rem;
+        }
+
+        .server-usage {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .usage-count {
+            background: var(--info-light);
+            color: var(--info);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-weight: 500;
+        }
+
+        .server-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .test-btn {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .test-btn:hover {
+            background: var(--success);
+            color: white;
+        }
+
+        .edit-btn {
+            background: var(--info-light);
+            color: var(--info);
+        }
+
+        .edit-btn:hover {
+            background: var(--info);
+            color: white;
+        }
+
+        .delete-btn {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .delete-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .status-indicator.warning {
+            background: var(--warning);
+        }
+
+        .status-indicator.error {
+            background: var(--danger);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-bar {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-primary);
+            border-radius: 0.5rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-primary);
+            border-radius: 50%;
+            border-top-color: var(--accent-primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .servers-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-bar {
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔌 MCP Server Catalog</h1>
+            <p>Manage and configure Model Context Protocol servers for your recipes</p>
+        </div>
+
+        <div class="nav">
+            <a href="/" class="nav-link">🏠 Home</a>
+            <a href="/recipes" class="nav-link">📋 Recipes</a>
+            <a href="/mcp-servers" class="nav-link" style="background: var(--accent-light); color: var(--accent-tertiary);">🔌 MCP Servers</a>
+            <a href="/deep-dive" class="nav-link">🔍 Deep Dive</a>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value" id="totalServers">0</div>
+                <div class="stat-label">Total Servers</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="builtInServers">0</div>
+                <div class="stat-label">Built-in</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="customServers">0</div>
+                <div class="stat-label">Custom</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="activeServers">0</div>
+                <div class="stat-label">In Use</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search servers...">
+            </div>
+            <div>
+                <button class="button" onclick="openAddServerModal()">➕ Add Server</button>
+                <button class="button secondary" onclick="refreshServers()">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <div id="serversContainer">
+            <div class="servers-grid" id="serversGrid"></div>
+        </div>
+
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <h3>No MCP servers found</h3>
+            <p>Add your first MCP server to get started</p>
+        </div>
+    </div>
+
+    <!-- Add/Edit Server Modal -->
+    <div class="modal" id="serverModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add MCP Server</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="serverForm">
+                <div class="form-group">
+                    <label class="form-label" for="serverName">Server Name *</label>
+                    <input type="text" id="serverName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="serverDescription">Description</label>
+                    <textarea id="serverDescription" class="form-input form-textarea" placeholder="What does this server do?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="serverType">Server Type *</label>
+                    <select id="serverType" class="form-input form-select" onchange="updateServerTemplate()" required>
+                        <option value="">Select server type...</option>
+                        <optgroup label="Common MCP Servers">
+                            <option value="npx:@modelcontextprotocol">Anthropic MCP Server</option>
+                            <option value="npx:mcp-remote">Remote MCP Server</option>
+                            <option value="uvx:mcp">Python MCP Server (uvx)</option>
+                            <option value="node:custom">Node.js Script</option>
+                            <option value="python:custom">Python Script</option>
+                        </optgroup>
+                        <optgroup label="Popular Servers">
+                            <option value="npx:@modelcontextprotocol/server-filesystem">Filesystem (Read/Write)</option>
+                            <option value="npx:@modelcontextprotocol/server-brave-search">Brave Search</option>
+                            <option value="npx:@modelcontextprotocol/server-github">GitHub</option>
+                            <option value="npx:@modelcontextprotocol/server-postgres">PostgreSQL</option>
+                            <option value="npx:@modelcontextprotocol/server-sqlite">SQLite</option>
+                            <option value="npx:@modelcontextprotocol/server-everart">Everart (AI Images)</option>
+                            <option value="npx:@modelcontextprotocol/server-memory">Memory/Knowledge Graph</option>
+                            <option value="npx:@context7/mcp-server">Context7 (Library Docs)</option>
+                            <option value="uvx:mcp-obsidian">Obsidian Notes</option>
+                            <option value="npx:tavily-mcp">Tavily Research</option>
+                            <option value="npx:@danielsuguimoto/readonly-server-filesystem">Filesystem (Read-only)</option>
+                        </optgroup>
+                        <option value="custom">Custom Command...</option>
+                    </select>
+                </div>
+                <div class="form-group" id="customCmdGroup" style="display: none;">
+                    <label class="form-label" for="serverCmd">Custom Command *</label>
+                    <input type="text" id="serverCmd" class="form-input" placeholder="e.g., npx, node, python, uvx">
+                </div>
+                <div class="form-group" id="packageGroup">
+                    <label class="form-label" for="serverPackage">Package/Script Name *</label>
+                    <input type="text" id="serverPackage" class="form-input" placeholder="e.g., @modelcontextprotocol/server-example">
+                    <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
+                        For npx: package name (e.g., @modelcontextprotocol/server-example)<br>
+                        For node/python: path to script (e.g., ./my-server.js)
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="serverArgs">Additional Arguments (one per line)</label>
+                    <textarea id="serverArgs" class="form-input form-textarea" placeholder="Additional arguments, one per line"></textarea>
+                    <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
+                        Common arguments will be pre-filled based on server type
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="serverEnvKeys">Environment Variables (one per line)</label>
+                    <textarea id="serverEnvKeys" class="form-input form-textarea" placeholder="API_KEY&#10;OTHER_SECRET"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="serverTags">Tags (comma-separated)</label>
+                    <input type="text" id="serverTags" class="form-input" placeholder="api, web, search">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="serverTimeout">Timeout (seconds)</label>
+                    <input type="number" id="serverTimeout" class="form-input" value="300" min="10" max="3600">
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="button secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="button" id="submitBtn">
+                        <span id="submitText">Add Server</span>
+                        <span class="loading" id="submitLoading" style="display: none;"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let servers = [];
+        let editingServerId = null;
+
+        // Common MCP server templates
+        const serverTemplates = {
+            'npx:@modelcontextprotocol/server-filesystem': {
+                name: 'Filesystem',
+                description: 'Read and write access to local filesystem',
+                envKeys: [],
+                args: ['/Users/mini/code'] // Default path
+            },
+            'npx:@modelcontextprotocol/server-brave-search': {
+                name: 'BraveSearch',
+                description: 'Web search capabilities using Brave Search API',
+                envKeys: ['BRAVE_API_KEY'],
+                args: []
+            },
+            'npx:@modelcontextprotocol/server-github': {
+                name: 'GitHub',
+                description: 'GitHub repository operations, issues, and pull requests',
+                envKeys: ['GITHUB_PERSONAL_ACCESS_TOKEN'],
+                args: []
+            },
+            'npx:@modelcontextprotocol/server-postgres': {
+                name: 'PostgreSQL',
+                description: 'PostgreSQL database operations and queries',
+                envKeys: ['POSTGRES_CONNECTION_STRING'],
+                args: []
+            },
+            'npx:@modelcontextprotocol/server-sqlite': {
+                name: 'SQLite',
+                description: 'SQLite database operations and queries',
+                envKeys: [],
+                args: ['./database.db'] // Default database path
+            },
+            'npx:@modelcontextprotocol/server-everart': {
+                name: 'Everart',
+                description: 'AI image generation and visual content creation',
+                envKeys: ['EVERART_API_KEY'],
+                args: []
+            },
+            'npx:@modelcontextprotocol/server-memory': {
+                name: 'Memory',
+                description: 'Graph-based memory system for persistent knowledge storage',
+                envKeys: [],
+                args: []
+            },
+            'npx:@context7/mcp-server': {
+                name: 'Context7',
+                description: 'Access to up-to-date documentation and code examples for libraries',
+                envKeys: ['CONTEXT7_API_KEY'],
+                args: []
+            },
+            'uvx:mcp-obsidian': {
+                name: 'Obsidian',
+                description: 'MCP server for Obsidian vault integration - read, write, and search notes',
+                envKeys: ['OBSIDIAN_API_KEY'],
+                args: []
+            },
+            'npx:tavily-mcp': {
+                name: 'TavilyResearch',
+                description: 'Research-based web search with detailed sourced information',
+                envKeys: ['TAVILY_API_KEY'],
+                args: []
+            },
+            'npx:@danielsuguimoto/readonly-server-filesystem': {
+                name: 'FilesystemReadOnly',
+                description: 'Read-only filesystem access for secure file operations',
+                envKeys: [],
+                args: ['/Users/mini/code'] // Default path
+            },
+            'npx:mcp-remote': {
+                name: 'RemoteMCP',
+                description: 'Connect to a remote MCP server',
+                envKeys: [],
+                args: ['https://example.com/mcp'] // Placeholder URL
+            }
+        };
+
+        function updateServerTemplate() {
+            const serverType = document.getElementById('serverType').value;
+            const customCmdGroup = document.getElementById('customCmdGroup');
+            const packageGroup = document.getElementById('packageGroup');
+            
+            // Show/hide custom command input
+            if (serverType === 'custom') {
+                customCmdGroup.style.display = 'block';
+                packageGroup.style.display = 'none';
+                document.getElementById('serverCmd').value = '';
+                document.getElementById('serverArgs').value = '';
+                document.getElementById('serverEnvKeys').value = '';
+                document.getElementById('serverName').value = '';
+                document.getElementById('serverDescription').value = '';
+            } else if (serverType) {
+                customCmdGroup.style.display = 'none';
+                
+                // Check if it's a known template
+                if (serverTemplates[serverType]) {
+                    const template = serverTemplates[serverType];
+                    packageGroup.style.display = 'none';
+                    
+                    // Pre-fill fields
+                    document.getElementById('serverName').value = template.name;
+                    document.getElementById('serverDescription').value = template.description;
+                    document.getElementById('serverArgs').value = template.args.join('\n');
+                    document.getElementById('serverEnvKeys').value = template.envKeys.join('\n');
+                } else {
+                    // Generic type selected (e.g., node:custom, python:custom)
+                    packageGroup.style.display = 'block';
+                    document.getElementById('serverPackage').value = '';
+                    document.getElementById('serverArgs').value = '';
+                }
+            }
+        }
+
+        // Load servers on page load
+        document.addEventListener('DOMContentLoaded', loadServers);
+
+        async function loadServers() {
+            try {
+                const response = await fetch('/api/mcp-servers');
+                servers = await response.json();
+                renderServers();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading servers:', error);
+                showError('Failed to load servers');
+            }
+        }
+
+        function renderServers() {
+            const grid = document.getElementById('serversGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (servers.length === 0) {
+                grid.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            grid.innerHTML = servers.map(server => `
+                <div class="server-card">
+                    <div class="status-indicator ${getServerStatus(server)}"></div>
+                    <div class="server-header">
+                        <div class="server-name">${server.name}</div>
+                        <div class="server-category">${server.category}</div>
+                    </div>
+                    <div class="server-description">${server.description}</div>
+                    <div class="server-command">${server.cmd} ${server.args.join(' ')}</div>
+                    <div class="server-tags">
+                        ${server.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                    ${server.env_keys.length > 0 ? `
+                        <div class="server-env-keys">
+                            <div class="env-keys-title">Required Environment Variables:</div>
+                            ${server.env_keys.map(key => `<span class="env-key">${key}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    <div class="server-usage">
+                        <span class="usage-count">${server.usedByRecipes ? server.usedByRecipes.length : 0} recipes</span>
+                        ${server.lastUsed ? `<span>Last used: ${new Date(server.lastUsed).toLocaleDateString()}</span>` : '<span>Never used</span>'}
+                    </div>
+                    <div class="server-actions">
+                        <button class="action-btn test-btn" onclick="testServer('${server.id}')">Test</button>
+                        <button class="action-btn edit-btn" onclick="editServer('${server.id}')">Edit</button>
+                        ${!server.isBuiltIn ? `<button class="action-btn delete-btn" onclick="deleteServer('${server.id}')">Delete</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getServerStatus(server) {
+            if (server.env_keys && server.env_keys.length > 0) {
+                // This would need to check if secrets are actually configured
+                return 'warning'; // Assume needs configuration
+            }
+            return 'success';
+        }
+
+        function updateStats() {
+            document.getElementById('totalServers').textContent = servers.length;
+            document.getElementById('builtInServers').textContent = servers.filter(s => s.isBuiltIn).length;
+            document.getElementById('customServers').textContent = servers.filter(s => !s.isBuiltIn).length;
+            document.getElementById('activeServers').textContent = servers.filter(s => s.usedByRecipes && s.usedByRecipes.length > 0).length;
+        }
+
+        function openAddServerModal() {
+            editingServerId = null;
+            document.getElementById('modalTitle').textContent = 'Add MCP Server';
+            document.getElementById('submitText').textContent = 'Add Server';
+            document.getElementById('serverForm').reset();
+            document.getElementById('serverTimeout').value = '300';
+            document.getElementById('serverType').value = '';
+            document.getElementById('customCmdGroup').style.display = 'none';
+            document.getElementById('packageGroup').style.display = 'none';
+            document.getElementById('serverModal').classList.add('active');
+        }
+
+        function editServer(serverId) {
+            const server = servers.find(s => s.id === serverId);
+            if (!server) return;
+            
+            editingServerId = serverId;
+            document.getElementById('modalTitle').textContent = 'Edit MCP Server';
+            document.getElementById('submitText').textContent = 'Update Server';
+            
+            // Try to match to a known template
+            let matched = false;
+            for (const [key, template] of Object.entries(serverTemplates)) {
+                const [cmd, pkg] = key.split(':');
+                if (server.cmd === cmd && 
+                    (server.args[0] === pkg || server.args[1] === pkg || 
+                     server.name === template.name)) {
+                    document.getElementById('serverType').value = key;
+                    matched = true;
+                    break;
+                }
+            }
+            
+            if (!matched) {
+                // Custom server
+                document.getElementById('serverType').value = 'custom';
+                document.getElementById('customCmdGroup').style.display = 'block';
+                document.getElementById('packageGroup').style.display = 'none';
+                document.getElementById('serverCmd').value = server.cmd;
+            } else {
+                document.getElementById('customCmdGroup').style.display = 'none';
+                document.getElementById('packageGroup').style.display = 'none';
+            }
+            
+            document.getElementById('serverName').value = server.name;
+            document.getElementById('serverDescription').value = server.description || '';
+            document.getElementById('serverArgs').value = server.args.join('\n');
+            document.getElementById('serverEnvKeys').value = server.env_keys.join('\n');
+            document.getElementById('serverTags').value = server.tags.join(', ');
+            document.getElementById('serverTimeout').value = server.timeout || 300;
+            
+            document.getElementById('serverModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('serverModal').classList.remove('active');
+        }
+
+        async function testServer(serverId) {
+            try {
+                const server = servers.find(s => s.id === serverId);
+                if (!server) return;
+                
+                showInfo(`Testing ${server.name}...`);
+                const response = await fetch(`/api/mcp-servers/${server.name}/test`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSuccess(`${server.name} test passed!`);
+                } else {
+                    showError(`${server.name} test failed: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error testing server:', error);
+                showError('Failed to test server');
+            }
+        }
+
+        async function deleteServer(serverId) {
+            if (!confirm('Are you sure you want to delete this server?')) return;
+            
+            try {
+                const response = await fetch(`/api/mcp-servers/${serverId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showSuccess('Server deleted successfully');
+                    await loadServers();
+                } else {
+                    const error = await response.json();
+                    showError(`Failed to delete server: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error deleting server:', error);
+                showError('Failed to delete server');
+            }
+        }
+
+        async function refreshServers() {
+            await loadServers();
+            showInfo('Servers refreshed');
+        }
+
+        // Form submission
+        document.getElementById('serverForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const submitLoading = document.getElementById('submitLoading');
+            
+            submitText.style.display = 'none';
+            submitLoading.style.display = 'inline-block';
+            submitBtn.disabled = true;
+            
+            try {
+                // Build command and args from form
+                let cmd, args;
+                const serverType = document.getElementById('serverType').value;
+                const additionalArgs = document.getElementById('serverArgs').value.split('\n').filter(arg => arg.trim());
+                
+                if (serverType === 'custom') {
+                    cmd = document.getElementById('serverCmd').value;
+                    args = additionalArgs;
+                } else if (serverTemplates[serverType]) {
+                    // Use template command structure
+                    const [templateCmd, templatePkg] = serverType.split(':');
+                    cmd = templateCmd;
+                    if (templatePkg !== 'custom') {
+                        args = ['-y', templatePkg].concat(serverTemplates[serverType].args).concat(additionalArgs);
+                    } else {
+                        args = additionalArgs;
+                    }
+                } else if (serverType.includes(':custom')) {
+                    // Generic type like node:custom, python:custom
+                    const [baseCmd] = serverType.split(':');
+                    cmd = baseCmd;
+                    const packageName = document.getElementById('serverPackage').value;
+                    if (packageName) {
+                        args = [packageName].concat(additionalArgs);
+                    } else {
+                        args = additionalArgs;
+                    }
+                } else {
+                    // Fallback
+                    cmd = 'npx';
+                    args = additionalArgs;
+                }
+                
+                const formData = {
+                    name: document.getElementById('serverName').value,
+                    description: document.getElementById('serverDescription').value,
+                    cmd: cmd,
+                    args: args,
+                    env_keys: document.getElementById('serverEnvKeys').value.split('\n').filter(key => key.trim()),
+                    tags: document.getElementById('serverTags').value.split(',').map(tag => tag.trim()).filter(tag => tag),
+                    timeout: parseInt(document.getElementById('serverTimeout').value) || 300,
+                    type: 'stdio'
+                };
+                
+                const url = editingServerId ? `/api/mcp-servers/${editingServerId}` : '/api/mcp-servers';
+                const method = editingServerId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    showSuccess(editingServerId ? 'Server updated successfully' : 'Server added successfully');
+                    closeModal();
+                    await loadServers();
+                } else {
+                    const error = await response.json();
+                    showError(`Failed to save server: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error saving server:', error);
+                showError('Failed to save server');
+            } finally {
+                submitText.style.display = 'inline';
+                submitLoading.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filteredServers = servers.filter(server => 
+                server.name.toLowerCase().includes(query) ||
+                server.description.toLowerCase().includes(query) ||
+                server.tags.some(tag => tag.toLowerCase().includes(query)) ||
+                server.cmd.toLowerCase().includes(query)
+            );
+            
+            const originalServers = servers;
+            servers = filteredServers;
+            renderServers();
+            servers = originalServers;
+        });
+
+        // Utility functions for notifications
+        function showSuccess(message) {
+            console.log('✅', message);
+            // In a real app, you'd show a toast notification
+        }
+
+        function showError(message) {
+            console.error('❌', message);
+            // In a real app, you'd show a toast notification
+        }
+
+        function showInfo(message) {
+            console.info('ℹ️', message);
+            // In a real app, you'd show a toast notification
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('serverModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('serverModal')) {
+                closeModal();
+            }
+        });
+
+        // ESC key to close modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('serverModal').classList.contains('active')) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

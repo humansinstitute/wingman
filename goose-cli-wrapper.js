@@ -2,6 +2,9 @@ const { spawn } = require('child_process');
 const EventEmitter = require('events');
 const fs = require('fs').promises;
 const path = require('path');
+const ephemeralConfig = require('./runtime/ephemeral-goose-config');
+const secretInjector = require('./secrets/secret-injector');
+const preflightEngine = require('./preflight/preflight-engine');
 
 class GooseCLIWrapper extends EventEmitter {
   constructor(options = {}) {
@@ -32,52 +35,40 @@ class GooseCLIWrapper extends EventEmitter {
       let args;
       let command;
       
-      // If we have a recipe, use 'goose run' instead of 'goose session'
-      if (this.options.recipeConfig || this.options.recipePath) {
-        command = 'run';
-        args = [];
+      // ENFORCEMENT: Always use recipes-only execution (T-001)
+      // If no recipe is provided, create a minimal recipe from extensions/builtins
+      let recipePath = this.options.recipePath;
+      
+      if (!recipePath) {
+        // Convert legacy extensions/builtins to a recipe config
+        const recipeConfig = this.options.recipeConfig || {
+          name: this.options.sessionName || `session-${Date.now()}`,
+          description: 'Auto-generated recipe from legacy configuration',
+          extensions: this.convertToRecipeExtensions(),
+          system_prompt: this.options.systemPrompt || ''
+        };
         
-        let recipePath = this.options.recipePath;
-        
-        // If we have recipe config but no path, create a temp file
-        if (this.options.recipeConfig && !recipePath) {
-          recipePath = await this.createTempRecipeFile(this.options.recipeConfig);
-        }
-        
-        if (recipePath) {
-          args.push('--recipe', recipePath);
-        }
-        
-        // Add provider/model flags if specified
-        if (this.options.provider) {
-          args.push('--provider', this.options.provider);
-        }
-        
-        if (this.options.model) {
-          args.push('--model', this.options.model);
-        }
-        
-        // Add interactive flag to continue in chat mode
-        args.push('--interactive');
-        
-        // Add session name
-        args.push('--name', this.options.sessionName);
-        
-        // Note: We can't use --text with --recipe, so we'll send the prompt after startup
-      } else {
-        // Regular session without recipe
-        command = 'session';
-        args = ['--name', this.options.sessionName];
-        
-        // Add provider/model flags for regular sessions too
-        if (this.options.provider) {
-          args.push('--provider', this.options.provider);
-        }
-        
-        if (this.options.model) {
-          args.push('--model', this.options.model);
-        }
+        recipePath = await this.createTempRecipeFile(recipeConfig);
       }
+      
+      // Always use 'goose run' with recipe
+      command = 'run';
+      args = ['--recipe', recipePath];
+      
+      // Add provider/model flags if specified
+      if (this.options.provider) {
+        args.push('--provider', this.options.provider);
+      }
+      
+      if (this.options.model) {
+        args.push('--model', this.options.model);
+      }
+      
+      // Add interactive flag to continue in chat mode
+      args.push('--interactive');
+      
+      // Add session name
+      args.push('--name', this.options.sessionName);
       
       if (this.options.debug) {
         args.push('--debug');
@@ -87,24 +78,58 @@ class GooseCLIWrapper extends EventEmitter {
         args.push('--max-turns', this.options.maxTurns.toString());
       }
       
-      // Only add extensions and builtins if not using a recipe
-      // When using recipes, extensions and builtins are defined in the recipe file
-      if (!this.options.recipeConfig && !this.options.recipePath) {
-        this.options.extensions.forEach(ext => {
-          args.push('--with-extension', ext);
-        });
-        
-        this.options.builtins.forEach(builtin => {
-          args.push('--with-builtin', builtin);
-        });
-      }
-      
       console.log(`Starting Goose ${command}: goose ${command} ${args.join(' ')}`);
+      
+      // T-003: Create ephemeral config and set GOOSE_CONFIG_PATH
+      const { path: configPath } = await ephemeralConfig.createEphemeralConfig(
+        this.options.sessionName,
+        {
+          provider: this.options.provider,
+          model: this.options.model
+        }
+      );
+      
+      // Build environment with ephemeral config and injected secrets
+      let sessionEnv = {
+        ...process.env,
+        GOOSE_CONFIG_PATH: configPath, // Zero-default enforcement
+        WINGMAN_SESSION_ID: this.options.sessionName
+      };
+      
+      // Inject required secrets for the recipe
+      if (recipePath) {
+        try {
+          const recipeData = await fs.readFile(recipePath, 'utf-8');
+          const recipe = JSON.parse(recipeData);
+          
+          // Add recipe-declared servers to the hybrid config
+          if (recipe.extensions && recipe.extensions.length > 0) {
+            await ephemeralConfig.addRecipeServers(configPath, recipe.extensions);
+          }
+          
+          const secretResult = await secretInjector.buildSessionEnv({
+            recipe: recipe,
+            selectedServers: recipe.extensions
+          });
+          
+          if (secretResult.success) {
+            sessionEnv = secretResult.env;
+            
+            // T-016: Log active extensions and injected env key names (no values)
+            this.logSessionStartup(recipe, secretResult.injected);
+          } else if (secretResult.missing.length > 0) {
+            console.warn(`⚠️ Missing ${secretResult.missing.length} required secrets`);
+            console.warn('   Session may have limited functionality');
+          }
+        } catch (error) {
+          console.warn(`Failed to inject secrets: ${error.message}`);
+        }
+      }
       
       this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: this.options.workingDirectory,
-        env: { ...process.env }
+        env: sessionEnv
       });
 
       this.gooseProcess.stdout.on('data', (data) => {
@@ -156,6 +181,33 @@ class GooseCLIWrapper extends EventEmitter {
     this.options.parameters = parameters;
     
     return this.start();
+  }
+
+  convertToRecipeExtensions() {
+    // Convert legacy extensions/builtins arrays to recipe format
+    const extensions = [];
+    
+    // Convert extensions (assuming they're just names for now)
+    this.options.extensions.forEach(ext => {
+      if (typeof ext === 'string') {
+        // Legacy format: just the extension name
+        extensions.push({ name: ext });
+      } else {
+        // Already in object format
+        extensions.push(ext);
+      }
+    });
+    
+    // Convert builtins (same approach)
+    this.options.builtins.forEach(builtin => {
+      if (typeof builtin === 'string') {
+        extensions.push({ name: builtin, isBuiltin: true });
+      } else {
+        extensions.push(builtin);
+      }
+    });
+    
+    return extensions;
   }
 
   async createTempRecipeFile(recipe) {
@@ -269,6 +321,9 @@ class GooseCLIWrapper extends EventEmitter {
         }
       }, 5000);
     }
+    
+    // Clean up ephemeral config
+    await ephemeralConfig.cleanupSession(this.options.sessionName);
   }
 
   async listSessions() {
@@ -350,6 +405,37 @@ class GooseCLIWrapper extends EventEmitter {
   updateProviderModel(provider, model) {
     this.options.provider = provider;
     this.options.model = model;
+  }
+
+  /**
+   * Log session startup details (T-016)
+   * @private
+   */
+  logSessionStartup(recipe, injectedSecrets) {
+    const timestamp = new Date().toISOString();
+    
+    console.log(`\n[${timestamp}] [RUNTIME] Session Starting`);
+    console.log(`  Recipe: ${recipe.name} (${recipe.id})`);
+    console.log(`  Session: ${this.options.sessionName}`);
+    
+    // Log active extensions
+    const extensions = recipe.extensions || [];
+    console.log(`  Active Extensions: ${extensions.length}`);
+    extensions.forEach((ext, index) => {
+      const name = ext.name || ext;
+      console.log(`    ${index + 1}. ${name}`);
+    });
+    
+    // Log injected environment key names (NEVER log values)
+    if (injectedSecrets && injectedSecrets.length > 0) {
+      console.log(`  Injected Environment Keys: ${injectedSecrets.length}`);
+      injectedSecrets.forEach(secret => {
+        console.log(`    - ${secret.key} (for ${secret.server})`);
+      });
+    }
+    
+    console.log(`  Working Directory: ${this.options.workingDirectory || process.cwd()}`);
+    console.log(`  Zero-Default Config: Enforced\n`);
   }
 
   // New method to get current provider/model
