@@ -3788,15 +3788,17 @@
                     `;
                 }
                 
-                // Add archived sessions link at the bottom if there are archived sessions
-                content += `
+                // Add archived sessions link at the bottom
+                const archivedLink = `
                     <div style="text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-primary);">
                         <a href="#" id="showArchivedLink" style="color: var(--accent-primary); text-decoration: none; font-size: 0.9rem; cursor: pointer;">Show Archived Sessions</a>
                     </div>
                 `;
                 
                 if (runningSessions.length === 0 && availableSessions.length === 0) {
-                    content = '<div class="empty-sessions">No sessions found</div>';
+                    content = '<div class="empty-sessions">No active sessions found</div>' + archivedLink;
+                } else {
+                    content += archivedLink;
                 }
                 
                 this.sessionList.innerHTML = content;

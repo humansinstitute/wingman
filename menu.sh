@@ -242,7 +242,7 @@ delete_worktree() {
     echo -e "${WHITE}Delete Worktree:${NC}"
     echo
     
-    local worktrees=$(git worktree list 2>/dev/null | grep -v "$(git rev-parse --show-toplevel)")
+    local worktrees=$(git worktree list 2>/dev/null | grep -v "^$(git rev-parse --show-toplevel) ")
     if [[ -z "$worktrees" ]]; then
         echo -e "${RED}No additional worktrees found to delete${NC}"
         echo -n "Press Enter to continue..."
