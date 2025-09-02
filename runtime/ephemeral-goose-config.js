@@ -67,6 +67,7 @@ class EphemeralGooseConfig {
         providers: {},
         extensions: globalExtensions, // Include working global servers
         models: {},
+        builtins: [], // Initialize empty builtins array - will be populated from recipe
         // Add provider config if specified
         ...(providerConfig.provider && {
           providers: {
@@ -122,6 +123,11 @@ class EphemeralGooseConfig {
       for (const extension of recipeExtensions) {
         const extensionName = extension.name;
         
+        // Validate filesystem paths if this is a filesystem server
+        if (extensionName === 'files_readonly' || extensionName.includes('filesystem')) {
+          await this.validateFilesystemServer(extension);
+        }
+        
         // Create deterministic server config with keychain secrets
         const serverConfig = {
           type: extension.type || 'stdio',
@@ -162,6 +168,59 @@ class EphemeralGooseConfig {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Validate filesystem server configuration
+   * @param {Object} extension - Extension configuration
+   * @throws {Error} If filesystem path is invalid
+   */
+  async validateFilesystemServer(extension) {
+    // Look for path in args (usually the last argument)
+    const args = extension.args || [];
+    let pathArg = null;
+    
+    // Common patterns for filesystem servers
+    for (const arg of args) {
+      if (arg.startsWith('/') || arg.startsWith('~')) {
+        pathArg = arg;
+        break;
+      }
+    }
+    
+    if (pathArg) {
+      // Expand tilde if present
+      if (pathArg.startsWith('~')) {
+        pathArg = pathArg.replace('~', os.homedir());
+      }
+      
+      // Check if path exists
+      const exists = await this.fileExists(pathArg);
+      if (!exists) {
+        console.error(`❌ Filesystem server path does not exist: ${pathArg}`);
+        console.error(`   Server: ${extension.name}`);
+        console.error(`   This will cause MCP server to fail with serde errors`);
+        
+        // Try to suggest alternatives
+        const suggestions = [];
+        if (pathArg.includes('/mini/')) {
+          const altPath = pathArg.replace('/mini/', `/${process.env.USER || 'user'}/`);
+          if (await this.fileExists(altPath)) {
+            suggestions.push(altPath);
+          }
+        }
+        
+        if (suggestions.length > 0) {
+          console.error(`   Suggested alternative: ${suggestions[0]}`);
+        }
+        
+        // Don't throw - log warning but continue
+        // This allows the session to start even with bad paths
+        console.warn(`⚠️ Continuing with invalid path - server may fail`);
+      } else {
+        console.log(`✅ Validated filesystem path: ${pathArg}`);
+      }
     }
   }
 

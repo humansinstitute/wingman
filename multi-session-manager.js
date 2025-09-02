@@ -188,7 +188,9 @@ class MultiSessionManager extends EventEmitter {
       sessionId,
       sessionName,
       provider: finalProvider,
-      model: finalModel
+      model: finalModel,
+      forceZeroDefaults: options.forceZeroDefaults, // Pass through force zero-defaults flag
+      isTriggered: options.isTriggered // Pass through triggered flag to handle builtins
     });
     
     // Set up event forwarding with session context
