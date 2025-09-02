@@ -30,6 +30,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     this.isProcessing = false;
     this.pendingInterrupt = false;
     this.stderrBuffer = ''; // Buffer stderr for failure analysis
+    this.lastMCPActivity = null; // Track last MCP server activity
   }
 
   async start() {
@@ -49,6 +50,12 @@ class StreamingGooseCLIWrapper extends EventEmitter {
           extensions: this.convertToRecipeExtensions(),
           system_prompt: this.options.systemPrompt || ''
         };
+        
+        // Remove builtins if triggered session to avoid serde errors
+        if (this.options.isTriggered) {
+          delete recipeConfig.builtins;
+          console.log('⚠️ Removing builtins from triggered session to avoid MCP communication errors');
+        }
         
         recipePath = await this.createTempRecipeFile(recipeConfig);
       }
@@ -76,13 +83,16 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       console.log(`Working directory: ${workingDir}`);
       
       // T-003: Create ephemeral config and set GOOSE_CONFIG_PATH
+      // Check for environment variable or option to force zero-defaults
+      const forceZeroDefaults = this.options.forceZeroDefaults === true || 
+                               process.env.WINGMAN_FORCE_ZERO_DEFAULTS === 'true';
       const { path: configPath } = await ephemeralConfig.createEphemeralConfig(
         this.options.sessionName,
         {
           provider: this.options.provider,
           model: this.options.model
         },
-        { allowGlobalServers: false } // Enforce zero-defaults for new sessions
+        { allowGlobalServers: !forceZeroDefaults } // Enforce zero-defaults for triggers
       );
       
       // Add session context to environment variables for MCP servers
@@ -136,7 +146,33 @@ class StreamingGooseCLIWrapper extends EventEmitter {
 
       this.gooseProcess.stderr.on('data', (data) => {
         const stderrOutput = data.toString();
-        console.error('Goose stderr:', stderrOutput);
+        
+        // Enhanced MCP debugging
+        if (stderrOutput.includes('rmcp::transport::async_rw') || 
+            stderrOutput.includes('JsonRpcMessage') ||
+            stderrOutput.includes('serde error')) {
+          console.error('🔴 MCP SERDE ERROR DETECTED:');
+          console.error('   Raw error:', stderrOutput);
+          
+          // Try to identify which MCP server based on recent activity
+          if (this.lastMCPActivity) {
+            console.error('   Last MCP activity:', this.lastMCPActivity);
+          }
+          
+          // Check recipe for MCP servers
+          if (recipePath) {
+            try {
+              const recipeContent = fs.readFileSync(recipePath, 'utf8');
+              const recipe = JSON.parse(recipeContent);
+              console.error('   Recipe MCP servers:', recipe.extensions?.map(e => e.name).join(', ') || 'none');
+              console.error('   Recipe builtins:', recipe.builtins?.join(', ') || 'none');
+            } catch (e) {
+              // Ignore
+            }
+          }
+        } else {
+          console.error('Goose stderr:', stderrOutput);
+        }
         
         // Buffer stderr for failure analysis
         this.stderrBuffer += stderrOutput;
@@ -407,6 +443,17 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     
     const trimmed = data.trim();
     if (!trimmed) return false;
+    
+    // Track MCP server activity
+    if (trimmed.includes('|')) {
+      const parts = trimmed.split('|');
+      if (parts.length >= 2) {
+        const serverName = parts[1].replace(/─/g, '').trim();
+        if (serverName) {
+          this.lastMCPActivity = `${serverName} at ${new Date().toISOString()}`;
+        }
+      }
+    }
     
     // Debug logging to see what we're trying to match
     const isMatch = toolPatterns.some(pattern => pattern.test(trimmed));
@@ -700,8 +747,16 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     const tempDir = path.join(__dirname, 'temp');
     await fs.mkdir(tempDir, { recursive: true });
     
+    // Remove builtins from triggered sessions to avoid serde errors
+    const recipeToWrite = { ...recipe };
+    if (this.options.isTriggered && recipeToWrite.builtins) {
+      console.log(`⚠️ Removing ${recipeToWrite.builtins.length} builtins from triggered session to avoid MCP errors`);
+      console.log(`   Removed builtins: ${recipeToWrite.builtins.join(', ')}`);
+      delete recipeToWrite.builtins;
+    }
+    
     const tempFilePath = path.join(tempDir, `recipe-${Date.now()}.json`);
-    await fs.writeFile(tempFilePath, JSON.stringify(recipe, null, 2));
+    await fs.writeFile(tempFilePath, JSON.stringify(recipeToWrite, null, 2));
     
     return tempFilePath;
   }
