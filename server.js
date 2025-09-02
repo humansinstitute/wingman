@@ -14,7 +14,6 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
-const os = require('os');
 const pty = require('node-pty');
 const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');

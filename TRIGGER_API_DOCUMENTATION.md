@@ -25,6 +25,7 @@ Trigger a new Goose session with a recipe.
 
 #### Headers
 - `TRIGGER_TOKEN`: Your authentication token (required)
+  - Alternative: `Authorization: Bearer your_token_here`
 - `Content-Type`: application/json
 
 #### Request Body
@@ -67,6 +68,7 @@ Get trigger activity logs for monitoring and debugging.
 
 #### Headers
 - `TRIGGER_TOKEN`: Your authentication token (required)
+  - Alternative: `Authorization: Bearer your_token_here`
 
 #### Query Parameters
 - `limit`: Number of log entries to return (default: 100)
@@ -111,7 +113,7 @@ Output handling is managed by the recipes themselves using their configured MCP 
 
 ### Using cURL
 ```bash
-# Basic trigger
+# Basic trigger with TRIGGER_TOKEN header
 curl -X POST http://localhost:3256/api/triggers \
   -H "Content-Type: application/json" \
   -H "TRIGGER_TOKEN: your_secure_trigger_token_here" \
@@ -120,10 +122,10 @@ curl -X POST http://localhost:3256/api/triggers \
     "prompt": "Analyze the sales data for Q3"
   }'
 
-# With custom prompt and session name
+# Alternative: Using Authorization Bearer header
 curl -X POST http://localhost:3256/api/triggers \
   -H "Content-Type: application/json" \
-  -H "TRIGGER_TOKEN: your_secure_trigger_token_here" \
+  -H "Authorization: Bearer your_secure_trigger_token_here" \
   -d '{
     "recipe_id": "abc123def456",
     "prompt": "Generate weekly report for Q3 2025",

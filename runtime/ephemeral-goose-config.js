@@ -39,7 +39,7 @@ class EphemeralGooseConfig {
       
       // Load existing global config to preserve working servers (hybrid approach)
       let globalExtensions = {};
-      const allowGlobalServers = options.allowGlobalServers !== false; // Default: allow
+      const allowGlobalServers = options.allowGlobalServers === true; // Default: zero-default
       
       if (allowGlobalServers) {
         try {

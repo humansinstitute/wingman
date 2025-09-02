@@ -81,7 +81,8 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         {
           provider: this.options.provider,
           model: this.options.model
-        }
+        },
+        { allowGlobalServers: false } // Enforce zero-defaults for new sessions
       );
       
       // Add session context to environment variables for MCP servers
@@ -139,6 +140,12 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         
         // Buffer stderr for failure analysis
         this.stderrBuffer += stderrOutput;
+        
+        // Detect common MCP server failures and provide friendly diagnostics
+        const friendlyError = this.detectMCPFailures(stderrOutput);
+        if (friendlyError) {
+          this.emit('mcpFailure', friendlyError);
+        }
         
         this.emit('error', stderrOutput);
       });
@@ -615,7 +622,8 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         {
           provider: this.options.provider,
           model: this.options.model
-        }
+        },
+        { allowGlobalServers: false } // Enforce zero-defaults for resumed sessions
       );
       
       // Add session context to environment variables for MCP servers
@@ -819,6 +827,50 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       console.error(`Failed to delete session ${sessionName}:`, error.message);
       throw new Error(`Failed to delete session: ${error.message}`);
     }
+  }
+
+  /**
+   * Detect common MCP server failures and provide friendly error messages
+   * @param {string} stderrOutput - The stderr output to analyze
+   * @returns {Object|null} Friendly error object or null if no known patterns
+   */
+  detectMCPFailures(stderrOutput) {
+    const patterns = [
+      // Filesystem server with invalid path
+      {
+        pattern: /ENOENT.*No such file or directory.*server-filesystem/,
+        message: "Filesystem MCP server failed: The specified directory path does not exist. This often happens when global MCP servers are preserved from a different environment.",
+        suggestion: "Check your global Goose config (~/.config/goose/config.yaml) or switch to zero-defaults mode.",
+        type: "filesystem_path_error"
+      },
+      // Generic MCP server process exit
+      {
+        pattern: /process quit before initialization/,
+        message: "MCP server process exited during startup. This usually indicates a configuration or dependency issue.",
+        suggestion: "Check the server command, arguments, and environment variables in your recipe or global config.",
+        type: "server_startup_failure"
+      },
+      // Serde/JSON-RPC errors (often downstream from server crashes)
+      {
+        pattern: /did not match any variant of untagged enum JsonRpcMessage/,
+        message: "JSON-RPC communication error. This typically occurs when an MCP server crashes and sends invalid responses.",
+        suggestion: "Check if any MCP servers are failing to start properly. Look for earlier error messages about server processes.",
+        type: "jsonrpc_serde_error"
+      }
+    ];
+
+    for (const { pattern, message, suggestion, type } of patterns) {
+      if (pattern.test(stderrOutput)) {
+        return {
+          type,
+          message,
+          suggestion,
+          rawError: stderrOutput.trim()
+        };
+      }
+    }
+
+    return null;
   }
 
 }
