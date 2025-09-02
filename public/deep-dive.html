@@ -725,6 +725,10 @@
                         <span>⌃C</span>
                         <span>Cancel</span>
                     </button>
+                    <button id="tmux-paste" class="tmux-btn" title="Paste from clipboard">
+                        <span>📋</span>
+                        <span>Paste</span>
+                    </button>
                 </div>
                 <div id="connection-status" class="connection-status connecting">
                     <span class="status-dot"></span>
@@ -780,6 +784,7 @@
                 this.tmuxDown = document.getElementById('tmux-down');
                 this.tmuxReturn = document.getElementById('tmux-return');
                 this.tmuxCancel = document.getElementById('tmux-cancel');
+                this.tmuxPaste = document.getElementById('tmux-paste');
                 
                 this.init();
             }
@@ -895,6 +900,34 @@
                             flashButton(this.tmuxCancel);
                             // Send Ctrl+C (ASCII code 3)
                             this.socket.emit('terminal-input', '\x03');
+                        }
+                    });
+                }
+                
+                // Paste button
+                if (this.tmuxPaste) {
+                    this.tmuxPaste.addEventListener('click', async () => {
+                        if (this.authenticated && this.socket && this.socket.connected) {
+                            flashButton(this.tmuxPaste);
+                            try {
+                                // Read text from clipboard
+                                const text = await navigator.clipboard.readText();
+                                if (text) {
+                                    // Send the clipboard text to terminal
+                                    this.socket.emit('terminal-input', text);
+                                }
+                            } catch (err) {
+                                console.error('Failed to read clipboard contents:', err);
+                                // Show brief error feedback by changing button color
+                                this.tmuxPaste.style.background = 'var(--error-light)';
+                                this.tmuxPaste.style.color = 'var(--error-primary)';
+                                this.tmuxPaste.style.borderColor = 'var(--error-primary)';
+                                setTimeout(() => {
+                                    this.tmuxPaste.style.background = '';
+                                    this.tmuxPaste.style.color = '';
+                                    this.tmuxPaste.style.borderColor = '';
+                                }, 1000);
+                            }
                         }
                     });
                 }
