@@ -21,7 +21,10 @@
     "test": "jest",
     "migrate-recipes": "node scripts/migrate-to-centralized.js",
     "migrate-recipes:dry-run": "node scripts/migrate-to-centralized.js --dry-run",
-    "recipe-status": "node scripts/recipe-status.js"
+    "recipe-status": "node scripts/recipe-status.js",
+    "setup": "node scripts/setup.js",
+    "setup:force": "node scripts/setup.js --force",
+    "setup:check": "node scripts/setup.js --check"
   },
   "dependencies": {
     "@xterm/xterm": "^5.5.0",

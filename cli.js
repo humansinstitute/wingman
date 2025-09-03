@@ -2,6 +2,7 @@ const readline = require('readline');
 const chalk = require('chalk');
 const io = require('socket.io-client');
 const conversationManager = require('./shared-state');
+const AutoSetup = require('./lib/auto-setup');
 
 class GooseCLIInterface {
   constructor() {
@@ -460,7 +461,20 @@ class GooseCLIInterface {
 
 // Start CLI if run directly
 if (require.main === module) {
-  new GooseCLIInterface();
+  async function startCLI() {
+    const autoSetup = new AutoSetup();
+    
+    // Run silent setup for CLI (less intrusive)
+    await autoSetup.runSilent();
+    
+    // Start the CLI
+    new GooseCLIInterface();
+  }
+  
+  startCLI().catch(error => {
+    console.error('Failed to start CLI:', error);
+    process.exit(1);
+  });
 }
 
 module.exports = GooseCLIInterface;

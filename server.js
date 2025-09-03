@@ -10,6 +10,10 @@ if (fs.existsSync(mcpEnvPath)) {
   require('dotenv').config({ path: mcpEnvPath });
   console.log('✅ Loaded MCP server environment from ~/.wingman/.env');
 }
+
+// Auto-setup check
+const AutoSetup = require('./lib/auto-setup');
+const autoSetup = new AutoSetup();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -1812,8 +1816,19 @@ class GooseWebServer {
 
 // Start web server if run directly
 if (require.main === module) {
-  const server = new GooseWebServer();
-  server.start();
+  async function startServer() {
+    // Run auto-setup check
+    await autoSetup.checkAndPrompt();
+    
+    // Start the server
+    const server = new GooseWebServer();
+    server.start();
+  }
+  
+  startServer().catch(error => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
 }
 
 module.exports = GooseWebServer;

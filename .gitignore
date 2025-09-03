@@ -55,6 +55,11 @@ wingman.db*
 # Scheduler configuration (stored in ~/.wingman)
 scheduler/config.json
 
+# User-specific configuration and data (moved to ~/.wingman)
+recipes/user/
+recipes/metadata.json
+conversation-backup-*.json
+
 # Logs
 logs/*.log
 *.log

@@ -21,7 +21,7 @@
       "description": "Read-only filesystem access for file operations and code analysis",
       "type": "stdio",
       "cmd": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${WINGMAN_CODE_PATH:-/Users/mini/code}"],
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${WINGMAN_CODE_PATH:-~/code}"],
       "timeout": 300,
       "env_keys": ["WINGMAN_CODE_PATH"],
       "tags": ["filesystem", "read-only", "files"],
