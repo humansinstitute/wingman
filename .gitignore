@@ -52,6 +52,9 @@ wingman.db*
 .clinerules
 .clineignore
 
+# Scheduler configuration (stored in ~/.wingman)
+scheduler/config.json
+
 # Logs
 logs/*.log
 *.log

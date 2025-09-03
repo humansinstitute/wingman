@@ -1,0 +1,36 @@
+{
+  "tasks": [
+    {
+      "id": "morning-review",
+      "name": "Morning Review",
+      "schedule": "0 8 * * *",
+      "enabled": false,
+      "type": "http",
+      "config": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/triggers/",
+        "headers": {
+          "Authorization": "Bearer your_secure_trigger_token_here",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "recipe_id": "your_recipe_id_here",
+          "prompt": "Please review both my Obsidian Vault using Obsidian MCP and my file system in ~/code and provide me with a todo list of where I should focus this morning. please create a new document in Obsidian vault /actions/<YYMMDD>-MorningReview.md",
+          "session_name": "Morning Review"
+        }
+      }
+    },
+    {
+      "id": "example-command-task",
+      "name": "Example Command Task",
+      "schedule": "0 0 * * 0",
+      "enabled": false,
+      "type": "command",
+      "config": {
+        "command": "echo 'Weekly maintenance task executed'"
+      }
+    }
+  ],
+  "timezone": "system",
+  "logLevel": "info"
+}

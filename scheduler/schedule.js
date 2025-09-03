@@ -2,11 +2,12 @@ const CronJob = require('cron').CronJob;
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const os = require('os');
 
 class SchedulerService {
   constructor() {
     this.jobs = new Map();
-    this.configPath = path.join(__dirname, 'config.json');
+    this.configPath = path.join(os.homedir(), '.wingman', 'scheduler-config.json');
     this.loadConfig();
   }
 
@@ -17,6 +18,12 @@ class SchedulerService {
       console.log(`[Scheduler] Loaded configuration from ${this.configPath}`);
       this.initializeTasks();
     } catch (error) {
+      if (error.code === 'ENOENT') {
+        console.warn(`[Scheduler] Configuration file not found at ${this.configPath}`);
+        console.warn('[Scheduler] Copy config.example.json to ~/.wingman/scheduler-config.json to get started');
+        this.config = { tasks: [], timezone: 'system', logLevel: 'info' };
+        return;
+      }
       console.error('[Scheduler] Error loading config:', error.message);
       process.exit(1);
     }
