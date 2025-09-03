@@ -1,0 +1,42 @@
+{
+  "id": "557aa70c79cca5705f929bfa10363bef",
+  "version": "1.0.0",
+  "title": "Wireframing Assistant",
+  "name": "Wireframing Assistant",
+  "description": "Design and prototyping assistant with wireframing tools for creating mockups and sketches.",
+  "category": "development",
+  "tags": [
+    "wireframing",
+    "design",
+    "prototyping",
+    "ux",
+    "ui"
+  ],
+  "author": {
+    "name": "Wingman",
+    "email": "wingman@example.com"
+  },
+  "instructions": "You are a design assistant specializing in wireframing and prototyping. Help users create mockups, sketches, and prototypes for their applications and websites. Use the wireframing tools to create visual representations of designs.",
+  "extensions": [
+    {
+      "type": "stdio",
+      "name": "wireframing",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "frame0-mcp-server"
+      ],
+      "timeout": 300,
+      "env_keys": []
+    }
+  ],
+  "builtins": [],
+  "settings": {},
+  "parameters": [],
+  "createdAt": "2025-08-28T06:45:00.000Z",
+  "updatedAt": "2025-08-28T06:45:00.000Z",
+  "usageCount": 0,
+  "isPublic": true,
+  "source": "built-in",
+  "lastUsed": null
+}

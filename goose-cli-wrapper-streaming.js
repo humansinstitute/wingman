@@ -45,6 +45,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         // Convert legacy extensions/builtins to a recipe config
         const recipeConfig = this.options.recipeConfig || {
           name: this.options.sessionName || `session-${Date.now()}`,
+          title: this.options.sessionName || `session-${Date.now()}`,
           description: 'Auto-generated recipe from legacy configuration',
           extensions: this.convertToRecipeExtensions(),
           system_prompt: this.options.systemPrompt || ''

@@ -172,6 +172,13 @@ class MultiSessionManager extends EventEmitter {
     // Extract provider/model from options
     const { provider, model, providerOverride, ...wrapperOptions } = options;
     
+    console.log('Session creation options:', {
+      provider,
+      model,
+      providerOverride,
+      hasProviderOverride: !!providerOverride
+    });
+    
     // Determine final provider/model
     let finalProvider = provider;
     let finalModel = model;
@@ -180,6 +187,7 @@ class MultiSessionManager extends EventEmitter {
     if (providerOverride) {
       finalProvider = providerOverride.provider;
       finalModel = providerOverride.model;
+      console.log('Applied provider override:', { finalProvider, finalModel });
     }
     
     // Create wrapper with provider/model options
@@ -196,6 +204,13 @@ class MultiSessionManager extends EventEmitter {
     
     // Store session with provider/model and worktree metadata
     this.sessions.set(sessionId, wrapper);
+    console.log('Saving metadata with provider/model:', { 
+      finalProvider, 
+      finalModel,
+      optionsProvider: options.provider,
+      optionsModel: options.model
+    });
+    
     await this.saveSessionMetadata(sessionId, {
       ...options,
       provider: finalProvider,
@@ -283,6 +298,13 @@ class MultiSessionManager extends EventEmitter {
   }
   
   async saveSessionMetadata(sessionId, options) {
+    console.log('saveSessionMetadata called with options:', {
+      provider: options.provider,
+      model: options.model,
+      hasProvider: 'provider' in options,
+      hasModel: 'model' in options
+    });
+    
     const metadata = {
       sessionId,
       sessionName: options.sessionName || sessionId,
@@ -296,6 +318,11 @@ class MultiSessionManager extends EventEmitter {
       provider: options.provider || null,
       model: options.model || null
     };
+    
+    console.log('Final metadata to store:', {
+      provider: metadata.provider,
+      model: metadata.model
+    });
     
     this.sessionMetadata.set(sessionId, metadata);
     
@@ -472,7 +499,9 @@ class MultiSessionManager extends EventEmitter {
       workingDirectory: sessionContext.workingDirectory,
       debug: sessionContext.debug,
       extensions: sessionContext.extensions,
-      builtins: sessionContext.builtins
+      builtins: sessionContext.builtins,
+      provider: sessionContext.provider,
+      model: sessionContext.model
     };
     
     // Include recipe ID if session was started with a recipe

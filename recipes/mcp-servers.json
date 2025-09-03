@@ -516,11 +516,43 @@
       "isPublic": false,
       "isBuiltIn": false,
       "lastUsed": "2025-08-27T13:00:36.727Z"
+    },
+    "wireframing-3f06398b": {
+      "id": "wireframing-3f06398b",
+      "name": "Wireframing",
+      "description": "An MCP server for frame0 wireframing tools. Create prototypes and scketches of your designs. ",
+      "type": "stdio",
+      "cmd": "npc",
+      "args": [
+        "-y",
+        "frame0-mcp-server"
+      ],
+      "timeout": 300,
+      "env_keys": [],
+      "tags": [
+        "development",
+        "prototype",
+        "design"
+      ],
+      "category": "custom",
+      "author": {
+        "name": "Unknown",
+        "email": "unknown@example.com"
+      },
+      "version": "1.0.0",
+      "createdAt": "2025-08-28T05:51:10.242Z",
+      "updatedAt": "2025-08-28T05:51:10.242Z",
+      "usedByRecipes": [
+        "557aa70c79cca5705f929bfa10363bef"
+      ],
+      "isPublic": false,
+      "isBuiltIn": false,
+      "lastUsed": "2025-08-28T05:53:31.601Z"
     }
   },
   "metadata": {
     "version": "1.0.0",
     "createdAt": "2025-08-20T13:47:13.900Z",
-    "lastUpdated": "2025-08-27T13:00:36.730Z"
+    "lastUpdated": "2025-08-28T05:53:31.602Z"
   }
 }

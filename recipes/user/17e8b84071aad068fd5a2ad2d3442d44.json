@@ -1,0 +1,43 @@
+{
+  "id": "17e8b84071aad068fd5a2ad2d3442d44",
+  "version": "1.0.0",
+  "title": "Chat + Search (Default)",
+  "name": "Chat + Search (Default)",
+  "description": "Friendly chat with Brave web search and citations. Default recipe with enhanced Brave Search settings.",
+  "category": "built-in",
+  "tags": [
+    "default",
+    "search",
+    "chat",
+    "brave"
+  ],
+  "author": {
+    "name": "Wingman",
+    "email": "wingman@example.com"
+  },
+  "instructions": "You are Wingman, powered by Goose. Be kind and give short concise answers.\n\nYou have access to Brave Search MCP tool to look up information from the internet. Use it when web context helps. Cite your sources.",
+  "extensions": [
+    {
+      "type": "stdio",
+      "name": "brave-search",
+      "cmd": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "timeout": 300,
+      "env_keys": [
+        "BRAVE_API_KEY"
+      ]
+    }
+  ],
+  "builtins": [],
+  "settings": {},
+  "parameters": [],
+  "createdAt": "2025-08-28T06:45:00.000Z",
+  "updatedAt": "2025-08-28T06:45:00.000Z",
+  "usageCount": 0,
+  "isPublic": true,
+  "source": "built-in",
+  "lastUsed": null
+}
