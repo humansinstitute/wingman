@@ -19,7 +19,7 @@
       "args": [
         "-y",
         "@danielsuguimoto/readonly-server-filesystem",
-        "/Users/mini/code"
+        "~/code"
       ],
       "timeout": 300,
       "env_keys": []
