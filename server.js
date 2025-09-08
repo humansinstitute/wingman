@@ -456,6 +456,52 @@ class GooseWebServer {
       }
     });
 
+    // Get sub-recipes for a recipe
+    this.app.get('/api/recipes/:id/sub-recipes', async (req, res) => {
+      try {
+        const subRecipes = await recipeManager.getSubRecipes(req.params.id);
+        res.json(subRecipes);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get sub-recipe session information
+    this.app.get('/api/goose/sub-recipes', (req, res) => {
+      try {
+        const subRecipeInfo = conversationManager.getSubRecipeInfo();
+        res.json(subRecipeInfo);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Execute a sub-recipe
+    this.app.post('/api/goose/sub-recipes/execute', async (req, res) => {
+      try {
+        const { subRecipeName, parameters } = req.body;
+        
+        if (!subRecipeName) {
+          return res.status(400).json({ error: 'Sub-recipe name is required' });
+        }
+
+        const result = await conversationManager.executeSubRecipe(subRecipeName, parameters || {});
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Stop a sub-recipe session
+    this.app.post('/api/goose/sub-recipes/:name/stop', async (req, res) => {
+      try {
+        const success = await conversationManager.stopSubRecipeSession(req.params.name);
+        res.json({ success });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // Start session with recipe
     this.app.post('/api/goose/start-with-recipe', async (req, res) => {
       try {
@@ -500,6 +546,7 @@ class GooseWebServer {
           builtins: [], // Builtins are defined in the recipe file
           recipeId: recipeId,
           recipeConfig: processedRecipe,
+          parameters: parameters || {}, // Pass parameters to the wrapper
           provider: recipeProvider,
           model: recipeModel,
           providerOverride: providerOverride // This will take precedence
@@ -1770,6 +1817,27 @@ class GooseWebServer {
     // Broadcast conversation history updates (for session switching)
     conversationManager.on('conversationHistory', (conversation) => {
       this.io.emit('conversationHistory', conversation);
+    });
+
+    // Broadcast sub-recipe events
+    conversationManager.on('subRecipeSessionCreated', (data) => {
+      this.io.emit('subRecipeSessionCreated', data);
+    });
+
+    conversationManager.on('subRecipeStreamContent', (data) => {
+      this.io.emit('subRecipeStreamContent', data);
+    });
+
+    conversationManager.on('subRecipeCompleted', (data) => {
+      this.io.emit('subRecipeCompleted', data);
+    });
+
+    conversationManager.on('subRecipeError', (data) => {
+      this.io.emit('subRecipeError', data);
+    });
+
+    conversationManager.on('subRecipeSessionStopped', (data) => {
+      this.io.emit('subRecipeSessionStopped', data);
     });
   }
 

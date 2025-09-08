@@ -61,19 +61,45 @@ cd wingman
 npm install
 ```
 
+### Quick Start (First-time users)
+
+For new users, Wingman has automatic setup:
+
+```bash
+# Start web interface (with auto-setup prompt)
+npm run web
+
+# Or start CLI (with silent auto-setup)
+npm run cli
+
+# Or run setup manually first
+npm run setup
+```
+
+The setup creates configuration in `~/.wingman/` including:
+- API key templates (`~/.wingman/.env`) 
+- MCP server configurations
+- AI agent recipes
+- Scheduler configuration
+
+📖 **For detailed setup instructions, see [NEW_USER_SETUP.md](NEW_USER_SETUP.md)**
+
 ## Configuration
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and configure the following:
+**Note**: Modern Wingman uses `~/.wingman/.env` for configuration. The setup script will create this for you.
+
+For legacy support, you can still use a local `.env` file:
 
 ```bash
 # Server configuration
 NODE_ENV=development
 PORT=3000
 
-# Root directory for file browser
+# Root directory for file browser (customize for your system)
 ROOT_WORKING_DIR=~/code
+WINGMAN_CODE_PATH=~/code  # Modern way to set code path
 
 # Terminal command for Deep Dive feature
 # Default: "node wingman-cli.js" (relative to wingman path)

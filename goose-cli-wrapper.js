@@ -65,6 +65,13 @@ class GooseCLIWrapper extends EventEmitter {
         args.push('--model', this.options.model);
       }
       
+      // Add parameters if provided
+      if (this.options.parameters && Object.keys(this.options.parameters).length > 0) {
+        for (const [key, value] of Object.entries(this.options.parameters)) {
+          args.push('--params', `${key}=${value}`);
+        }
+      }
+      
       // Add interactive flag to continue in chat mode
       args.push('--interactive');
       
@@ -214,6 +221,45 @@ class GooseCLIWrapper extends EventEmitter {
   async createTempRecipeFile(recipe) {
     const tempDir = path.join(__dirname, 'temp');
     await fs.mkdir(tempDir, { recursive: true });
+    
+    // Handle sub-recipes - copy them to temp directory or use absolute paths
+    if (recipe.sub_recipes && recipe.sub_recipes.length > 0) {
+      console.log(`Processing ${recipe.sub_recipes.length} sub-recipes for temp file creation`);
+      
+      const recipeBaseDirs = [
+        path.join(process.env.HOME || process.env.USERPROFILE || '', '.wingman', 'recipes', 'user'),
+        path.join(process.env.HOME || process.env.USERPROFILE || '', '.wingman', 'recipes', 'built-in'),
+        path.join(process.env.HOME || process.env.USERPROFILE || '', '.wingman', 'recipes', 'imported')
+      ];
+      
+      // Copy sub-recipe files to temp directory
+      for (const subRecipe of recipe.sub_recipes) {
+        console.log(`Looking for sub-recipe: ${subRecipe.name} at path: ${subRecipe.path}`);
+        let sourceFile = null;
+        
+        // Find the sub-recipe file in recipe directories
+        for (const baseDir of recipeBaseDirs) {
+          const possiblePath = path.join(baseDir, subRecipe.path);
+          console.log(`Checking: ${possiblePath}`);
+          try {
+            await fs.access(possiblePath);
+            sourceFile = possiblePath;
+            console.log(`Found sub-recipe at: ${sourceFile}`);
+            break;
+          } catch (err) {
+            console.log(`Not found at: ${possiblePath}`);
+          }
+        }
+        
+        if (sourceFile) {
+          const destFile = path.join(tempDir, subRecipe.path);
+          await fs.copyFile(sourceFile, destFile);
+          console.log(`✅ Copied sub-recipe from ${sourceFile} to ${destFile}`);
+        } else {
+          console.warn(`❌ Sub-recipe file not found: ${subRecipe.path}`);
+        }
+      }
+    }
     
     const tempFilePath = path.join(tempDir, `recipe-${Date.now()}.json`);
     await fs.writeFile(tempFilePath, JSON.stringify(recipe, null, 2));

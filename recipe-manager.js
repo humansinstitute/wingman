@@ -248,14 +248,18 @@ class RecipeManager extends EventEmitter {
       builtins: recipeData.builtins || [],
       settings: recipeData.settings || {},
       parameters: recipeData.parameters || [],
+      sub_recipes: recipeData.sub_recipes || [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       usageCount: 0,
       isPublic: recipeData.isPublic || false
     };
 
-    // Validate recipe
+    // Validate recipe structure
     await this.validateRecipe(recipe);
+    
+    // Validate sub-recipe existence and structure
+    await this.validateSubRecipeExistence(recipe);
 
     // Save to disk
     const filePath = path.join(this.recipesDir, 'user', `${recipe.id}.json`);
@@ -418,14 +422,34 @@ class RecipeManager extends EventEmitter {
     // Validate parameters
     if (recipeData.parameters && Array.isArray(recipeData.parameters)) {
       for (const param of recipeData.parameters) {
-        if (!param.name) {
-          errors.push('Parameter name is required');
+        if (!param.key) {
+          errors.push('Parameter key is required');
         }
-        if (!['string', 'number', 'boolean', 'select'].includes(param.type)) {
-          errors.push(`Invalid parameter type: ${param.type}`);
+        if (!['string', 'number', 'boolean', 'select'].includes(param.input_type)) {
+          errors.push(`Invalid parameter type: ${param.input_type}`);
         }
-        if (param.type === 'select' && (!param.options || !Array.isArray(param.options))) {
-          errors.push(`Select parameter ${param.name} must have options`);
+        if (param.input_type === 'select' && (!param.options || !Array.isArray(param.options))) {
+          errors.push(`Select parameter ${param.key} must have options`);
+        }
+      }
+    }
+
+    // Validate sub-recipes
+    if (recipeData.sub_recipes && Array.isArray(recipeData.sub_recipes)) {
+      for (const subRecipe of recipeData.sub_recipes) {
+        if (!subRecipe.name) {
+          errors.push('Sub-recipe name is required');
+        }
+        if (!subRecipe.path) {
+          errors.push('Sub-recipe path is required');
+        }
+        // Validate sub-recipe name format (used as tool name)
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(subRecipe.name)) {
+          errors.push(`Sub-recipe name '${subRecipe.name}' must be a valid tool name (letters, numbers, underscores only, cannot start with number)`);
+        }
+        // Validate values if provided
+        if (subRecipe.values && typeof subRecipe.values !== 'object') {
+          errors.push(`Sub-recipe ${subRecipe.name} values must be an object`);
         }
       }
     }
@@ -463,6 +487,152 @@ class RecipeManager extends EventEmitter {
     return true;
   }
 
+  // Sub-recipe handling methods
+  async validateSubRecipeExistence(recipeData) {
+    if (!recipeData.sub_recipes || !Array.isArray(recipeData.sub_recipes)) {
+      return true; // No sub-recipes to validate
+    }
+
+    const errors = [];
+    
+    for (const subRecipe of recipeData.sub_recipes) {
+      try {
+        const resolvedPath = await this.resolveSubRecipePath(subRecipe.path);
+        const subRecipeData = await this.loadRecipeFromPath(resolvedPath);
+        
+        if (!subRecipeData) {
+          errors.push(`Sub-recipe not found at path: ${subRecipe.path}`);
+          continue;
+        }
+
+        // Validate that sub-recipe doesn't have its own sub-recipes (nesting not allowed)
+        if (subRecipeData.sub_recipes && subRecipeData.sub_recipes.length > 0) {
+          errors.push(`Sub-recipe '${subRecipe.name}' cannot have its own sub-recipes (nesting not allowed)`);
+        }
+
+        // Validate sub-recipe parameters match expected values
+        if (subRecipe.values && subRecipeData.parameters) {
+          for (const paramKey in subRecipe.values) {
+            const paramDef = subRecipeData.parameters.find(p => p.key === paramKey);
+            if (!paramDef) {
+              errors.push(`Sub-recipe '${subRecipe.name}' defines value for undefined parameter '${paramKey}'`);
+            }
+          }
+        }
+      } catch (error) {
+        errors.push(`Error validating sub-recipe '${subRecipe.name}': ${error.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`Sub-recipe validation failed: ${errors.join(', ')}`);
+    }
+
+    return true;
+  }
+
+  async resolveSubRecipePath(subRecipePath) {
+    if (!subRecipePath) {
+      throw new Error('Sub-recipe path cannot be null or undefined');
+    }
+    
+    // If it's just a filename, search through all recipe directories
+    if (!subRecipePath.includes('/') && !path.isAbsolute(subRecipePath)) {
+      const dirs = ['user', 'built-in', 'imported'];
+      
+      for (const dir of dirs) {
+        const dirPath = path.join(this.recipesDir, dir, subRecipePath);
+        if (await this.fileExists(dirPath)) {
+          return dirPath;
+        }
+      }
+    }
+    
+    // Handle relative paths
+    if (!path.isAbsolute(subRecipePath)) {
+      // Try relative to user recipes directory first
+      const userRelativePath = path.join(this.recipesDir, 'user', subRecipePath);
+      if (await this.fileExists(userRelativePath)) {
+        return userRelativePath;
+      }
+      
+      // Try relative to recipes directory
+      const recipesRelativePath = path.join(this.recipesDir, subRecipePath);
+      if (await this.fileExists(recipesRelativePath)) {
+        return recipesRelativePath;
+      }
+      
+      // Try relative to current working directory
+      const cwdRelativePath = path.resolve(process.cwd(), subRecipePath);
+      if (await this.fileExists(cwdRelativePath)) {
+        return cwdRelativePath;
+      }
+    }
+    
+    return subRecipePath;
+  }
+
+  async fileExists(filePath) {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async loadRecipeFromPath(filePath) {
+    try {
+      const data = await fs.readFile(filePath, 'utf8');
+      
+      // Support both JSON and YAML formats
+      if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
+        try {
+          const yaml = require('js-yaml');
+          return yaml.load(data);
+        } catch (yamlError) {
+          console.log(`Skipping YAML file (js-yaml not available): ${filePath}`);
+          return null;
+        }
+      }
+      
+      return JSON.parse(data);
+    } catch (error) {
+      console.error(`Error loading recipe from ${filePath}:`, error);
+      return null;
+    }
+  }
+
+  async getSubRecipes(recipeId) {
+    const recipe = await this.getRecipe(recipeId);
+    if (!recipe || !recipe.sub_recipes) {
+      return [];
+    }
+
+    const subRecipeDetails = [];
+    
+    for (const subRecipe of recipe.sub_recipes) {
+      try {
+        const resolvedPath = await this.resolveSubRecipePath(subRecipe.path);
+        const subRecipeData = await this.loadRecipeFromPath(resolvedPath);
+        
+        if (subRecipeData) {
+          subRecipeDetails.push({
+            name: subRecipe.name,
+            path: subRecipe.path,
+            resolvedPath,
+            values: subRecipe.values || {},
+            recipe: subRecipeData
+          });
+        }
+      } catch (error) {
+        console.error(`Error loading sub-recipe ${subRecipe.name}:`, error);
+      }
+    }
+    
+    return subRecipeDetails;
+  }
+
   // Template Processing
   async processTemplate(recipe, parameters = {}) {
     if (!recipe.parameters || recipe.parameters.length === 0) {
@@ -474,10 +644,11 @@ class RecipeManager extends EventEmitter {
 
     // Process each parameter
     for (const param of recipe.parameters) {
-      const value = parameters[param.name] || param.default || '';
+      const paramKey = param.key || param.name;
+      const value = parameters[paramKey] || param.default || '';
       
       // Replace in all string fields
-      const placeholder = `{{${param.name}}}`;
+      const placeholder = `{{${paramKey}}}`;
       
       if (processedRecipe.instructions) {
         processedRecipe.instructions = processedRecipe.instructions.replace(new RegExp(placeholder, 'g'), value);
@@ -612,6 +783,24 @@ class RecipeManager extends EventEmitter {
       if (recipe.extensions) {
         recipe.extensions = this.normalizeExtensions(recipe.extensions);
       }
+      
+      // Ensure required fields exist with defaults
+      // Generate stable ID based on filename if not present
+      if (!recipe.id) {
+        const basename = path.basename(filePath, path.extname(filePath));
+        recipe.id = crypto.createHash('md5').update(basename).digest('hex');
+      }
+      recipe.name = recipe.name || recipe.title || 'Untitled Recipe';
+      recipe.title = recipe.title || recipe.name || 'Untitled Recipe';
+      recipe.description = recipe.description || '';
+      recipe.tags = recipe.tags || [];
+      recipe.parameters = recipe.parameters || [];
+      recipe.sub_recipes = recipe.sub_recipes || [];
+      recipe.extensions = recipe.extensions || [];
+      recipe.builtins = recipe.builtins || [];
+      recipe.settings = recipe.settings || {};
+      recipe.category = recipe.category || 'custom';
+      recipe.author = recipe.author || { name: 'Unknown', email: 'unknown@example.com' };
       
       // Add usage stats from metadata
       if (this.metadata.usage && this.metadata.usage[recipe.id]) {

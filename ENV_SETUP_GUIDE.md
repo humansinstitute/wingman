@@ -14,8 +14,8 @@ To configure Wingman with your preferred default browsing directory:
    # For your code directory:
    ROOT_WORKING_DIR=~/code
    
-   # Or use an absolute path:
-   ROOT_WORKING_DIR=/Users/mini/code
+   # Or use an absolute path (customize for your system):
+   ROOT_WORKING_DIR=/path/to/your/code
    
    # Or any other preferred starting directory:
    ROOT_WORKING_DIR=~/Projects
@@ -73,14 +73,14 @@ To configure Wingman with your preferred default browsing directory:
 // API call when user creates new folder
 POST /api/directories/create
 {
-  "parentPath": "/Users/mini/code",
+  "parentPath": "~/code",
   "folderName": "my-new-project"
 }
 
 // Response
 {
   "success": true,
-  "folderPath": "/Users/mini/code/my-new-project",
+  "folderPath": "~/code/my-new-project",
   "folderName": "my-new-project"
 }
 ```
