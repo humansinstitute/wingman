@@ -4,8 +4,17 @@ const EventEmitter = require('events');
 const recipeManager = require('./recipe-manager');
 const { getDatabase } = require('./lib/database');
 
-// Select wrapper based on model (can be configured)
-function getGooseWrapper() {
+// Select wrapper based on model and recipe requirements
+function getGooseWrapper(recipeConfig = null) {
+  // Use sub-recipe aware wrapper if recipe has sub-recipes
+  if (recipeConfig && recipeConfig.sub_recipes && recipeConfig.sub_recipes.length > 0) {
+    try {
+      return require('./sub-recipe-aware-wrapper');
+    } catch (e) {
+      console.warn('Sub-recipe wrapper not found, falling back to streaming wrapper');
+    }
+  }
+  
   // Use streaming wrapper for better continuous display
   try {
     return require('./goose-cli-wrapper-streaming');
@@ -210,8 +219,11 @@ class GooseConversationManager extends EventEmitter {
     // Set session name
     this.currentSessionName = options.sessionName || `recipe-${recipe.name}-${Date.now()}`;
 
+    // Get appropriate wrapper based on recipe configuration
+    const WrapperClass = getGooseWrapper(processedRecipe);
+    
     // Create wrapper with recipe configuration
-    this.gooseWrapper = new GooseCLIWrapper({
+    this.gooseWrapper = new WrapperClass({
       sessionName: this.currentSessionName,
       debug: options.debug || false,
       maxTurns: options.maxTurns || 1000,
@@ -254,6 +266,33 @@ class GooseConversationManager extends EventEmitter {
       console.log('Goose session ready with recipe:', recipe.name);
       this.emit('gooseReady');
     });
+
+    // Listen for sub-recipe events if using sub-recipe aware wrapper
+    if (processedRecipe.sub_recipes && processedRecipe.sub_recipes.length > 0) {
+      this.gooseWrapper.on('subRecipeSessionCreated', (data) => {
+        console.log(`Sub-recipe session created: ${data.subRecipeName}`);
+        this.emit('subRecipeSessionCreated', data);
+      });
+
+      this.gooseWrapper.on('subRecipeStreamContent', (data) => {
+        this.emit('subRecipeStreamContent', data);
+      });
+
+      this.gooseWrapper.on('subRecipeCompleted', (data) => {
+        console.log(`Sub-recipe completed: ${data.subRecipeName}`);
+        this.emit('subRecipeCompleted', data);
+      });
+
+      this.gooseWrapper.on('subRecipeError', (data) => {
+        console.error(`Sub-recipe error: ${data.subRecipeName}`, data.error);
+        this.emit('subRecipeError', data);
+      });
+
+      this.gooseWrapper.on('subRecipeSessionStopped', (data) => {
+        console.log(`Sub-recipe session stopped: ${data.subRecipeName}`);
+        this.emit('subRecipeSessionStopped', data);
+      });
+    }
 
     try {
       // Store complete session context including recipe info
@@ -663,11 +702,53 @@ class GooseConversationManager extends EventEmitter {
   }
 
   getGooseStatus() {
-    return {
+    const status = {
       active: !!this.gooseWrapper,
       sessionName: this.currentSessionName,
       ready: this.gooseWrapper?.isReady || false
     };
+
+    // Add sub-recipe information if available
+    if (this.gooseWrapper && typeof this.gooseWrapper.getActiveSubRecipeSessions === 'function') {
+      status.subRecipeSessions = this.gooseWrapper.getActiveSubRecipeSessions();
+      status.hasSubRecipes = status.subRecipeSessions.length > 0;
+    }
+
+    return status;
+  }
+
+  getSubRecipeInfo() {
+    if (!this.gooseWrapper || typeof this.gooseWrapper.getActiveSubRecipeSessions !== 'function') {
+      return {
+        hasSubRecipes: false,
+        activeSessions: []
+      };
+    }
+
+    return {
+      hasSubRecipes: true,
+      activeSessions: this.gooseWrapper.getActiveSubRecipeSessions()
+    };
+  }
+
+  async executeSubRecipe(subRecipeName, parameters = {}) {
+    if (!this.gooseWrapper) {
+      throw new Error('No active Goose session');
+    }
+
+    if (typeof this.gooseWrapper.executeSubRecipe !== 'function') {
+      throw new Error('Current session does not support sub-recipes');
+    }
+
+    return await this.gooseWrapper.executeSubRecipe(subRecipeName, parameters);
+  }
+
+  async stopSubRecipeSession(subRecipeName) {
+    if (!this.gooseWrapper || typeof this.gooseWrapper.stopSubRecipeSession !== 'function') {
+      return false;
+    }
+
+    return await this.gooseWrapper.stopSubRecipeSession(subRecipeName);
   }
 }
 

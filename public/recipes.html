@@ -314,6 +314,39 @@
             font-size: 0.8rem;
         }
 
+        .recipe-sub-recipes {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .sub-recipe-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .sub-recipe-icon {
+            font-size: 1rem;
+        }
+
+        .sub-recipe-list {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .sub-recipe-name {
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
         .recipe-footer {
             margin-top: auto;
             padding-top: 1rem;
@@ -466,6 +499,47 @@
         
         .extensions-list {
             margin-bottom: 1rem;
+        }
+        
+        .sub-recipes-list {
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 0.5rem;
+            background: var(--bg-secondary);
+        }
+        
+        .sub-recipe-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .sub-recipe-item:last-child {
+            border-bottom: none;
+        }
+        
+        .sub-recipe-info {
+            flex: 1;
+        }
+        
+        .sub-recipe-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .sub-recipe-path {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .sub-recipe-values {
+            font-size: 0.875rem;
+            color: var(--accent-primary);
+            margin-top: 0.25rem;
         }
         
         .extension-item {
@@ -811,6 +885,24 @@
                 <div class="form-group">
                     <label class="form-label" for="recipePrompt">Initial Prompt</label>
                     <textarea id="recipePrompt" class="form-textarea" placeholder="Optional initial message to send when starting the session"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Sub-Recipes</label>
+                    <div class="sub-recipes-container">
+                        <div id="subRecipesList" class="sub-recipes-list">
+                            <!-- Sub-recipe items will be added here -->
+                        </div>
+                        <div class="sub-recipe-add-section" style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                            <select id="availableRecipesSelect" class="form-select" style="flex: 1;">
+                                <option value="">Select a recipe to add as sub-recipe...</option>
+                            </select>
+                            <input type="text" id="subRecipeToolName" class="form-input" placeholder="Tool name (optional)" style="flex: 1;">
+                            <button type="button" class="btn btn-primary btn-small" onclick="recipeManager.addSubRecipeFromDropdown()">
+                                Add
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -1340,9 +1432,10 @@
             
             renderRecipeCard(recipe) {
                 const category = this.categories.find(c => c.id === recipe.category) || { name: recipe.category, icon: '⚙️' };
+                const subRecipes = recipe.sub_recipes || [];
                 
                 return `
-                    <div class="recipe-card" data-recipe-id="${recipe.id}">
+                    <div class="recipe-card" data-recipe-id="${recipe.id || 'no-id'}">
                         <div class="recipe-header">
                             <div>
                                 <div class="recipe-title">${recipe.name}</div>
@@ -1351,12 +1444,23 @@
                         </div>
                         <div class="recipe-description">${recipe.description}</div>
                         <div class="recipe-tags">
-                            ${recipe.tags.map(tag => `<span class="recipe-tag">${tag}</span>`).join('')}
+                            ${(recipe.tags || []).map(tag => `<span class="recipe-tag">${tag}</span>`).join('')}
                         </div>
+                        ${subRecipes.length > 0 ? `
+                            <div class="recipe-sub-recipes">
+                                <div class="sub-recipe-indicator">
+                                    <span class="sub-recipe-icon">🔗</span>
+                                    <span class="sub-recipe-text">Uses ${subRecipes.length} sub-recipe${subRecipes.length === 1 ? '' : 's'}</span>
+                                </div>
+                                <div class="sub-recipe-list">
+                                    ${subRecipes.map(sr => `<span class="sub-recipe-name" title="${sr.path}">${sr.name}</span>`).join(' • ')}
+                                </div>
+                            </div>
+                        ` : ''}
                         <div class="recipe-footer">
                             <div class="recipe-stats">
                                 <span>Used ${recipe.usageCount || 0} times</span>
-                                <span>ID: ${recipe.id.substring(0, 8)}...</span>
+                                <span>ID: ${recipe.id ? recipe.id.substring(0, 8) + '...' : 'No ID'}</span>
                             </div>
                             <div class="recipe-actions">
                                 <button class="btn btn-small btn-primary use-btn">Use Recipe</button>
@@ -1381,7 +1485,7 @@
                     const matchesSearch = !searchTerm || 
                         recipe.name.toLowerCase().includes(searchTerm) ||
                         recipe.description.toLowerCase().includes(searchTerm) ||
-                        recipe.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+                        (recipe.tags || []).some(tag => tag.toLowerCase().includes(searchTerm));
                     
                     const matchesCategory = !selectedCategory || recipe.category === selectedCategory;
                     
@@ -1425,6 +1529,13 @@
                 this.currentRecipeExtensions = [];
                 this.renderExtensions();
                 
+                // Initialize sub-recipe system for new recipe
+                this.currentRecipeSubRecipes = [];
+                this.renderSubRecipes();
+                
+                // Populate available recipes dropdown
+                this.populateAvailableRecipesDropdown();
+                
                 this.recipeModal.classList.add('show');
             }
             
@@ -1432,10 +1543,10 @@
                 this.currentRecipe = recipe;
                 this.modalTitle.textContent = 'Edit Recipe';
                 
-                this.recipeName.value = recipe.name;
-                this.recipeDescription.value = recipe.description;
-                this.recipeCategory.value = recipe.category;
-                this.recipeTags.value = recipe.tags.join(', ');
+                this.recipeName.value = recipe.name || recipe.title || '';
+                this.recipeDescription.value = recipe.description || '';
+                this.recipeCategory.value = recipe.category || 'custom';
+                this.recipeTags.value = (recipe.tags || []).join(', ');
                 this.recipeInstructions.value = recipe.instructions || '';
                 this.recipePrompt.value = recipe.prompt || '';
                 // Set builtin checkboxes based on recipe
@@ -1466,6 +1577,13 @@
                 // Load extensions into the new system
                 this.currentRecipeExtensions = recipe.extensions ? [...recipe.extensions] : [];
                 this.renderExtensions();
+                
+                // Load sub-recipes
+                this.currentRecipeSubRecipes = recipe.sub_recipes ? [...recipe.sub_recipes] : [];
+                this.renderSubRecipes();
+                
+                // Populate available recipes dropdown
+                this.populateAvailableRecipesDropdown();
                 
                 this.recipeModal.classList.add('show');
             }
@@ -1700,6 +1818,215 @@
                 });
             }
             
+            // Sub-recipe management methods
+            renderSubRecipes() {
+                if (!this.currentRecipeSubRecipes) {
+                    this.currentRecipeSubRecipes = [];
+                }
+                
+                const subRecipesList = document.getElementById('subRecipesList');
+                subRecipesList.innerHTML = '';
+                
+                this.currentRecipeSubRecipes.forEach(subRecipe => {
+                    const subRecipeElement = document.createElement('div');
+                    subRecipeElement.className = 'sub-recipe-item';
+                    
+                    // Try to resolve recipe name from ID if it's an ID-based path
+                    let displayName = subRecipe.path;
+                    let recipeName = '';
+                    
+                    if (subRecipe.path.includes('.json')) {
+                        const recipeId = subRecipe.path.replace('.json', '');
+                        const referencedRecipe = this.recipes.find(r => r.id === recipeId);
+                        if (referencedRecipe) {
+                            recipeName = referencedRecipe.name || referencedRecipe.title || 'Untitled Recipe';
+                            displayName = `${recipeName} (${subRecipe.path})`;
+                        }
+                    }
+                    
+                    const valuesText = subRecipe.values && Object.keys(subRecipe.values).length > 0
+                        ? `Pre-set values: ${Object.entries(subRecipe.values).map(([k, v]) => `${k}=${v}`).join(', ')}`
+                        : 'No pre-set values';
+                    
+                    subRecipeElement.innerHTML = `
+                        <div class="sub-recipe-info">
+                            <div class="sub-recipe-name"><strong>${subRecipe.name}</strong> (tool name)</div>
+                            <div class="sub-recipe-path">Recipe: ${displayName}</div>
+                            <div class="sub-recipe-values" style="font-size: 0.85rem; color: var(--text-muted);">${valuesText}</div>
+                        </div>
+                        <div class="sub-recipe-actions">
+                            <button class="btn btn-small btn-outline edit-sub-recipe-btn" type="button">Edit</button>
+                            <button class="btn btn-small btn-danger remove-sub-recipe-btn" type="button">Remove</button>
+                        </div>
+                    `;
+                    
+                    // Add event listeners
+                    const editBtn = subRecipeElement.querySelector('.edit-sub-recipe-btn');
+                    const removeBtn = subRecipeElement.querySelector('.remove-sub-recipe-btn');
+                    
+                    editBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.editSubRecipe(subRecipe);
+                    });
+                    
+                    removeBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.removeSubRecipe(subRecipe.name);
+                    });
+                    
+                    subRecipesList.appendChild(subRecipeElement);
+                });
+            }
+            
+            populateAvailableRecipesDropdown() {
+                const select = document.getElementById('availableRecipesSelect');
+                if (!select) return;
+                
+                // Clear existing options except the first one
+                select.innerHTML = '<option value="">Select a recipe to add as sub-recipe...</option>';
+                
+                // Add recipes to dropdown (exclude the current recipe being edited)
+                const currentRecipeId = this.currentRecipe ? this.currentRecipe.id : null;
+                
+                this.recipes.forEach(recipe => {
+                    // Skip the current recipe to prevent self-reference
+                    if (recipe.id !== currentRecipeId) {
+                        const option = document.createElement('option');
+                        option.value = recipe.id;
+                        option.textContent = recipe.name || recipe.title || 'Untitled Recipe';
+                        select.appendChild(option);
+                    }
+                });
+            }
+
+            addSubRecipeFromDropdown() {
+                const select = document.getElementById('availableRecipesSelect');
+                const toolNameInput = document.getElementById('subRecipeToolName');
+                
+                const selectedRecipeId = select.value;
+                if (!selectedRecipeId) {
+                    alert('Please select a recipe');
+                    return;
+                }
+                
+                // Find the selected recipe
+                const selectedRecipe = this.recipes.find(r => r.id === selectedRecipeId);
+                if (!selectedRecipe) {
+                    alert('Recipe not found');
+                    return;
+                }
+                
+                // Use custom tool name or default to recipe name with valid characters
+                let toolName = toolNameInput.value.trim();
+                
+                if (toolName) {
+                    // Validate manually entered tool name
+                    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(toolName)) {
+                        alert('Tool name must start with a letter and contain only letters, numbers, and underscores');
+                        return;
+                    }
+                    toolName = toolName.toLowerCase();
+                } else {
+                    // Generate valid tool name: only letters, numbers, underscores, cannot start with number
+                    toolName = selectedRecipe.name
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_\s]/g, '') // Remove invalid characters except spaces
+                        .replace(/\s+/g, '_') // Replace spaces with underscores
+                        .replace(/^[0-9]+/, '') // Remove leading numbers
+                        .replace(/_+/g, '_') // Replace multiple underscores with single
+                        .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+                    
+                    // Ensure it doesn't start with a number or underscore
+                    if (!toolName || /^[0-9_]/.test(toolName)) {
+                        toolName = 'recipe_' + toolName;
+                    }
+                }
+                
+                // Check if sub-recipe name already exists
+                if (this.currentRecipeSubRecipes.some(sr => sr.name === toolName)) {
+                    alert('Sub-recipe tool name already exists');
+                    return;
+                }
+                
+                // Create the sub-recipe entry  
+                // For sub-recipes, we need to use the actual filename
+                // Since recipes are stored with their ID as filename, use ID + .json
+                const subRecipe = {
+                    name: toolName,
+                    path: `${selectedRecipe.id}.json`, // Use the recipe ID as the filename
+                    values: {} // Empty default values
+                };
+                
+                this.currentRecipeSubRecipes.push(subRecipe);
+                this.renderSubRecipes();
+                
+                // Reset inputs
+                select.value = '';
+                toolNameInput.value = '';
+            }
+
+            // Keep the old method for backwards compatibility but improve it
+            addSubRecipe() {
+                const name = prompt('Sub-recipe name (tool name):');
+                if (!name) return;
+                
+                const path = prompt('Sub-recipe path (filename):');
+                if (!path) return;
+                
+                const valuesStr = prompt('Pre-set values (JSON format, optional):', '{}');
+                let values = {};
+                
+                try {
+                    values = valuesStr ? JSON.parse(valuesStr) : {};
+                } catch (error) {
+                    alert('Invalid JSON format for values');
+                    return;
+                }
+                
+                // Check if sub-recipe name already exists
+                if (this.currentRecipeSubRecipes.some(sr => sr.name === name)) {
+                    alert('Sub-recipe name already exists');
+                    return;
+                }
+                
+                this.currentRecipeSubRecipes.push({ name, path, values });
+                this.renderSubRecipes();
+            }
+            
+            editSubRecipe(subRecipe) {
+                const name = prompt('Sub-recipe name:', subRecipe.name);
+                if (!name) return;
+                
+                const path = prompt('Sub-recipe path:', subRecipe.path);
+                if (!path) return;
+                
+                const valuesStr = prompt('Pre-set values (JSON format):', JSON.stringify(subRecipe.values || {}, null, 2));
+                let values = {};
+                
+                try {
+                    values = valuesStr ? JSON.parse(valuesStr) : {};
+                } catch (error) {
+                    alert('Invalid JSON format for values');
+                    return;
+                }
+                
+                // Update the sub-recipe
+                const index = this.currentRecipeSubRecipes.findIndex(sr => sr.name === subRecipe.name);
+                if (index !== -1) {
+                    this.currentRecipeSubRecipes[index] = { name, path, values };
+                    this.renderSubRecipes();
+                }
+            }
+            
+            removeSubRecipe(subRecipeName) {
+                if (confirm(`Remove sub-recipe "${subRecipeName}"?`)) {
+                    this.currentRecipeSubRecipes = this.currentRecipeSubRecipes.filter(sr => sr.name !== subRecipeName);
+                    this.renderSubRecipes();
+                }
+            }
+            
             async saveRecipe() {
                 try {
                     const recipeData = {
@@ -1710,7 +2037,8 @@
                         instructions: this.recipeInstructions.value.trim() || undefined,
                         prompt: this.recipePrompt.value.trim() || undefined,
                         extensions: this.currentRecipeExtensions || [],
-                        builtins: Array.from(document.querySelectorAll('.builtin-option input[type="checkbox"]:checked')).map(checkbox => checkbox.value)
+                        builtins: Array.from(document.querySelectorAll('.builtin-option input[type="checkbox"]:checked')).map(checkbox => checkbox.value),
+                        sub_recipes: this.currentRecipeSubRecipes || []
                     };
                     
                     // Add provider/model settings if specified

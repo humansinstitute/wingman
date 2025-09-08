@@ -3533,7 +3533,7 @@
                             <strong>Parameters:</strong>
                             <ul style="margin-left: 1rem; margin-top: 0.5rem;">
                                 ${recipe.parameters.map(param => `
-                                    <li>${param.label || param.name}${param.required ? ' *' : ''}</li>
+                                    <li>${param.description || param.label || param.key || param.name}${param.requirement === 'required' || param.required ? ' *' : ''}</li>
                                 `).join('')}
                             </ul>
                         </div>
@@ -3572,8 +3572,8 @@
                                 <strong>Parameters:</strong>
                                 ${this.selectedRecipe.parameters.map(param => `
                                     <div class="parameter-input" style="margin-top: 0.5rem;">
-                                        <label class="parameter-label" for="session-param-${param.name}" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem;">
-                                            ${param.label || param.name}${param.required ? ' *' : ''}
+                                        <label class="parameter-label" for="session-param-${param.key || param.name}" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                                            ${param.description || param.label || param.key || param.name}${param.requirement === 'required' || param.required ? ' *' : ''}
                                         </label>
                                         ${this.renderParameterInputForSession(param)}
                                     </div>
@@ -4387,19 +4387,21 @@
                 
                 this.recipeParameters.innerHTML = this.selectedRecipe.parameters.map(param => `
                     <div class="parameter-input">
-                        <label class="parameter-label" for="param-${param.name}">
-                            ${param.label || param.name}${param.required ? ' *' : ''}
+                        <label class="parameter-label" for="param-${param.key || param.name}">
+                            ${param.description || param.label || param.key || param.name}${param.requirement === 'required' || param.required ? ' *' : ''}
                         </label>
-                        ${param.description ? `<div class="parameter-description">${param.description}</div>` : ''}
+                        ${param.description && param.label ? `<div class="parameter-description">${param.description}</div>` : ''}
                         ${this.renderParameterInput(param)}
                     </div>
                 `).join('');
             }
             
             renderParameterInput(param) {
-                const baseAttrs = `id="param-${param.name}" name="${param.name}" class="form-input"`;
+                const paramKey = param.key || param.name;
+                const inputType = param.input_type || param.type;
+                const baseAttrs = `id="param-${paramKey}" name="${paramKey}" class="form-input"`;
                 
-                switch (param.type) {
+                switch (inputType) {
                     case 'select':
                         return `<select ${baseAttrs}>
                             ${param.options.map(option => 
@@ -4427,9 +4429,11 @@
             }
             
             renderParameterInputForSession(param) {
-                const baseAttrs = `id="session-param-${param.name}" name="${param.name}" class="form-input" style="font-size: 0.8rem; padding: 0.5rem;"`;
+                const paramKey = param.key || param.name;
+                const inputType = param.input_type || param.type;
+                const baseAttrs = `id="session-param-${paramKey}" name="${paramKey}" class="form-input" style="font-size: 0.8rem; padding: 0.5rem;"`;
                 
-                switch (param.type) {
+                switch (inputType) {
                     case 'select':
                         return `<select ${baseAttrs}>
                             ${param.options.map(option => 
@@ -4474,21 +4478,25 @@
                 
                 const values = {};
                 this.selectedRecipe.parameters.forEach(param => {
+                    // Use 'key' field for parameter name (Goose recipe format)
+                    const paramKey = param.key || param.name;
+                    
                     // Try session parameter inputs first, then fall back to modal parameter inputs
-                    let input = document.getElementById(`session-param-${param.name}`) || 
-                               document.getElementById(`param-${param.name}`);
+                    let input = document.getElementById(`session-param-${paramKey}`) || 
+                               document.getElementById(`param-${paramKey}`);
                     
                     if (input) {
                         let value = input.value;
                         
-                        // Type conversion
-                        if (param.type === 'number') {
+                        // Type conversion based on input_type field (Goose recipe format)
+                        const paramType = param.input_type || param.type;
+                        if (paramType === 'number') {
                             value = value ? Number(value) : undefined;
-                        } else if (param.type === 'boolean') {
+                        } else if (paramType === 'boolean') {
                             value = value === 'true';
                         }
                         
-                        values[param.name] = value;
+                        values[paramKey] = value;
                     }
                 });
                 
