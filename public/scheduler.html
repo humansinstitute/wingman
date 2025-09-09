@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wingman Scheduler</title>
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png" id="favicon-light">
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png" id="favicon-dark" disabled>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- iOS specific meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Wingman Scheduler">
+    <link rel="apple-touch-icon" href="Wingman_Goose_Logo_Light.png">
+    
+    <!-- Android/Chrome -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#059669">
+    
+    <!-- Windows -->
+    <meta name="msapplication-TileColor" content="#059669">
+    <meta name="msapplication-TileImage" content="Wingman_Goose_Logo_Light.png">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* CSS Variables for theming */
+        :root {
+            /* Light theme (default) */
+            --bg-gradient-start: #f9f9f9;
+            --bg-gradient-end: #f5f5f0;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafaf9;
+            --bg-tertiary: #f5f5f4;
+            --text-primary: #1c1917;
+            --text-secondary: #44403c;
+            --text-tertiary: #57534e;
+            --text-muted: #78716c;
+            --text-disabled: #a8a29e;
+            --border-primary: #e7e5e4;
+            --border-secondary: #d6d3d1;
+            --accent-primary: #059669;
+            --accent-secondary: #047857;
+            --accent-tertiary: #065f46;
+            --accent-light: #d1fae5;
+            --accent-bg: #f0fdf4;
+            --code-bg: #1c1917;
+            --code-text: #f5f5f4;
+            --inline-code-bg: #f5f5f4;
+            --inline-code-text: #dc2626;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 2px 4px rgba(5, 150, 105, 0.2);
+            --shadow-lg: 0 4px 8px rgba(5, 150, 105, 0.3);
+        }
+
+        /* Dark theme */
+        body.dark-theme {
+            --bg-gradient-start: #0a0a0a;
+            --bg-gradient-end: #1c1917;
+            --bg-primary: #1c1917;
+            --bg-secondary: #292524;
+            --bg-tertiary: #44403c;
+            --text-primary: #f5f5f4;
+            --text-secondary: #e7e5e4;
+            --text-tertiary: #d6d3d1;
+            --text-muted: #a8a29e;
+            --text-disabled: #78716c;
+            --border-primary: #44403c;
+            --border-secondary: #57534e;
+            --accent-primary: #10b981;
+            --accent-secondary: #059669;
+            --accent-tertiary: #34d399;
+            --accent-light: #064e3b;
+            --accent-bg: #022c22;
+            --code-bg: #000000;
+            --code-text: #f5f5f4;
+            --inline-code-bg: #292524;
+            --inline-code-text: #34d399;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 2px 4px rgba(16, 185, 129, 0.2);
+            --shadow-lg: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(to bottom, var(--bg-gradient-start), var(--bg-gradient-end));
+            color: var(--text-tertiary);
+            height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header h1 {
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            transition: transform 0.2s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.1);
+        }
+
+        /* Light theme logo visibility */
+        .logo-light {
+            display: inline;
+        }
+
+        .logo-dark {
+            display: none;
+        }
+
+        /* Dark theme logo visibility */
+        body.dark-theme .logo-light {
+            display: none;
+        }
+
+        body.dark-theme .logo-dark {
+            display: inline;
+        }
+
+        /* Dark mode header with pure black background for logo compatibility */
+        body.dark-theme .header {
+            background: #000000;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 50px;
+            padding: 0.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .theme-icon-light {
+            display: inline;
+        }
+
+        .theme-icon-dark {
+            display: none;
+        }
+
+        body.dark-theme .theme-icon-light {
+            display: none;
+        }
+
+        body.dark-theme .theme-icon-dark {
+            display: inline;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background: var(--accent-primary);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        /* Status Card */
+        .scheduler-status {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-primary);
+        }
+
+        .status-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-running {
+            background: var(--accent-primary);
+            box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
+        }
+
+        .status-stopped {
+            background: var(--text-disabled);
+        }
+
+        .status-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-light);
+            border-color: var(--accent-primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Tasks Section */
+        .tasks-section {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-primary);
+            flex: 1;
+            min-height: 0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .tasks-table-container {
+            overflow: auto;
+            max-height: 400px;
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+        }
+
+        .tasks-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .tasks-table th {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-weight: 600;
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 2px solid var(--border-primary);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .tasks-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+        }
+
+        .tasks-table tbody tr:hover {
+            background: var(--accent-bg);
+        }
+
+        .task-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .task-status.active {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+        }
+
+        .task-status.inactive {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-small {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            min-width: auto;
+        }
+
+        /* History Section */
+        .history-section {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-primary);
+            max-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .history-select {
+            padding: 0.5rem;
+            border: 1px solid var(--border-primary);
+            border-radius: 0.5rem;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            min-width: 200px;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 200px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-primary);
+            font-size: 0.875rem;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-item:hover {
+            background: var(--accent-bg);
+        }
+
+        .history-time {
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        .history-result {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .history-result.success {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+        }
+
+        .history-result.error {
+            background: #fecaca;
+            color: #dc2626;
+        }
+
+        body.dark-theme .history-result.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            gap: 0.5rem;
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-primary);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error-message {
+            background: #fecaca;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #fca5a5;
+        }
+
+        body.dark-theme .error-message {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border-color: #991b1b;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .status-card {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .status-actions {
+                justify-content: center;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .tasks-table-container {
+                max-height: 300px;
+            }
+
+            .tasks-table th,
+            .tasks-table td {
+                padding: 0.5rem 0.25rem;
+                font-size: 0.75rem;
+            }
+
+            .history-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .history-select {
+                min-width: auto;
+            }
+
+            .history-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .header h1 {
+                font-size: 1.25rem;
+            }
+
+            .logo {
+                width: 28px;
+                height: 28px;
+            }
+        }
+
+        /* Scrollbar styling */
+        .tasks-table-container::-webkit-scrollbar,
+        .history-list::-webkit-scrollbar,
+        .container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .tasks-table-container::-webkit-scrollbar-track,
+        .history-list::-webkit-scrollbar-track,
+        .container::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .tasks-table-container::-webkit-scrollbar-thumb,
+        .history-list::-webkit-scrollbar-thumb,
+        .container::-webkit-scrollbar-thumb {
+            background: var(--border-secondary);
+            border-radius: 4px;
+        }
+
+        .tasks-table-container::-webkit-scrollbar-thumb:hover,
+        .history-list::-webkit-scrollbar-thumb:hover,
+        .container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-disabled);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>
+            <img src="Wingman_Goose_Logo_Light.png" alt="Wingman Goose" class="logo logo-light">
+            <img src="Wingman_Goose_Logo_Dark.png" alt="Wingman Goose" class="logo logo-dark">
+            Wingman Scheduler
+        </h1>
+        <div class="header-right">
+            <a href="/" class="nav-link">🏠 Chat</a>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+                <span class="theme-icon-light">☀️</span>
+                <span class="theme-icon-dark">🌙</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Scheduler Status Overview -->
+        <div class="scheduler-status">
+            <div class="status-card">
+                <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                    <div class="status-item">
+                        <span class="status-indicator" id="statusIndicator"></span>
+                        <span id="statusText">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Timezone:</span>
+                        <span id="timezoneDisplay">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Tasks:</span>
+                        <span id="taskCountDisplay">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Next Run:</span>
+                        <span id="nextRunDisplay">-</span>
+                    </div>
+                </div>
+                <div class="status-actions">
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        🔄 Refresh
+                    </button>
+                    <button id="toggleSchedulerBtn" class="btn btn-primary">
+                        ⏸️ Loading...
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks Table -->
+        <div class="tasks-section">
+            <div class="section-header">
+                <h2 class="section-title">Scheduled Tasks</h2>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button id="addTaskBtn" class="btn btn-primary">
+                        ➕ Add Task
+                    </button>
+                </div>
+            </div>
+            
+            <div id="tasksLoading" class="loading">
+                <div class="loading-spinner"></div>
+                Loading tasks...
+            </div>
+            
+            <div id="tasksError" class="error-message" style="display: none;">
+                Failed to load tasks. Please try refreshing.
+            </div>
+            
+            <div id="tasksContent" class="tasks-table-container" style="display: none;">
+                <table class="tasks-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Schedule</th>
+                            <th>Next Run</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tasks-tbody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="noTasks" style="display: none; text-align: center; padding: 2rem; color: var(--text-muted);">
+                No tasks scheduled yet. Click "Add Task" to create your first scheduled task.
+            </div>
+        </div>
+
+        <!-- History Panel -->
+        <div class="history-section">
+            <div class="section-header">
+                <h2 class="section-title">Execution History</h2>
+            </div>
+            
+            <div class="history-controls">
+                <select id="task-selector" class="history-select">
+                    <option value="">All Tasks</option>
+                    <!-- Options populated by JavaScript -->
+                </select>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="clearHistoryBtn" class="btn btn-secondary btn-small">
+                        🗑️ Clear History
+                    </button>
+                </div>
+            </div>
+            
+            <div id="historyLoading" class="loading">
+                <div class="loading-spinner"></div>
+                Loading history...
+            </div>
+            
+            <div id="historyError" class="error-message" style="display: none;">
+                Failed to load execution history.
+            </div>
+            
+            <div id="history-list" class="history-list" style="display: none;">
+                <!-- Populated by JavaScript -->
+            </div>
+            
+            <div id="noHistory" style="display: none; text-align: center; padding: 2rem; color: var(--text-muted);">
+                No execution history yet. Tasks will appear here after they run.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SchedulerUI {
+            constructor() {
+                this.initializeElements();
+                this.setupEventListeners();
+                this.initializeTheme();
+                this.loadInitialData();
+                
+                // Refresh data every 30 seconds
+                this.refreshInterval = setInterval(() => {
+                    this.loadStatus();
+                    this.loadTasks();
+                    this.loadHistory();
+                }, 30000);
+            }
+
+            initializeElements() {
+                // Status elements
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.statusText = document.getElementById('statusText');
+                this.timezoneDisplay = document.getElementById('timezoneDisplay');
+                this.taskCountDisplay = document.getElementById('taskCountDisplay');
+                this.nextRunDisplay = document.getElementById('nextRunDisplay');
+                this.toggleSchedulerBtn = document.getElementById('toggleSchedulerBtn');
+                this.refreshBtn = document.getElementById('refreshBtn');
+                
+                // Task elements
+                this.tasksLoading = document.getElementById('tasksLoading');
+                this.tasksError = document.getElementById('tasksError');
+                this.tasksContent = document.getElementById('tasksContent');
+                this.tasksTbody = document.getElementById('tasks-tbody');
+                this.noTasks = document.getElementById('noTasks');
+                this.addTaskBtn = document.getElementById('addTaskBtn');
+                
+                // History elements
+                this.taskSelector = document.getElementById('task-selector');
+                this.historyLoading = document.getElementById('historyLoading');
+                this.historyError = document.getElementById('historyError');
+                this.historyList = document.getElementById('history-list');
+                this.noHistory = document.getElementById('noHistory');
+                this.clearHistoryBtn = document.getElementById('clearHistoryBtn');
+                
+                // Theme toggle
+                this.themeToggle = document.getElementById('themeToggle');
+            }
+
+            setupEventListeners() {
+                this.refreshBtn.addEventListener('click', () => this.handleRefresh());
+                this.toggleSchedulerBtn.addEventListener('click', () => this.handleToggleScheduler());
+                this.addTaskBtn.addEventListener('click', () => this.handleAddTask());
+                this.clearHistoryBtn.addEventListener('click', () => this.handleClearHistory());
+                this.taskSelector.addEventListener('change', () => this.loadHistory());
+                this.themeToggle.addEventListener('click', () => this.toggleTheme());
+            }
+
+            async loadInitialData() {
+                await Promise.all([
+                    this.loadStatus(),
+                    this.loadTasks(),
+                    this.loadHistory()
+                ]);
+            }
+
+            async loadStatus() {
+                try {
+                    const response = await fetch('/api/scheduler/status');
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const status = await response.json();
+                    this.updateStatusDisplay(status);
+                } catch (error) {
+                    console.error('Failed to load scheduler status:', error);
+                    this.showStatusError();
+                }
+            }
+
+            async loadTasks() {
+                this.showTasksLoading();
+                
+                try {
+                    const response = await fetch('/api/scheduler/tasks');
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const tasks = await response.json();
+                    this.updateTasksDisplay(tasks);
+                    this.updateTaskSelector(tasks);
+                } catch (error) {
+                    console.error('Failed to load tasks:', error);
+                    this.showTasksError();
+                }
+            }
+
+            async loadHistory() {
+                this.showHistoryLoading();
+                
+                try {
+                    const taskId = this.taskSelector.value;
+                    const url = taskId 
+                        ? `/api/scheduler/history?taskId=${encodeURIComponent(taskId)}`
+                        : '/api/scheduler/history';
+                        
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const history = await response.json();
+                    this.updateHistoryDisplay(history);
+                } catch (error) {
+                    console.error('Failed to load history:', error);
+                    this.showHistoryError();
+                }
+            }
+
+            updateStatusDisplay(status) {
+                const isRunning = status.running;
+                
+                this.statusIndicator.className = `status-indicator ${isRunning ? 'status-running' : 'status-stopped'}`;
+                this.statusText.textContent = isRunning ? 'Running' : 'Stopped';
+                this.timezoneDisplay.textContent = status.timezone || 'Unknown';
+                this.taskCountDisplay.textContent = `${status.activeTasks || 0}/${status.totalTasks || 0}`;
+                this.nextRunDisplay.textContent = status.nextRun || 'None scheduled';
+                
+                this.toggleSchedulerBtn.innerHTML = isRunning 
+                    ? '⏸️ Stop Scheduler'
+                    : '▶️ Start Scheduler';
+                this.toggleSchedulerBtn.className = `btn ${isRunning ? 'btn-secondary' : 'btn-primary'}`;
+            }
+
+            showStatusError() {
+                this.statusIndicator.className = 'status-indicator status-stopped';
+                this.statusText.textContent = 'Error';
+                this.timezoneDisplay.textContent = 'Unknown';
+                this.taskCountDisplay.textContent = 'Error';
+                this.nextRunDisplay.textContent = 'Error';
+                this.toggleSchedulerBtn.innerHTML = '❌ Error';
+                this.toggleSchedulerBtn.disabled = true;
+            }
+
+            showTasksLoading() {
+                this.tasksLoading.style.display = 'flex';
+                this.tasksError.style.display = 'none';
+                this.tasksContent.style.display = 'none';
+                this.noTasks.style.display = 'none';
+            }
+
+            showTasksError() {
+                this.tasksLoading.style.display = 'none';
+                this.tasksError.style.display = 'block';
+                this.tasksContent.style.display = 'none';
+                this.noTasks.style.display = 'none';
+            }
+
+            updateTasksDisplay(tasks) {
+                this.tasksLoading.style.display = 'none';
+                this.tasksError.style.display = 'none';
+                
+                if (tasks.length === 0) {
+                    this.tasksContent.style.display = 'none';
+                    this.noTasks.style.display = 'block';
+                    return;
+                }
+                
+                this.tasksContent.style.display = 'block';
+                this.noTasks.style.display = 'none';
+                
+                this.tasksTbody.innerHTML = tasks.map(task => `
+                    <tr>
+                        <td><code>${this.escapeHtml(task.id)}</code></td>
+                        <td><strong>${this.escapeHtml(task.name)}</strong></td>
+                        <td><code>${this.escapeHtml(task.schedule)}</code></td>
+                        <td>${this.formatNextRun(task.nextRun)}</td>
+                        <td>
+                            <span class="task-status ${task.active ? 'active' : 'inactive'}">
+                                ${task.active ? '✅ Active' : '⏸️ Inactive'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="task-actions">
+                                <button class="btn btn-small btn-secondary" onclick="schedulerUI.toggleTask('${this.escapeHtml(task.id)}', ${!task.active})">
+                                    ${task.active ? '⏸️' : '▶️'}
+                                </button>
+                                <button class="btn btn-small btn-secondary" onclick="schedulerUI.runTaskNow('${this.escapeHtml(task.id)}')">
+                                    ▶️ Run
+                                </button>
+                                <button class="btn btn-small btn-secondary" onclick="schedulerUI.editTask('${this.escapeHtml(task.id)}')">
+                                    ✏️
+                                </button>
+                                <button class="btn btn-small btn-secondary" onclick="schedulerUI.deleteTask('${this.escapeHtml(task.id)}')">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            updateTaskSelector(tasks) {
+                const currentValue = this.taskSelector.value;
+                this.taskSelector.innerHTML = '<option value="">All Tasks</option>' +
+                    tasks.map(task => 
+                        `<option value="${this.escapeHtml(task.id)}" ${currentValue === task.id ? 'selected' : ''}>
+                            ${this.escapeHtml(task.name)}
+                        </option>`
+                    ).join('');
+            }
+
+            showHistoryLoading() {
+                this.historyLoading.style.display = 'flex';
+                this.historyError.style.display = 'none';
+                this.historyList.style.display = 'none';
+                this.noHistory.style.display = 'none';
+            }
+
+            showHistoryError() {
+                this.historyLoading.style.display = 'none';
+                this.historyError.style.display = 'block';
+                this.historyList.style.display = 'none';
+                this.noHistory.style.display = 'none';
+            }
+
+            updateHistoryDisplay(history) {
+                this.historyLoading.style.display = 'none';
+                this.historyError.style.display = 'none';
+                
+                if (history.length === 0) {
+                    this.historyList.style.display = 'none';
+                    this.noHistory.style.display = 'block';
+                    return;
+                }
+                
+                this.historyList.style.display = 'block';
+                this.noHistory.style.display = 'none';
+                
+                this.historyList.innerHTML = history.map(item => `
+                    <div class="history-item">
+                        <div>
+                            <strong>${this.escapeHtml(item.taskName || item.taskId)}</strong>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                ${this.escapeHtml(item.taskId)}
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="history-time">${this.formatTime(item.timestamp)}</div>
+                            <div class="history-result ${item.success ? 'success' : 'error'}">
+                                ${item.success ? '✅ Success' : '❌ Error'}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            formatNextRun(timestamp) {
+                if (!timestamp) return 'Not scheduled';
+                
+                const date = new Date(timestamp);
+                const now = new Date();
+                const diffMs = date - now;
+                
+                if (diffMs < 0) return 'Overdue';
+                
+                const diffMins = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHours / 24);
+                
+                if (diffDays > 0) return `${diffDays}d ${diffHours % 24}h`;
+                if (diffHours > 0) return `${diffHours}h ${diffMins % 60}m`;
+                if (diffMins > 0) return `${diffMins}m`;
+                return 'Soon';
+            }
+
+            formatTime(timestamp) {
+                return new Date(timestamp).toLocaleString();
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // Event handlers
+            async handleRefresh() {
+                this.refreshBtn.disabled = true;
+                this.refreshBtn.innerHTML = '🔄 Refreshing...';
+                
+                await this.loadInitialData();
+                
+                this.refreshBtn.disabled = false;
+                this.refreshBtn.innerHTML = '🔄 Refresh';
+            }
+
+            async handleToggleScheduler() {
+                // Placeholder for scheduler toggle functionality
+                alert('Scheduler toggle functionality will be implemented in the next work package.');
+            }
+
+            async handleAddTask() {
+                // Placeholder for add task functionality
+                alert('Add task functionality will be implemented in the next work package.');
+            }
+
+            async handleClearHistory() {
+                if (!confirm('Are you sure you want to clear all execution history?')) return;
+                
+                try {
+                    const response = await fetch('/api/scheduler/history', { method: 'DELETE' });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    await this.loadHistory();
+                } catch (error) {
+                    console.error('Failed to clear history:', error);
+                    alert('Failed to clear history. Please try again.');
+                }
+            }
+
+            async toggleTask(taskId, activate) {
+                // Placeholder for task toggle functionality
+                alert(`${activate ? 'Activating' : 'Deactivating'} task ${taskId} - functionality will be implemented in the next work package.`);
+            }
+
+            async runTaskNow(taskId) {
+                // Placeholder for run task functionality
+                alert(`Running task ${taskId} now - functionality will be implemented in the next work package.`);
+            }
+
+            async editTask(taskId) {
+                // Placeholder for edit task functionality
+                alert(`Editing task ${taskId} - functionality will be implemented in the next work package.`);
+            }
+
+            async deleteTask(taskId) {
+                if (!confirm(`Are you sure you want to delete task ${taskId}?`)) return;
+                
+                // Placeholder for delete task functionality
+                alert(`Deleting task ${taskId} - functionality will be implemented in the next work package.`);
+            }
+
+            // Theme management
+            initializeTheme() {
+                const savedTheme = localStorage.getItem('wingman-theme');
+                if (savedTheme === 'dark') {
+                    document.body.classList.add('dark-theme');
+                    document.getElementById('favicon-light').disabled = true;
+                    document.getElementById('favicon-dark').disabled = false;
+                }
+            }
+
+            toggleTheme() {
+                document.body.classList.toggle('dark-theme');
+                const isDark = document.body.classList.contains('dark-theme');
+                
+                localStorage.setItem('wingman-theme', isDark ? 'dark' : 'light');
+                
+                document.getElementById('favicon-light').disabled = isDark;
+                document.getElementById('favicon-dark').disabled = !isDark;
+            }
+
+            // Cleanup on page unload
+            destroy() {
+                if (this.refreshInterval) {
+                    clearInterval(this.refreshInterval);
+                }
+            }
+        }
+
+        // Initialize the scheduler UI
+        const schedulerUI = new SchedulerUI();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            schedulerUI.destroy();
+        });
+    </script>
+</body>
+</html>
