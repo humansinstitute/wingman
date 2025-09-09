@@ -24,6 +24,8 @@ const recipeManager = require('./recipe-manager');
 const MultiSessionManager = require('./multi-session-manager');
 const mcpServerRegistry = require('./mcp-server-registry');
 const TriggerHandler = require('./lib/triggers/trigger-handler');
+const SchedulerService = require('./lib/scheduler/scheduler-service');
+const createSchedulerRoutes = require('./lib/api/scheduler-routes');
 
 // Clear recipe cache on server startup to ensure fresh data
 recipeManager.clearCache();
@@ -47,6 +49,10 @@ class GooseWebServer {
     
     // Initialize trigger handler
     this.triggerHandler = new TriggerHandler(this.multiSessionManager, recipeManager);
+
+    // Initialize scheduler service (but don't start it yet)
+    this.schedulerService = null;
+    this.shouldStartScheduler = process.env.START_SCHEDULER !== 'false';
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -1624,6 +1630,56 @@ class GooseWebServer {
     });
   }
 
+  /**
+   * Initialize scheduler service and mount API routes
+   * Called after HTTP server is listening
+   */
+  async initializeScheduler() {
+    if (!this.shouldStartScheduler) {
+      console.log('🔄 Scheduler disabled by START_SCHEDULER environment variable');
+      return;
+    }
+
+    try {
+      console.log('🔄 Initializing scheduler service...');
+      
+      // Create scheduler service instance
+      this.schedulerService = new SchedulerService();
+      
+      // Mount scheduler API routes
+      const schedulerRoutes = createSchedulerRoutes(this.schedulerService);
+      this.app.use('/api/scheduler', schedulerRoutes);
+      
+      // Start the scheduler
+      await this.schedulerService.start();
+      
+      console.log('✅ Scheduler service started successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize scheduler service:', error.message);
+      console.error('   Server will continue running without scheduler functionality');
+      
+      // Don't crash the server if scheduler fails to start
+      // Just log the error and continue
+      this.schedulerService = null;
+    }
+  }
+
+  /**
+   * Stop scheduler service gracefully
+   */
+  async stopScheduler() {
+    if (this.schedulerService) {
+      try {
+        console.log('🔄 Stopping scheduler service...');
+        this.schedulerService.stop();
+        this.schedulerService = null;
+        console.log('✅ Scheduler service stopped');
+      } catch (error) {
+        console.error('❌ Error stopping scheduler service:', error.message);
+      }
+    }
+  }
+
   setupSocketHandlers() {
     this.io.on('connection', (socket) => {
       console.log('Client connected');
@@ -1876,8 +1932,61 @@ class GooseWebServer {
 
     this.port = availablePort;
 
-    this.server.listen(this.port, () => {
+    // Start HTTP server
+    this.server.listen(this.port, async () => {
       console.log(`🌐 Goose Web interface running at http://localhost:${this.port}`);
+      
+      // Initialize scheduler after HTTP server is listening
+      await this.initializeScheduler();
+    });
+
+    // Setup graceful shutdown handlers
+    this.setupGracefulShutdown();
+  }
+
+  /**
+   * Setup graceful shutdown handlers for SIGINT and SIGTERM
+   */
+  setupGracefulShutdown() {
+    const gracefulShutdown = async (signal) => {
+      console.log(`\n🔄 Received ${signal}, shutting down gracefully...`);
+      
+      try {
+        // Stop scheduler first
+        await this.stopScheduler();
+        
+        // Close HTTP server
+        this.server.close(() => {
+          console.log('✅ HTTP server closed');
+          process.exit(0);
+        });
+
+        // Force exit after 30 seconds if graceful shutdown fails
+        setTimeout(() => {
+          console.error('❌ Graceful shutdown timed out, forcing exit');
+          process.exit(1);
+        }, 30000);
+
+      } catch (error) {
+        console.error('❌ Error during graceful shutdown:', error.message);
+        process.exit(1);
+      }
+    };
+
+    // Handle process signals
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error) => {
+      console.error('❌ Uncaught Exception:', error);
+      gracefulShutdown('UNCAUGHT_EXCEPTION');
+    });
+
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+      gracefulShutdown('UNHANDLED_REJECTION');
     });
   }
 }
