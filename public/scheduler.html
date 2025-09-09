@@ -482,6 +482,63 @@
             color: #fca5a5;
         }
 
+        /* Message Toast Styles */
+        .message-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            cursor: pointer;
+            font-weight: 500;
+            max-width: 400px;
+            word-wrap: break-word;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .message-success {
+            background: var(--accent-light);
+            color: var(--accent-tertiary);
+            border: 1px solid var(--accent-primary);
+        }
+        
+        .message-error {
+            background: #fecaca;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+        }
+        
+        .message-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+        
+        body.dark-theme .message-error {
+            background: #7f1d1d;
+            color: #fca5a5;
+            border-color: #991b1b;
+        }
+        
+        body.dark-theme .message-info {
+            background: #1e3a8a;
+            color: #93c5fd;
+            border-color: #3730a3;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
         /* Loading States */
         .loading {
             display: flex;
@@ -648,8 +705,8 @@
                     <button id="refreshBtn" class="btn btn-secondary">
                         🔄 Refresh
                     </button>
-                    <button id="toggleSchedulerBtn" class="btn btn-primary">
-                        ⏸️ Loading...
+                    <button id="reloadConfigBtn" class="btn btn-primary">
+                        ⚙️ Reload Config
                     </button>
                 </div>
             </div>
@@ -758,7 +815,7 @@
                 this.timezoneDisplay = document.getElementById('timezoneDisplay');
                 this.taskCountDisplay = document.getElementById('taskCountDisplay');
                 this.nextRunDisplay = document.getElementById('nextRunDisplay');
-                this.toggleSchedulerBtn = document.getElementById('toggleSchedulerBtn');
+                this.reloadConfigBtn = document.getElementById('reloadConfigBtn');
                 this.refreshBtn = document.getElementById('refreshBtn');
                 
                 // Task elements
@@ -783,7 +840,7 @@
 
             setupEventListeners() {
                 this.refreshBtn.addEventListener('click', () => this.handleRefresh());
-                this.toggleSchedulerBtn.addEventListener('click', () => this.handleToggleScheduler());
+                this.reloadConfigBtn.addEventListener('click', () => this.handleReloadConfig());
                 this.addTaskBtn.addEventListener('click', () => this.handleAddTask());
                 this.clearHistoryBtn.addEventListener('click', () => this.handleClearHistory());
                 this.taskSelector.addEventListener('change', () => this.loadHistory());
@@ -856,10 +913,9 @@
                 this.taskCountDisplay.textContent = `${status.activeTasks || 0}/${status.totalTasks || 0}`;
                 this.nextRunDisplay.textContent = status.nextRun || 'None scheduled';
                 
-                this.toggleSchedulerBtn.innerHTML = isRunning 
-                    ? '⏸️ Stop Scheduler'
-                    : '▶️ Start Scheduler';
-                this.toggleSchedulerBtn.className = `btn ${isRunning ? 'btn-secondary' : 'btn-primary'}`;
+                // Show validation errors if any
+                if (status.validationErrors && status.validationErrors.length > 0) {
+                    this.showError(`Configuration validation errors: ${status.validationErrors.join(', ')}`);\n                }
             }
 
             showStatusError() {
@@ -1025,14 +1081,39 @@
                 this.refreshBtn.innerHTML = '🔄 Refresh';
             }
 
-            async handleToggleScheduler() {
-                // Placeholder for scheduler toggle functionality
-                alert('Scheduler toggle functionality will be implemented in the next work package.');
+            async handleReloadConfig() {
+                this.reloadConfigBtn.disabled = true;
+                const originalText = this.reloadConfigBtn.innerHTML;
+                this.reloadConfigBtn.innerHTML = '⏳ Reloading...';
+                
+                try {
+                    const response = await fetch('/api/scheduler/reload', { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                    }
+                    
+                    const result = await response.json();
+                    this.showSuccess('Configuration reloaded successfully');
+                    
+                    // Refresh all data after reload
+                    await this.loadInitialData();
+                    
+                } catch (error) {
+                    console.error('Failed to reload scheduler configuration:', error);
+                    this.showError(`Failed to reload configuration: ${error.message}`);
+                } finally {
+                    this.reloadConfigBtn.disabled = false;
+                    this.reloadConfigBtn.innerHTML = originalText;
+                }
             }
 
             async handleAddTask() {
-                // Placeholder for add task functionality
-                alert('Add task functionality will be implemented in the next work package.');
+                // Placeholder for add task functionality - will be implemented in future work packages
+                this.showInfo('Add task functionality will be implemented in a future work package.');
             }
 
             async handleClearHistory() {
@@ -1050,25 +1131,43 @@
             }
 
             async toggleTask(taskId, activate) {
-                // Placeholder for task toggle functionality
-                alert(`${activate ? 'Activating' : 'Deactivating'} task ${taskId} - functionality will be implemented in the next work package.`);
+                // Placeholder for task toggle functionality - will be implemented in future work packages
+                this.showInfo(`${activate ? 'Activating' : 'Deactivating'} task ${taskId} - functionality will be implemented in a future work package.`);
             }
 
             async runTaskNow(taskId) {
-                // Placeholder for run task functionality
-                alert(`Running task ${taskId} now - functionality will be implemented in the next work package.`);
+                try {
+                    const response = await fetch(`/api/scheduler/trigger/${encodeURIComponent(taskId)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                    }
+                    
+                    const result = await response.json();
+                    this.showSuccess(`Task "${taskId}" executed successfully`);
+                    
+                    // Refresh history to show the new execution
+                    await this.loadHistory();
+                    
+                } catch (error) {
+                    console.error(`Failed to run task ${taskId}:`, error);
+                    this.showError(`Failed to run task "${taskId}": ${error.message}`);
+                }
             }
 
             async editTask(taskId) {
-                // Placeholder for edit task functionality
-                alert(`Editing task ${taskId} - functionality will be implemented in the next work package.`);
+                // Placeholder for edit task functionality - will be implemented in future work packages
+                this.showInfo(`Editing task ${taskId} - functionality will be implemented in a future work package.`);
             }
 
             async deleteTask(taskId) {
                 if (!confirm(`Are you sure you want to delete task ${taskId}?`)) return;
                 
-                // Placeholder for delete task functionality
-                alert(`Deleting task ${taskId} - functionality will be implemented in the next work package.`);
+                // Placeholder for delete task functionality - will be implemented in future work packages
+                this.showInfo(`Deleting task ${taskId} - functionality will be implemented in a future work package.`);
             }
 
             // Theme management
@@ -1089,6 +1188,43 @@
                 
                 document.getElementById('favicon-light').disabled = isDark;
                 document.getElementById('favicon-dark').disabled = !isDark;
+            }
+
+            // Message display utilities
+            showSuccess(message) {
+                this.showMessage(message, 'success');
+            }
+            
+            showError(message) {
+                this.showMessage(message, 'error');
+            }
+            
+            showInfo(message) {
+                this.showMessage(message, 'info');
+            }
+            
+            showMessage(message, type) {
+                // Create message element
+                const messageEl = document.createElement('div');
+                messageEl.className = `message-toast message-${type}`;
+                messageEl.textContent = message;
+                
+                // Add to DOM
+                document.body.appendChild(messageEl);
+                
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    if (messageEl.parentNode) {
+                        messageEl.parentNode.removeChild(messageEl);
+                    }
+                }, 5000);
+                
+                // Allow manual close by clicking
+                messageEl.addEventListener('click', () => {
+                    if (messageEl.parentNode) {
+                        messageEl.parentNode.removeChild(messageEl);
+                    }
+                });
             }
 
             // Cleanup on page unload
