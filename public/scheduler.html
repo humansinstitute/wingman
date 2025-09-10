@@ -853,14 +853,12 @@
             }
 
             async loadInitialData() {
-                console.log('Starting loadInitialData...');
                 try {
                     await Promise.all([
                         this.loadStatus(),
                         this.loadTasks(),
                         this.loadHistory()
                     ]);
-                    console.log('loadInitialData completed successfully');
                 } catch (error) {
                     console.error('Error in loadInitialData:', error);
                     throw error;
@@ -868,16 +866,12 @@
             }
 
             async loadStatus() {
-                console.log('Loading status...');
                 try {
                     const response = await fetch('/api/scheduler/status');
-                    console.log('Status response:', response);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     
                     const status = await response.json();
-                    console.log('Status data:', status);
                     this.updateStatusDisplay(status);
-                    console.log('Status display updated');
                 } catch (error) {
                     console.error('Failed to load scheduler status:', error);
                     this.showStatusError();
