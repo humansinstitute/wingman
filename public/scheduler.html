@@ -798,7 +798,12 @@
                 this.initializeElements();
                 this.setupEventListeners();
                 this.initializeTheme();
-                this.loadInitialData();
+                
+                // Load initial data asynchronously
+                this.loadInitialData().catch(error => {
+                    console.error('Failed to load initial data:', error);
+                    this.showError('Failed to load scheduler data. Please refresh the page.');
+                });
                 
                 // Refresh data every 30 seconds
                 this.refreshInterval = setInterval(() => {
