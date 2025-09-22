@@ -262,3 +262,27 @@ If you previously imported the legacy wrappers, switch to `session-aware-goose-w
 ### Session Manager Convergence
 
 The server now uses `MultiSessionManager` as the single source of truth for sessions, conversation history, and events. Legacy `conversationManager` is no longer used by the server. Compatibility routes under `/api/goose/*` remain but are backed by `MultiSessionManager` and are deprecated in favor of `/api/sessions/*`.
+
+## Repo Map
+
+- `server.js` – Web server (Express + Socket.IO)
+- `public/` – Web UI (chat, recipes, deep dive)
+- `cli.js` – Chat CLI (terminal chat, connects to server if available)
+- `wingman-cli.js` – Tmux session manager (used by Deep Dive terminal)
+- `multi-session-manager.js` – Session orchestration + DB persistence
+- `scripts/` – Utilities and maintenance scripts
+  - `start-with-scheduler.js` – Start with background scheduler
+  - `init-builtin-servers.js` – Register common MCP servers
+  - `clean-artifacts.js` – Remove temp and log artifacts
+  - `dev/log-observer.js` – Tail logs (dev helper)
+- `lib/`, `runtime/`, `secrets/`, `recipes/` – Core modules and data
+
+## CLI Modes
+
+- Chat CLI: `npm run cli` (file: `cli.js`)
+- Tmux CLI: `node wingman-cli.js` or configure `TERMINALCMD` for Deep Dive
+
+## Housekeeping
+
+- Clean temp/log artifacts: `npm run clean:artifacts`
+- Initialize built-in MCP servers: `npm run servers:init`
