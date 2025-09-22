@@ -13,6 +13,7 @@ if (fs.existsSync(mcpEnvPath)) {
 
 // Auto-setup check
 const AutoSetup = require('./lib/auto-setup');
+const DEBUG_LOGS = process.env.WINGMAN_DEBUG === '1' || process.env.LOG_LEVEL === 'debug';
 const autoSetup = new AutoSetup();
 const express = require('express');
 const http = require('http');
@@ -360,13 +361,16 @@ class GooseWebServer {
       try {
         const { content, settings } = req.body;
         
-        // Debug logging for message content
-        console.log('=== RECEIVED MESSAGE AT SERVER ===');
-        console.log('Content length:', content.length);
-        console.log('Contains newlines:', content.includes('\n'));
-        console.log('Newline count:', (content.match(/\n/g) || []).length);
-        console.log('Raw content:', JSON.stringify(content));
-        console.log('==================================');
+        if (DEBUG_LOGS) {
+          // Debug logging for message content (sanitized)
+          console.log('=== RECEIVED MESSAGE AT SERVER ===');
+          console.log('Content length:', content.length);
+          console.log('Contains newlines:', content.includes('\n'));
+          console.log('Newline count:', (content.match(/\n/g) || []).length);
+          const preview = content && content.length > 200 ? content.slice(0, 200) + '…' : content;
+          console.log('Preview:', JSON.stringify(preview));
+          console.log('==================================');
+        }
         
         // Check if we have an active session in MultiSessionManager
         const activeId = this.multiSessionManager.activeSessionId;
