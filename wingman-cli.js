@@ -245,16 +245,7 @@ async function setSessionColors(sessionName, useSplitScreen = true) {
   const theme = getThemeForSession(sessionName);
   const os = require('os');
   
-  // Check if reattach-to-user-namespace is available on macOS
-  let hasReattach = false;
-  if (os.platform() === 'darwin') {
-    try {
-      await execPromise('which reattach-to-user-namespace');
-      hasReattach = true;
-    } catch (error) {
-      hasReattach = false;
-    }
-  }
+  // Keep platform detection minimal; avoid reattach-to-user-namespace complexity
   
   try {
     // Set status bar colors and essential configuration
@@ -273,86 +264,49 @@ async function setSessionColors(sessionName, useSplitScreen = true) {
       `tmux set-option -t "${sessionName}" mouse on`,
       `tmux set-option -t "${sessionName}" history-limit 10000`,
       
-      // Mouse configuration - allow pane switching but disable text selection
-      `tmux bind-key -t "${sessionName}" -T copy-mode-vi MouseDragEnd1Pane send-keys -X clear-selection`,
-      `tmux bind-key -t "${sessionName}" -T copy-mode MouseDragEnd1Pane send-keys -X clear-selection`,
       `tmux set-option -t "${sessionName}" base-index 1`,
       `tmux set-window-option -t "${sessionName}" pane-base-index 1`,
       `tmux set-window-option -t "${sessionName}" mode-keys vi`,
       `tmux set-option -t "${sessionName}" renumber-windows on`,
       
-      // Clipboard integration 
+      // Clipboard integration
       `tmux set-option -t "${sessionName}" set-clipboard on`
     ];
     
-    // Enhanced terminal overrides for OSC 52 support  
-    commands.push(
-      `tmux set-option -t "${sessionName}" -ag terminal-overrides "vte*:XT:Ms=\\\\E]52;c;%p2%s\\\\7,xterm*:XT:Ms=\\\\E]52;c;%p2%s\\\\7,screen*:XT:Ms=\\\\E]52;c;%p2%s\\\\7,tmux*:XT:Ms=\\\\E]52;c;%p2%s\\\\7,*:XT:Ms=\\\\E]52;c;%p2%s\\\\7"`
-    );
     
     // Add clipboard-specific configuration based on platform and tools
     if (os.platform() === 'darwin') {
-      // macOS clipboard configuration
-      if (hasReattach) {
-        // Use reattach-to-user-namespace for better clipboard integration + OSC 52
+      // macOS: simple, predictable pbcopy integration
+      try {
+        await execPromise('which pbcopy');
         commands.push(
-          `tmux set-option -t "${sessionName}" default-command "reattach-to-user-namespace -l \\$SHELL"`,
-          
-          // Vi-mode copy bindings with OSC 52 (simplified and working)
           `tmux bind-key -t "${sessionName}" -T copy-mode-vi v send-keys -X begin-selection`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'reattach-to-user-namespace pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'reattach-to-user-namespace pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          
-          // OSC 52 only copy binding (bypass local clipboard)
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi Y send-keys -X copy-pipe-and-cancel 'printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`,
-          
-          // Mouse selection copies to both clipboards
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel 'reattach-to-user-namespace pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel 'reattach-to-user-namespace pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          
-          // Emacs-mode copy bindings with OSC 52
-          `tmux bind-key -t "${sessionName}" -T copy-mode M-w send-keys -X copy-pipe-and-cancel 'reattach-to-user-namespace pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode C-w send-keys -X copy-pipe-and-cancel 'reattach-to-user-namespace pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`
+          `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'pbcopy'`,
+          `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'pbcopy'`
         );
-      } else {
-        // Use pbcopy directly + OSC 52
-        commands.push(
-          // Vi-mode copy bindings with OSC 52 (simplified and working)
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi v send-keys -X begin-selection`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          
-          // OSC 52 only copy binding (bypass local clipboard)
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi Y send-keys -X copy-pipe-and-cancel 'printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`,
-          
-          // Mouse selection copies to both clipboards
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel 'pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel 'pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          
-          // Emacs-mode copy bindings with OSC 52
-          `tmux bind-key -t "${sessionName}" -T copy-mode M-w send-keys -X copy-pipe-and-cancel 'pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode C-w send-keys -X copy-pipe-and-cancel 'pbcopy; printf "\\033]52;c;%s\\033\\\\" "$(pbpaste | base64 | tr -d "\\n")"'`
-        );
-      }
+      } catch {}
     } else {
-      // Linux clipboard configuration with OSC 52
-      commands.push(
-        // Vi-mode copy bindings with OSC 52
-        `tmux bind-key -t "${sessionName}" -T copy-mode-vi v send-keys -X begin-selection`,
-        `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'tee >(xclip -selection clipboard -i) | printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`,
-        `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'tee >(xclip -selection clipboard -i) | printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`,
-        
-        // OSC 52 only copy binding
-        `tmux bind-key -t "${sessionName}" -T copy-mode-vi Y send-keys -X copy-pipe-and-cancel 'printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`,
-        
-        // Mouse selection copies to both clipboards
-        `tmux bind-key -t "${sessionName}" -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel 'tee >(xclip -selection clipboard -i) | printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`,
-        `tmux bind-key -t "${sessionName}" -T copy-mode MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel 'tee >(xclip -selection clipboard -i) | printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`,
-        
-        // Emacs-mode copy bindings with OSC 52
-        `tmux bind-key -t "${sessionName}" -T copy-mode M-w send-keys -X copy-pipe-and-cancel 'tee >(xclip -selection clipboard -i) | printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`,
-        `tmux bind-key -t "${sessionName}" -T copy-mode C-w send-keys -X copy-pipe-and-cancel 'tee >(xclip -selection clipboard -i) | printf "\\033]52;c;%s\\033\\\\" "$(base64 | tr -d "\\n")"'`
-      );
+      // Linux/BSD: prefer Wayland wl-copy, fall back to xclip
+      let bound = false;
+      try {
+        await execPromise('which wl-copy');
+        commands.push(
+          `tmux bind-key -t "${sessionName}" -T copy-mode-vi v send-keys -X begin-selection`,
+          `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'wl-copy'`,
+          `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'wl-copy'`
+        );
+        bound = true;
+      } catch {}
+      if (!bound) {
+        try {
+          await execPromise('which xclip');
+          commands.push(
+            `tmux bind-key -t "${sessionName}" -T copy-mode-vi v send-keys -X begin-selection`,
+            `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'xclip -selection clipboard -i'`,
+            `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'xclip -selection clipboard -i'`
+          );
+        } catch {}
+      }
     }
     
     // Paste binding (works on both platforms)
@@ -836,9 +790,9 @@ async function checkClipboardTools() {
       await execPromise('which reattach-to-user-namespace');
       return true;
     } catch (error) {
-      console.log(`${colors.yellow}Note: For better clipboard integration, consider installing:${colors.reset}`);
+      console.log(`${colors.yellow}Note: Clipboard integration uses tmux set-clipboard on macOS.${colors.reset}`);
+      console.log(`${colors.blue}Optional: On older setups, reattach-to-user-namespace may help:${colors.reset}`);
       console.log(`${colors.white}  brew install reattach-to-user-namespace${colors.reset}`);
-      console.log(`${colors.blue}This improves system clipboard access in tmux sessions.${colors.reset}`);
       console.log();
       return false;
     }

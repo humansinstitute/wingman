@@ -82,7 +82,7 @@ The setup creates configuration in `~/.wingman/` including:
 - AI agent recipes
 - Scheduler configuration
 
-📖 **For detailed setup instructions, see [NEW_USER_SETUP.md](NEW_USER_SETUP.md)**
+Note: Setup is streamlined via `npm run setup` and modern config in `~/.wingman`. See commands above.
 
 ## Configuration
 
@@ -186,6 +186,14 @@ npm run cli
 - **server.js** - Express + Socket.IO web server with Goose API
 - **index.js** - Main launcher for both interfaces
 - **public/index.html** - Web interface with Goose controls
+
+### MCP Server Registry
+
+Wingman stores MCP server configurations via the server-config-manager in your Wingman home:
+- Directory: `~/.wingman/mcp-servers`
+- Accessed by: `mcp-server-registry.js` (the refactored registry wired to server-config-manager)
+
+Note: The old `mcp-server-registry-legacy.js` has been removed. If you previously extended or scripted against the legacy JSON registry, migrate your entries into `~/.wingman/mcp-servers` (one JSON file per server). Server routes under `/api/mcp-servers/*` operate on this new registry.
 
 ### How It Works
 

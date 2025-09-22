@@ -4,7 +4,6 @@ const fs = require('fs').promises;
 const path = require('path');
 const ephemeralConfig = require('./runtime/ephemeral-goose-config');
 const secretInjector = require('./secrets/secret-injector');
-const preflightEngine = require('./preflight/preflight-engine');
 const failureHandler = require('./runtime/failure-handler');
 
 class StreamingGooseCLIWrapper extends EventEmitter {
@@ -30,6 +29,54 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     this.isProcessing = false;
     this.pendingInterrupt = false;
     this.stderrBuffer = ''; // Buffer stderr for failure analysis
+    this.debugEnabled = (process.env.WINGMAN_DEBUG === '1' || process.env.LOG_LEVEL === 'debug' || !!this.options.debug);
+  }
+
+  async prepareSessionEnv(recipePath, workingDir) {
+    // Create ephemeral config and set base env for this session
+    const { path: configPath } = await ephemeralConfig.createEphemeralConfig(
+      this.options.sessionName,
+      { provider: this.options.provider, model: this.options.model },
+      { allowGlobalServers: false }
+    );
+
+    let sessionEnv = {
+      ...process.env,
+      GOOSE_CONFIG_PATH: configPath,
+      WINGMAN_SESSION_ID: this.sessionId,
+      WINGMAN_SESSION_NAME: this.sessionName || this.sessionId,
+      WINGMAN_WORKING_DIR: workingDir
+    };
+
+    if (!recipePath) {
+      return { env: sessionEnv, configPath };
+    }
+
+    try {
+      const recipeData = await fs.readFile(recipePath, 'utf-8');
+      const recipe = JSON.parse(recipeData);
+
+      if (recipe.extensions && recipe.extensions.length > 0) {
+        await ephemeralConfig.addRecipeServers(configPath, recipe.extensions);
+      }
+
+      const secretResult = await secretInjector.buildSessionEnv({
+        recipe,
+        selectedServers: recipe.extensions
+      });
+
+      if (secretResult.success) {
+        sessionEnv = secretResult.env;
+        this.logSessionStartup(recipe, secretResult.injected);
+      } else if (secretResult.missing.length > 0) {
+        console.warn(`⚠️ Missing ${secretResult.missing.length} required secrets`);
+        console.warn('   Session may have limited functionality');
+      }
+    } catch (error) {
+      console.warn(`Failed to inject secrets: ${error.message}`);
+    }
+
+    return { env: sessionEnv, configPath };
   }
 
   async start() {
@@ -78,57 +125,12 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       }
       
       const workingDir = this.options.workingDirectory || process.cwd();
-      console.log(`Starting Goose ${command}: goose ${command} ${args.join(' ')}`);
-      console.log(`Working directory: ${workingDir}`);
-      
-      // T-003: Create ephemeral config and set GOOSE_CONFIG_PATH
-      const { path: configPath } = await ephemeralConfig.createEphemeralConfig(
-        this.options.sessionName,
-        {
-          provider: this.options.provider,
-          model: this.options.model
-        },
-        { allowGlobalServers: false } // Enforce zero-defaults for new sessions
-      );
-      
-      // Add session context to environment variables for MCP servers
-      let sessionEnv = {
-        ...process.env,
-        GOOSE_CONFIG_PATH: configPath, // Zero-default enforcement
-        WINGMAN_SESSION_ID: this.sessionId,
-        WINGMAN_SESSION_NAME: this.sessionName || this.sessionId,
-        WINGMAN_WORKING_DIR: workingDir
-      };
-      
-      // Inject required secrets for the recipe
-      if (recipePath) {
-        try {
-          const recipeData = await fs.readFile(recipePath, 'utf-8');
-          const recipe = JSON.parse(recipeData);
-          
-          // Add recipe-declared servers to the hybrid config
-          if (recipe.extensions && recipe.extensions.length > 0) {
-            await ephemeralConfig.addRecipeServers(configPath, recipe.extensions);
-          }
-          
-          const secretResult = await secretInjector.buildSessionEnv({
-            recipe: recipe,
-            selectedServers: recipe.extensions
-          });
-          
-          if (secretResult.success) {
-            sessionEnv = secretResult.env;
-            
-            // T-016: Log active extensions and injected env key names (no values)
-            this.logSessionStartup(recipe, secretResult.injected);
-          } else if (secretResult.missing.length > 0) {
-            console.warn(`⚠️ Missing ${secretResult.missing.length} required secrets`);
-            console.warn('   Session may have limited functionality');
-          }
-        } catch (error) {
-          console.warn(`Failed to inject secrets: ${error.message}`);
-        }
+      if (this.debugEnabled) {
+        console.log(`Starting Goose ${command}: goose ${command} ${args.join(' ')}`);
+        console.log(`Working directory: ${workingDir}`);
       }
+      
+      const { env: sessionEnv } = await this.prepareSessionEnv(recipePath, workingDir);
       
       this.gooseProcess = spawn('goose', [command, ...args], {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -142,7 +144,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
 
       this.gooseProcess.stderr.on('data', (data) => {
         const stderrOutput = data.toString();
-        console.error('Goose stderr:', stderrOutput);
+        if (this.debugEnabled) console.error('Goose stderr:', stderrOutput);
         
         // Buffer stderr for failure analysis
         this.stderrBuffer += stderrOutput;
@@ -202,8 +204,9 @@ class StreamingGooseCLIWrapper extends EventEmitter {
   handleOutput(data) {
     const timestamp = new Date().toISOString();
     
-    // Log everything for debugging
-    this.logToFile('RAW_OUTPUT', data, timestamp);
+    if (this.debugEnabled) {
+      this.logToFile('RAW_OUTPUT', data, timestamp);
+    }
     
     // Clean ANSI codes for display
     const cleanData = this.stripAnsiCodes(data);
@@ -216,14 +219,14 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     // Check if session is ready for input (for both new and resumed sessions)
     if (this.isSessionReady(cleanData)) {
       if (!this.isReady) {
-        console.log('🎯 Detected Goose is ready for input!');
+        if (this.debugEnabled) console.log('🎯 Detected Goose is ready for input!');
         this.isReady = true;
         this.emit('ready');
       }
       
       // Mark as no longer processing when Goose is ready for new input
       if (this.isProcessing) {
-        console.log('✅ Goose finished processing and is ready for new input');
+        if (this.debugEnabled) console.log('✅ Goose finished processing and is ready for new input');
         this.isProcessing = false;
         this.emit('processingComplete', { timestamp: new Date().toISOString() });
       }
@@ -444,6 +447,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
   }
 
   async logToFile(type, content, timestamp) {
+    if (!this.debugEnabled) return;
     try {
       const logsDir = path.join(__dirname, 'logs');
       const logFile = path.join(logsDir, 'goose-streaming-output.log');
@@ -454,7 +458,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       const logEntry = `[${timestamp}] ${type}: ${JSON.stringify(content)}\n`;
       await fs.appendFile(logFile, logEntry);
     } catch (error) {
-      console.error('Logging error:', error.message);
+      if (this.debugEnabled) console.error('Logging error:', error.message);
     }
   }
 
@@ -463,14 +467,17 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       throw new Error('Goose session not ready');
     }
 
-    // Debug logging to verify message content
-    console.log('=== SENDING MESSAGE TO GOOSE ===');
-    console.log('Message length:', message.length);
-    console.log('Contains newlines:', message.includes('\n'));
-    console.log('Newline count:', (message.match(/\n/g) || []).length);
-    console.log('Raw message:', JSON.stringify(message));
-    console.log('Is processing:', this.isProcessing);
-    console.log('=================================');
+    // Debug logging to verify message content (truncated)
+    if (this.debugEnabled) {
+      console.log('=== SENDING MESSAGE TO GOOSE ===');
+      console.log('Message length:', message.length);
+      console.log('Contains newlines:', message.includes('\n'));
+      console.log('Newline count:', (message.match(/\n/g) || []).length);
+      const preview = message.length > 200 ? message.slice(0, 200) + '…' : message;
+      console.log('Preview:', JSON.stringify(preview));
+      console.log('Is processing:', this.isProcessing);
+      console.log('=================================');
+    }
 
     // If we're currently processing and this is a new message, check settings before interrupting
     if (this.isProcessing && this.options.enableInterruptOnNewMessage !== false) {
@@ -492,7 +499,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
         // Join lines with spaces, collapsing multiple newlines into single spaces
         const singleLineMessage = message.replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim();
         this.gooseProcess.stdin.write(singleLineMessage + '\n');
-        console.log('Sent multi-line message as single line:', singleLineMessage.substring(0, 100) + '...');
+        if (this.debugEnabled) console.log('Sent multi-line message as single line:', singleLineMessage.substring(0, 100) + '...');
       } else {
         // Single line message - send normally
         this.gooseProcess.stdin.write(message + '\n');
@@ -514,7 +521,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       return;
     }
 
-    console.log('🛑 Sending interrupt signal (Ctrl+C) to Goose process');
+      if (this.debugEnabled) console.log('🛑 Sending interrupt signal (Ctrl+C) to Goose process');
     
     try {
       // Send SIGINT (Ctrl+C equivalent) to interrupt current operation
@@ -530,7 +537,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       // Wait a brief moment for the interrupt to take effect
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      console.log('✅ Interrupt signal sent successfully');
+      if (this.debugEnabled) console.log('✅ Interrupt signal sent successfully');
     } catch (error) {
       console.error('❌ Error sending interrupt signal:', error);
       this.isProcessing = false;
@@ -538,7 +545,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
   }
 
   async forceStop() {
-    console.log('🔥 Force stopping Goose session');
+    if (this.debugEnabled) console.log('🔥 Force stopping Goose session');
     if (this.gooseProcess) {
       this.isProcessing = false;
       this.pendingInterrupt = false;
@@ -619,8 +626,10 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       }
       
       const workingDir = this.options.workingDirectory || process.cwd();
-      console.log(`Resuming Goose ${command}: goose ${command} ${args.join(' ')}`);
-      console.log(`Working directory: ${workingDir}`);
+      if (this.debugEnabled) {
+        console.log(`Resuming Goose ${command}: goose ${command} ${args.join(' ')}`);
+        console.log(`Working directory: ${workingDir}`);
+      }
       
       // T-003: Create ephemeral config for resumed session too
       const { path: configPath } = await ephemeralConfig.createEphemeralConfig(
@@ -652,7 +661,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       });
 
       this.gooseProcess.stderr.on('data', (data) => {
-        console.error('Goose stderr:', data.toString());
+        if (this.debugEnabled) console.error('Goose stderr:', data.toString());
         this.emit('error', data.toString());
       });
 
@@ -708,7 +717,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
     
     // Handle sub-recipes - copy them to temp directory or use absolute paths
     if (recipe.sub_recipes && recipe.sub_recipes.length > 0) {
-      console.log(`Processing ${recipe.sub_recipes.length} sub-recipes for temp file creation`);
+      if (this.debugEnabled) console.log(`Processing ${recipe.sub_recipes.length} sub-recipes for temp file creation`);
       
       const recipeBaseDirs = [
         path.join(process.env.HOME || process.env.USERPROFILE || '', '.wingman', 'recipes', 'user'),
@@ -718,7 +727,7 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       
       // Copy sub-recipe files to temp directory
       for (const subRecipe of recipe.sub_recipes) {
-        console.log(`Looking for sub-recipe: ${subRecipe.name} at path: ${subRecipe.path}`);
+        if (this.debugEnabled) console.log(`Looking for sub-recipe: ${subRecipe.name} at path: ${subRecipe.path}`);
         let sourceFile = null;
         
         // Find the sub-recipe file in recipe directories
