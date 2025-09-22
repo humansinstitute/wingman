@@ -19,7 +19,6 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const pty = require('node-pty');
-const conversationManager = require('./shared-state');
 const recipeManager = require('./recipe-manager');
 const MultiSessionManager = require('./multi-session-manager');
 const mcpServerRegistry = require('./mcp-server-registry');
@@ -51,26 +50,17 @@ class GooseWebServer {
     this.setupMiddleware();
     this.setupRoutes();
     this.setupSocketHandlers();
-    this.setupConversationSync();
+    // Legacy conversationManager sync removed; MultiSessionManager is source of truth
   }
 
   setupMultiSessionEvents() {
     // Handle multi-session events and broadcast to clients
     this.multiSessionManager.on('sessionMessage', (data) => {
-      // Only broadcast to clients - don't add to conversationManager to avoid double emission
-      // The MultiSessionManager already handles database storage and caching
+      // Broadcast to clients; storage and caching handled by manager
       this.io.emit('newMessage', data.message);
     });
 
     this.multiSessionManager.on('sessionSwitched', (data) => {
-      // Update conversation manager immediately (may be empty initially)
-      try {
-        conversationManager.conversation = data.conversation;
-        conversationManager.emit('conversationHistory', data.conversation);
-      } catch (error) {
-        console.error('Error updating conversation manager:', error);
-      }
-      
       this.io.emit('sessionsUpdate', {
         type: 'sessionSwitched',
         sessionId: data.toSessionId,
@@ -80,14 +70,6 @@ class GooseWebServer {
     });
 
     this.multiSessionManager.on('conversationLoaded', (data) => {
-      // Update conversation manager with full conversation
-      try {
-        conversationManager.conversation = data.conversation;
-        conversationManager.emit('conversationHistory', data.conversation);
-      } catch (error) {
-        console.error('Error updating conversation manager with loaded data:', error);
-      }
-      
       // Broadcast the loaded conversation
       this.io.emit('conversationHistory', data.conversation);
     });
@@ -138,12 +120,42 @@ class GooseWebServer {
       res.sendFile(path.join(__dirname, 'public', 'mcp-servers.html'));
     });
 
-    this.app.get('/api/conversation', (req, res) => {
-      res.json(conversationManager.getConversation());
+    this.app.get('/api/conversation', async (req, res) => {
+      try {
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (!activeId) return res.json([]);
+        const cached = this.multiSessionManager.conversationCache.get(activeId) || [];
+        if (cached.length > 0) return res.json(cached);
+        const metadata = this.multiSessionManager.sessionMetadata.get(activeId);
+        if (!metadata) return res.json([]);
+        const messages = await this.multiSessionManager.db.getMessages(metadata.sessionName);
+        const conversation = messages.map(msg => ({
+          id: msg.message_id || msg.id?.toString?.() || `${msg.rowid || ''}`,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          source: msg.source
+        }));
+        res.json(conversation);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
     });
 
     this.app.get('/api/goose/status', (req, res) => {
-      res.json(conversationManager.getGooseStatus());
+      try {
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (!activeId) return res.json({ active: false, sessionName: null, ready: false });
+        const meta = this.multiSessionManager.sessionMetadata.get(activeId);
+        const wrapper = this.multiSessionManager.sessions.get(activeId);
+        res.json({
+          active: true,
+          sessionName: meta?.sessionName || null,
+          ready: !!(wrapper && wrapper.isReady)
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
     });
 
     this.app.get('/api/config', (req, res) => {
@@ -156,8 +168,12 @@ class GooseWebServer {
 
     this.app.get('/api/goose/sessions', async (req, res) => {
       try {
-        const sessions = await conversationManager.listGooseSessions();
-        res.json(sessions);
+        const availableSessions = await this.multiSessionManager.getAvailableSessions();
+        const db = require('./lib/database').getDatabase();
+        const archivedSessions = await db.getArchivedSessions();
+        const archivedNames = archivedSessions.map(s => s.session_name);
+        const nonArchived = availableSessions.filter(s => !archivedNames.includes(s.id));
+        res.json(nonArchived);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -291,12 +307,27 @@ class GooseWebServer {
     this.app.post('/api/goose/command', async (req, res) => {
       try {
         const { command } = req.body;
-        
         if (!command) {
           return res.status(400).json({ error: 'Command is required' });
         }
-        
-        await conversationManager.executeGooseCommand(command);
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (!activeId) {
+          return res.status(400).json({ error: 'No active session' });
+        }
+        const wrapper = this.multiSessionManager.sessions.get(activeId);
+        if (!wrapper) {
+          return res.status(400).json({ error: 'Active session not found' });
+        }
+        const metadata = this.multiSessionManager.sessionMetadata.get(activeId);
+        if (metadata && this.multiSessionManager.dbInitialized) {
+          await this.multiSessionManager.db.addMessage(metadata.sessionName, {
+            role: 'system',
+            content: `Command: ${command}`,
+            source: 'command',
+            timestamp: new Date().toISOString()
+          });
+        }
+        await wrapper.executeCommand(command);
         res.json({ success: true });
       } catch (error) {
         res.status(500).json({ error: error.message });
@@ -306,13 +337,20 @@ class GooseWebServer {
     this.app.post('/api/goose/delete', async (req, res) => {
       try {
         const { sessionName } = req.body;
-        
         if (!sessionName) {
           return res.status(400).json({ error: 'Session name is required' });
         }
-        
-        const result = await conversationManager.deleteGooseSession(sessionName);
-        res.json(result);
+        const db = require('./lib/database').getDatabase();
+        const fsp = require('fs').promises;
+        const p = require('path');
+        const osmod = require('os');
+        try {
+          const gooseSessionsDir = p.join(osmod.homedir(), '.local', 'share', 'goose', 'sessions');
+          const sessionFilePath = p.join(gooseSessionsDir, `${sessionName}.jsonl`);
+          await fsp.unlink(sessionFilePath).catch(() => {});
+        } catch {}
+        await db.deleteSession(sessionName).catch(() => {});
+        res.json({ success: true });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -331,8 +369,8 @@ class GooseWebServer {
         console.log('==================================');
         
         // Check if we have an active session in MultiSessionManager
-        const activeSession = this.multiSessionManager.getActiveSession();
-        if (!activeSession) {
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (!activeId) {
           return res.status(400).json({ 
             error: 'No active Goose session. Please start a session first.' 
           });
@@ -347,9 +385,20 @@ class GooseWebServer {
       }
     });
 
-    this.app.delete('/api/conversation', (req, res) => {
-      conversationManager.clear();
-      res.json({ success: true });
+    this.app.delete('/api/conversation', async (req, res) => {
+      try {
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (!activeId) return res.json({ success: true });
+        const metadata = this.multiSessionManager.sessionMetadata.get(activeId);
+        if (metadata && this.multiSessionManager.dbInitialized) {
+          await this.multiSessionManager.db.clearMessages(metadata.sessionName);
+        }
+        this.multiSessionManager.conversationCache.set(activeId, []);
+        this.io.emit('conversationHistory', []);
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
     });
 
     // Recipe Management Routes
@@ -466,11 +515,16 @@ class GooseWebServer {
       }
     });
 
-    // Get sub-recipe session information
-    this.app.get('/api/goose/sub-recipes', (req, res) => {
+    // Get sub-recipe session information (if supported by active wrapper)
+    this.app.get('/api/goose/sub-recipes', async (req, res) => {
       try {
-        const subRecipeInfo = conversationManager.getSubRecipeInfo();
-        res.json(subRecipeInfo);
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (!activeId) return res.json({ hasSubRecipes: false, activeSessions: [] });
+        const wrapper = this.multiSessionManager.sessions.get(activeId);
+        if (wrapper && typeof wrapper.getActiveSubRecipeSessions === 'function') {
+          return res.json({ hasSubRecipes: true, activeSessions: wrapper.getActiveSubRecipeSessions() });
+        }
+        return res.json({ hasSubRecipes: false, activeSessions: [] });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -480,12 +534,16 @@ class GooseWebServer {
     this.app.post('/api/goose/sub-recipes/execute', async (req, res) => {
       try {
         const { subRecipeName, parameters } = req.body;
-        
         if (!subRecipeName) {
           return res.status(400).json({ error: 'Sub-recipe name is required' });
         }
-
-        const result = await conversationManager.executeSubRecipe(subRecipeName, parameters || {});
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (!activeId) return res.status(400).json({ error: 'No active session' });
+        const wrapper = this.multiSessionManager.sessions.get(activeId);
+        if (!wrapper || typeof wrapper.executeSubRecipe !== 'function') {
+          return res.status(501).json({ error: 'Sub-recipes not supported by active session' });
+        }
+        const result = await wrapper.executeSubRecipe(subRecipeName, parameters || {});
         res.json(result);
       } catch (error) {
         res.status(500).json({ error: error.message });
@@ -495,7 +553,13 @@ class GooseWebServer {
     // Stop a sub-recipe session
     this.app.post('/api/goose/sub-recipes/:name/stop', async (req, res) => {
       try {
-        const success = await conversationManager.stopSubRecipeSession(req.params.name);
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (!activeId) return res.status(400).json({ success: false, error: 'No active session' });
+        const wrapper = this.multiSessionManager.sessions.get(activeId);
+        if (!wrapper || typeof wrapper.stopSubRecipeSession !== 'function') {
+          return res.status(501).json({ success: false, error: 'Sub-recipes not supported by active session' });
+        }
+        const success = await wrapper.stopSubRecipeSession(req.params.name);
         res.json({ success });
       } catch (error) {
         res.status(500).json({ error: error.message });
@@ -965,11 +1029,9 @@ class GooseWebServer {
     this.app.get('/api/sessions/available', async (req, res) => {
       try {
         if (!this.multiSessionManager) {
-          // Fallback to existing method
-          const sessions = await conversationManager.listGooseSessions();
-          return res.json(sessions);
+          return res.json([]);
         }
-        
+
         const availableSessions = await this.multiSessionManager.getAvailableSessions();
         
         // Filter out archived sessions from database
@@ -1629,27 +1691,76 @@ class GooseWebServer {
       console.log('Client connected');
 
       // Send current conversation and Goose status
-      socket.emit('conversationHistory', conversationManager.getConversation());
-      socket.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
+      try {
+        const activeId = this.multiSessionManager.activeSessionId;
+        if (activeId) {
+          const conv = this.multiSessionManager.conversationCache.get(activeId) || [];
+          socket.emit('conversationHistory', conv);
+          const meta = this.multiSessionManager.sessionMetadata.get(activeId);
+          const wrapper = this.multiSessionManager.sessions.get(activeId);
+          socket.emit('gooseStatusUpdate', {
+            active: true,
+            sessionName: meta?.sessionName || null,
+            ready: !!(wrapper && wrapper.isReady)
+          });
+        } else {
+          socket.emit('conversationHistory', []);
+          socket.emit('gooseStatusUpdate', { active: false, sessionName: null, ready: false });
+        }
+      } catch (e) {
+        socket.emit('conversationHistory', []);
+        socket.emit('gooseStatusUpdate', { active: false, sessionName: null, ready: false });
+      }
 
       // Handle CLI message events
-      socket.on('cliMessage', (message) => {
+      socket.on('cliMessage', async (message) => {
         socket.broadcast.emit('newMessage', message);
-        
-        if (!conversationManager.conversation.find(m => m.id === message.id)) {
-          conversationManager.conversation.push(message);
-          conversationManager.save();
-        }
+        try {
+          const activeId = this.multiSessionManager.activeSessionId;
+          if (!activeId) return;
+          const meta = this.multiSessionManager.sessionMetadata.get(activeId);
+          if (meta && this.multiSessionManager.dbInitialized) {
+            await this.multiSessionManager.db.addMessage(meta.sessionName, message);
+          }
+          this.multiSessionManager.updateConversationCache(activeId, message);
+        } catch {}
       });
 
       // Handle clear conversation from CLI
-      socket.on('clearConversation', () => {
-        conversationManager.clear();
+      socket.on('clearConversation', async () => {
+        try {
+          const activeId = this.multiSessionManager.activeSessionId;
+          if (!activeId) return;
+          const meta = this.multiSessionManager.sessionMetadata.get(activeId);
+          if (meta && this.multiSessionManager.dbInitialized) {
+            await this.multiSessionManager.db.clearMessages(meta.sessionName);
+          }
+          this.multiSessionManager.conversationCache.set(activeId, []);
+          this.io.emit('conversationHistory', []);
+        } catch {}
       });
 
       // Handle history requests
-      socket.on('requestHistory', () => {
-        socket.emit('conversationHistory', conversationManager.getConversation());
+      socket.on('requestHistory', async () => {
+        try {
+          const activeId = this.multiSessionManager.activeSessionId;
+          if (!activeId) return socket.emit('conversationHistory', []);
+          const cached = this.multiSessionManager.conversationCache.get(activeId) || [];
+          if (cached.length > 0) return socket.emit('conversationHistory', cached);
+          const meta = this.multiSessionManager.sessionMetadata.get(activeId);
+          if (!meta) return socket.emit('conversationHistory', []);
+          const messages = await this.multiSessionManager.db.getMessages(meta.sessionName);
+          const conversation = messages.map(msg => ({
+            id: msg.message_id || msg.id?.toString?.() || `${msg.rowid || ''}`,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            source: msg.source
+          }));
+          socket.emit('conversationHistory', conversation);
+        } catch {
+          socket.emit('conversationHistory', []);
+        }
       });
 
       // Handle Goose status updates from CLI
@@ -1786,60 +1897,7 @@ class GooseWebServer {
     });
   }
 
-  setupConversationSync() {
-    // Broadcast new messages to all connected clients
-    conversationManager.on('messageAdded', (message) => {
-      this.io.emit('newMessage', message);
-    });
-
-    conversationManager.on('conversationCleared', () => {
-      this.io.emit('conversationCleared');
-    });
-    
-    // Broadcast thinking messages
-    conversationManager.on('thinking', (message) => {
-      this.io.emit('newMessage', message);
-    });
-
-    // Broadcast Goose-specific events
-    conversationManager.on('gooseReady', () => {
-      this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
-    });
-
-    conversationManager.on('gooseStopped', () => {
-      this.io.emit('gooseStatusUpdate', conversationManager.getGooseStatus());
-    });
-
-    conversationManager.on('gooseError', (error) => {
-      this.io.emit('gooseError', error);
-    });
-
-    // Broadcast conversation history updates (for session switching)
-    conversationManager.on('conversationHistory', (conversation) => {
-      this.io.emit('conversationHistory', conversation);
-    });
-
-    // Broadcast sub-recipe events
-    conversationManager.on('subRecipeSessionCreated', (data) => {
-      this.io.emit('subRecipeSessionCreated', data);
-    });
-
-    conversationManager.on('subRecipeStreamContent', (data) => {
-      this.io.emit('subRecipeStreamContent', data);
-    });
-
-    conversationManager.on('subRecipeCompleted', (data) => {
-      this.io.emit('subRecipeCompleted', data);
-    });
-
-    conversationManager.on('subRecipeError', (data) => {
-      this.io.emit('subRecipeError', data);
-    });
-
-    conversationManager.on('subRecipeSessionStopped', (data) => {
-      this.io.emit('subRecipeSessionStopped', data);
-    });
-  }
+  // Legacy conversation sync removed; MultiSessionManager emits are already wired in setupMultiSessionEvents
 
   async findAvailablePort(startPort) {
     const net = require('net');

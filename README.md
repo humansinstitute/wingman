@@ -179,7 +179,8 @@ npm run cli
 ## Architecture
 
 ### Core Components
-- **goose-cli-wrapper.js** - Spawns and controls Goose CLI processes
+- **session-aware-goose-wrapper.js** - Primary wrapper extending the streaming wrapper with session analytics
+- **goose-cli-wrapper-streaming.js** - Streaming process driver for Goose CLI
 - **shared-state.js** - Manages conversation state and Goose integration
 - **cli.js** - Command-line interface with Goose controls
 - **server.js** - Express + Socket.IO web server with Goose API
@@ -241,3 +242,15 @@ The application is designed to be extensible and can be enhanced with:
 - Enhanced message parsing
 - Session templates and automation
 - Integration with other AI tools
+
+### Wrapper Consolidation
+
+Legacy wrappers have been removed to simplify maintenance:
+- Removed: `goose-cli-wrapper.js`, `goose-cli-wrapper-improved.js`, `goose-cli-wrapper-claude.js`
+- Standardized on: `session-aware-goose-wrapper.js` (built on `goose-cli-wrapper-streaming.js`)
+
+If you previously imported the legacy wrappers, switch to `session-aware-goose-wrapper.js`.
+
+### Session Manager Convergence
+
+The server now uses `MultiSessionManager` as the single source of truth for sessions, conversation history, and events. Legacy `conversationManager` is no longer used by the server. Compatibility routes under `/api/goose/*` remain but are backed by `MultiSessionManager` and are deprecated in favor of `/api/sessions/*`.

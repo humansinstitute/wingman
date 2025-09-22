@@ -8,21 +8,10 @@ const { getDatabase } = require('./lib/database');
 function getGooseWrapper(recipeConfig = null) {
   // Use sub-recipe aware wrapper if recipe has sub-recipes
   if (recipeConfig && recipeConfig.sub_recipes && recipeConfig.sub_recipes.length > 0) {
-    try {
-      return require('./sub-recipe-aware-wrapper');
-    } catch (e) {
-      console.warn('Sub-recipe wrapper not found, falling back to streaming wrapper');
-    }
+    return require('./sub-recipe-aware-wrapper');
   }
-  
-  // Use streaming wrapper for better continuous display
-  try {
-    return require('./goose-cli-wrapper-streaming');
-  } catch (e) {
-    console.log('Streaming wrapper not found, using original wrapper');
-    // Fall back to original wrapper
-    return require('./goose-cli-wrapper');
-  }
+  // Default to session-aware streaming wrapper
+  return require('./session-aware-goose-wrapper');
 }
 
 const GooseCLIWrapper = getGooseWrapper();
