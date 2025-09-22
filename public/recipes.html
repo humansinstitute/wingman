@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recipe Manager - Wingman: Goose</title>
+    <title>Recipe Manager - Wingman: Solvitur Ambulando</title>
     <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png">
     
     <!-- PWA Manifest -->
@@ -2031,6 +2031,7 @@
                 try {
                     const recipeData = {
                         name: this.recipeName.value.trim(),
+                        title: this.recipeName.value.trim(),
                         description: this.recipeDescription.value.trim(),
                         category: this.recipeCategory.value,
                         tags: this.recipeTags.value.split(',').map(tag => tag.trim()).filter(tag => tag),

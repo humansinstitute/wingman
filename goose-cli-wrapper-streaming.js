@@ -58,6 +58,11 @@ class StreamingGooseCLIWrapper extends EventEmitter {
       command = 'run';
       args = ['--recipe', recipePath];
       
+      // Add builtins from recipe if they exist
+      if (this.options.recipeConfig && this.options.recipeConfig.builtins && this.options.recipeConfig.builtins.length > 0) {
+        args.push('--with-builtin', this.options.recipeConfig.builtins.join(','));
+      }
+      
       // Add interactive flag to continue in chat mode
       args.push('--interactive');
       

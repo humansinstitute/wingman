@@ -96,7 +96,7 @@ const statusThemes = [
 ];
 
 // Create readline interface
-const rl = readline.createInterface({
+let rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
@@ -991,14 +991,44 @@ async function connectToSession() {
         config.lastSession = selectedSession;
         saveWingmanConfig(config);
         
-        // Attach to tmux session
+        // Close readline for tmux session
         rl.close();
         const tmux = spawn('tmux', ['attach-session', '-t', selectedSession], {
           stdio: 'inherit'
         });
         
-        tmux.on('exit', () => {
-          process.exit(0);
+        tmux.on('exit', async (code) => {
+          // Check if session still exists (detached) or was terminated
+          try {
+            const remainingSessions = await getSessions();
+            const sessionExists = remainingSessions.includes(selectedSession);
+            
+            if (sessionExists) {
+              // Session was detached, not terminated - return to menu
+              console.log(`${colors.green}Detached from session: ${selectedSession}${colors.reset}`);
+              
+              // Recreate readline interface for menu
+              rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+              });
+              
+              // Reset page and restart session management
+              currentPage = 0;
+              
+              // Use setTimeout to avoid potential recursion issues
+              setTimeout(async () => {
+                await connectToSession();
+              }, 100);
+            } else {
+              // Session was terminated - exit normally
+              process.exit(0);
+            }
+          } catch (error) {
+            // If we can't check sessions, assume termination
+            console.log(`${colors.red}Session ended${colors.reset}`);
+            process.exit(0);
+          }
         });
         
         return;

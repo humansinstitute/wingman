@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wingman: Goose</title>
+    <title>Wingman: Solvitur Ambulando</title>
     <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png" id="favicon-light">
     <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png" id="favicon-dark" disabled>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -1687,7 +1687,7 @@
         <h1>
             <img src="Wingman_Goose_Logo_Light.png" alt="Wingman Goose" class="logo logo-light">
             <img src="Wingman_Goose_Logo_Dark.png" alt="Wingman Goose" class="logo logo-dark">
-            Wingman: Goose
+            Wingman: Solvitur Ambulando
         </h1>
         <div class="header-right">
             <div id="providerModelInfo" class="provider-model-info" style="display: none;">
@@ -2949,14 +2949,18 @@
                             active: true,
                             sessionName: activeSession.sessionName,
                             ready: true,
-                            workingDirectory: activeSession.workingDirectory
+                            workingDirectory: activeSession.workingDirectory,
+                            recipeName: activeSession.metadata?.recipeName || null,
+                            recipeId: activeSession.metadata?.recipeId || null
                         });
                     } else {
                         this.updateGooseStatus({
                             active: false,
                             sessionName: null,
                             ready: false,
-                            workingDirectory: null
+                            workingDirectory: null,
+                            recipeName: null,
+                            recipeId: null
                         });
                     }
                 } catch (error) {
@@ -2971,8 +2975,14 @@
                 if (status.active) {
                     const statusClass = 'goose-status status-active';
                     
-                    // Just show the session name without "Active"
-                    this.sessionNameDisplay.textContent = status.sessionName || 'Unknown Session';
+                    // Show session name with recipe if available
+                    let displayText = status.sessionName || 'Unknown Session';
+                    if (status.recipeName) {
+                        displayText += ` (📋 ${status.recipeName})`;
+                    } else if (status.recipeId) {
+                        displayText += ` (📋 ${status.recipeId})`;
+                    }
+                    this.sessionNameDisplay.textContent = displayText;
                     
                     // Update working directory display
                     if (this.workingDirectoryDisplay && status.workingDirectory) {
@@ -2998,7 +3008,13 @@
                     
                     // Update mobile displays
                     if (this.mobileSessionNameDisplay) {
-                        this.mobileSessionNameDisplay.textContent = status.sessionName || 'Unknown Session';
+                        let mobileDisplayText = status.sessionName || 'Unknown Session';
+                        if (status.recipeName) {
+                            mobileDisplayText += ` (📋 ${status.recipeName})`;
+                        } else if (status.recipeId) {
+                            mobileDisplayText += ` (📋 ${status.recipeId})`;
+                        }
+                        this.mobileSessionNameDisplay.textContent = mobileDisplayText;
                     }
                     if (this.mobileWorkingDirectoryDisplay && status.workingDirectory) {
                         this.mobileWorkingDirectoryDisplay.textContent = status.workingDirectory;
@@ -3739,6 +3755,7 @@
                                         <div class="session-meta">
                                             <span class="session-status">(running)</span>
                                             <span class="session-timestamp">${new Date(session.createdAt).toLocaleString()}</span>
+                                            ${session.metadata?.recipeName ? `<div class="session-recipe">📋 Recipe: ${session.metadata.recipeName}</div>` : (session.metadata?.recipeId ? `<div class="session-recipe">📋 Recipe: ${session.metadata.recipeId}</div>` : '')}
                                             <div class="session-directory">${session.workingDirectory || ''}</div>
                                         </div>
                                     </div>

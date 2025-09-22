@@ -704,6 +704,14 @@
                                 <span class="tmux-cmd-key">wingman</span>
                                 <span class="tmux-cmd-desc">Run Wingman</span>
                             </div>
+                            <div class="tmux-cmd" data-cmd="copy">
+                                <span class="tmux-cmd-key">copy</span>
+                                <span class="tmux-cmd-desc">Copy Terminal Content</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="paste">
+                                <span class="tmux-cmd-key">paste</span>
+                                <span class="tmux-cmd-desc">Paste from Clipboard</span>
+                            </div>
                         </div>
                     </div>
                     <button id="tmux-escape" class="tmux-btn" title="Send Escape">
@@ -724,10 +732,6 @@
                     <button id="tmux-cancel" class="tmux-btn cancel" title="Send Ctrl+C (Cancel/Interrupt)">
                         <span>⌃C</span>
                         <span>Cancel</span>
-                    </button>
-                    <button id="tmux-paste" class="tmux-btn" title="Paste from clipboard">
-                        <span>📋</span>
-                        <span>Paste</span>
                     </button>
                 </div>
                 <div id="connection-status" class="connection-status connecting">
@@ -784,7 +788,6 @@
                 this.tmuxDown = document.getElementById('tmux-down');
                 this.tmuxReturn = document.getElementById('tmux-return');
                 this.tmuxCancel = document.getElementById('tmux-cancel');
-                this.tmuxPaste = document.getElementById('tmux-paste');
                 
                 this.init();
             }
@@ -903,33 +906,37 @@
                         }
                     });
                 }
+            }
+            
+            getVisibleTerminalContent() {
+                if (!this.terminal) return '';
                 
-                // Paste button
-                if (this.tmuxPaste) {
-                    this.tmuxPaste.addEventListener('click', async () => {
-                        if (this.authenticated && this.socket && this.socket.connected) {
-                            flashButton(this.tmuxPaste);
-                            try {
-                                // Read text from clipboard
-                                const text = await navigator.clipboard.readText();
-                                if (text) {
-                                    // Send the clipboard text to terminal
-                                    this.socket.emit('terminal-input', text);
-                                }
-                            } catch (err) {
-                                console.error('Failed to read clipboard contents:', err);
-                                // Show brief error feedback by changing button color
-                                this.tmuxPaste.style.background = 'var(--error-light)';
-                                this.tmuxPaste.style.color = 'var(--error-primary)';
-                                this.tmuxPaste.style.borderColor = 'var(--error-primary)';
-                                setTimeout(() => {
-                                    this.tmuxPaste.style.background = '';
-                                    this.tmuxPaste.style.color = '';
-                                    this.tmuxPaste.style.borderColor = '';
-                                }, 1000);
-                            }
+                try {
+                    // Get all visible content from the terminal buffer
+                    const lines = [];
+                    const buffer = this.terminal.buffer.active;
+                    
+                    for (let i = 0; i < buffer.length; i++) {
+                        const line = buffer.getLine(i);
+                        if (line) {
+                            lines.push(line.translateToString());
                         }
-                    });
+                    }
+                    
+                    // Join lines and remove excessive empty lines at the end
+                    return lines.join('\n').replace(/\n+$/, '\n');
+                } catch (err) {
+                    console.error('Error getting terminal content:', err);
+                    // Fallback: try to get content from DOM
+                    try {
+                        const terminalElement = document.querySelector('.xterm-screen');
+                        if (terminalElement) {
+                            return terminalElement.textContent || terminalElement.innerText || '';
+                        }
+                    } catch (domErr) {
+                        console.error('Error getting terminal content from DOM:', domErr);
+                    }
+                    return '';
                 }
             }
             
@@ -1005,7 +1012,249 @@
                         // Send wingman command directly (uses TERMINALCMD from server env)
                         this.socket.emit('terminal-input', 'wingman\r');
                         break;
+                    case 'copy':
+                        // Copy terminal content to clipboard
+                        this.copyTerminalContent();
+                        break;
+                    case 'paste':
+                        // Paste from clipboard to terminal
+                        this.pasteToTerminal();
+                        break;
                 }
+            }
+            
+            async copyTerminalContent() {
+                if (!this.authenticated || !this.terminal) {
+                    console.log('Cannot copy: not authenticated or terminal not ready');
+                    return;
+                }
+                
+                try {
+                    // Get the selected text first, then fall back to visible content
+                    const selectedText = this.terminal.getSelection();
+                    const visibleText = selectedText || this.getVisibleTerminalContent();
+                    
+                    if (!visibleText) {
+                        console.log('No content to copy');
+                        return;
+                    }
+                    
+                    // Try modern clipboard API first
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        try {
+                            await navigator.clipboard.writeText(visibleText);
+                            console.log(`Copied ${visibleText.length} characters to clipboard`);
+                            return;
+                        } catch (clipboardErr) {
+                            console.log('Modern clipboard API failed, trying fallback:', clipboardErr.message);
+                        }
+                    }
+                    
+                    // Fallback for mobile/older browsers - create a temporary textarea
+                    const textArea = document.createElement('textarea');
+                    textArea.value = visibleText;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    
+                    try {
+                        const successful = document.execCommand('copy');
+                        if (successful) {
+                            console.log(`Copied ${visibleText.length} characters to clipboard (fallback method)`);
+                        } else {
+                            console.error('Copy command failed');
+                        }
+                    } catch (execErr) {
+                        console.error('execCommand copy failed:', execErr);
+                    } finally {
+                        document.body.removeChild(textArea);
+                    }
+                    
+                } catch (err) {
+                    console.error('Failed to copy terminal contents:', err);
+                }
+            }
+            
+            async pasteToTerminal() {
+                if (!this.authenticated || !this.socket || !this.socket.connected) {
+                    console.log('Cannot paste: not authenticated or socket not connected');
+                    return;
+                }
+                
+                // First, try to focus the terminal to enable paste events
+                const terminalElement = document.getElementById('terminal');
+                if (terminalElement) {
+                    terminalElement.focus();
+                    this.terminal.focus();
+                }
+                
+                try {
+                    let text = '';
+                    
+                    // Try modern clipboard API first (works best on desktop)
+                    if (navigator.clipboard && navigator.clipboard.readText) {
+                        try {
+                            text = await navigator.clipboard.readText();
+                            if (text) {
+                                this.processPastedText(text);
+                                return;
+                            }
+                        } catch (clipboardErr) {
+                            console.log('Modern clipboard API failed for reading:', clipboardErr.message);
+                        }
+                    }
+                    
+                    // Fallback: Create a temporary input element for mobile compatibility
+                    console.log('Using fallback paste method for mobile compatibility...');
+                    this.createPasteHelper();
+                    
+                } catch (err) {
+                    console.error('Failed to paste from clipboard:', err);
+                    // Final fallback - show instructions
+                    this.showPasteInstructions();
+                }
+            }
+            
+            processPastedText(text) {
+                if (!text) return;
+                
+                // Focus the terminal first
+                this.terminal.focus();
+                
+                // Process text for better terminal compatibility
+                const processedText = text
+                    .replace(/\r\n/g, '\r')  // Convert Windows line endings
+                    .replace(/\n/g, '\r');   // Convert Unix line endings to carriage returns
+                
+                // Send the clipboard text to terminal via socket
+                this.socket.emit('terminal-input', processedText);
+                console.log(`Pasted ${processedText.length} characters to terminal`);
+            }
+            
+            createPasteHelper() {
+                // Visible overlay for iOS/mobile paste compatibility
+                const overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.inset = '0';
+                overlay.style.background = 'rgba(0,0,0,0.55)';
+                overlay.style.display = 'flex';
+                overlay.style.alignItems = 'center';
+                overlay.style.justifyContent = 'center';
+                overlay.style.zIndex = '9999';
+
+                const panel = document.createElement('div');
+                panel.style.width = 'min(680px, 92vw)';
+                panel.style.background = '#111827';
+                panel.style.border = '1px solid #374151';
+                panel.style.borderRadius = '12px';
+                panel.style.boxShadow = '0 10px 24px rgba(0,0,0,0.35)';
+                panel.style.padding = '16px';
+                panel.style.color = '#e5e7eb';
+
+                const title = document.createElement('div');
+                title.textContent = 'Paste Into Terminal';
+                title.style.fontWeight = '600';
+                title.style.marginBottom = '8px';
+                title.style.fontSize = '16px';
+
+                const hint = document.createElement('div');
+                hint.textContent = 'Tap the field below and use Paste. The text will be sent to the terminal.';
+                hint.style.fontSize = '14px';
+                hint.style.color = '#9ca3af';
+                hint.style.marginBottom = '10px';
+
+                const ta = document.createElement('textarea');
+                ta.rows = 6;
+                ta.placeholder = 'Tap here, then Paste…';
+                ta.style.width = '100%';
+                ta.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+                ta.style.fontSize = '16px'; // Avoid iOS zoom
+                ta.style.lineHeight = '1.4';
+                ta.style.padding = '10px 12px';
+                ta.style.borderRadius = '8px';
+                ta.style.border = '1px solid #4b5563';
+                ta.style.background = '#0b1220';
+                ta.style.color = '#e5e7eb';
+                ta.autocapitalize = 'off';
+                ta.autocorrect = 'off';
+                ta.spellcheck = false;
+
+                const actions = document.createElement('div');
+                actions.style.display = 'flex';
+                actions.style.gap = '8px';
+                actions.style.marginTop = '10px';
+                actions.style.justifyContent = 'flex-end';
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.style.background = '#374151';
+                cancelBtn.style.border = '1px solid #4b5563';
+                cancelBtn.style.color = '#e5e7eb';
+                cancelBtn.style.padding = '8px 12px';
+                cancelBtn.style.borderRadius = '8px';
+                cancelBtn.style.cursor = 'pointer';
+
+                const sendBtn = document.createElement('button');
+                sendBtn.textContent = 'Send';
+                sendBtn.style.background = '#059669';
+                sendBtn.style.border = '1px solid #059669';
+                sendBtn.style.color = '#ffffff';
+                sendBtn.style.padding = '8px 12px';
+                sendBtn.style.borderRadius = '8px';
+                sendBtn.style.cursor = 'pointer';
+
+                const cleanup = () => {
+                    document.body.style.overflow = '';
+                    overlay.remove();
+                    // Refocus terminal after closing
+                    setTimeout(() => {
+                        const terminalElement = document.getElementById('terminal');
+                        if (terminalElement) {
+                            terminalElement.focus();
+                            this.terminal.focus();
+                        }
+                    }, 30);
+                };
+
+                cancelBtn.addEventListener('click', cleanup);
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) cleanup();
+                });
+
+                const submit = () => {
+                    const text = ta.value;
+                    if (text && text.trim().length) {
+                        this.processPastedText(text);
+                    }
+                    cleanup();
+                };
+                sendBtn.addEventListener('click', submit);
+
+                // Auto-send after paste gesture lands content
+                ta.addEventListener('paste', () => setTimeout(submit, 0));
+
+                panel.appendChild(title);
+                panel.appendChild(hint);
+                panel.appendChild(ta);
+                actions.appendChild(cancelBtn);
+                actions.appendChild(sendBtn);
+                panel.appendChild(actions);
+                overlay.appendChild(panel);
+                document.body.appendChild(overlay);
+                document.body.style.overflow = 'hidden';
+
+                // Focus after mount so caret shows; user still must tap Paste
+                setTimeout(() => ta.focus(), 50);
+            }
+            
+            showPasteInstructions() {
+                console.log('Please use one of these methods to paste:');
+                console.log('1. Right-click on the terminal and select "Paste"');
+                console.log('2. Use Ctrl+V (or Cmd+V on Mac) while focused on the terminal');
+                console.log('3. Use your device\'s paste gesture or menu');
             }
             
             setupPinEntry() {
@@ -1091,6 +1340,33 @@
                 window.addEventListener('resize', () => {
                     this.resizeTerminal();
                 });
+                
+                // Add paste event listener for mobile compatibility
+                this.terminal.attachCustomKeyEventHandler((event) => {
+                    // Handle Ctrl+V or Cmd+V paste
+                    if ((event.ctrlKey || event.metaKey) && event.key === 'v' && event.type === 'keydown') {
+                        event.preventDefault();
+                        this.pasteToTerminal();
+                        return false;
+                    }
+                    return true;
+                });
+                
+                // Also listen for paste events on the terminal element
+                const terminalElement = document.getElementById('terminal');
+                if (terminalElement) {
+                    terminalElement.addEventListener('paste', (event) => {
+                        event.preventDefault();
+                        const clipboardData = event.clipboardData || window.clipboardData;
+                        if (clipboardData) {
+                            const text = clipboardData.getData('text');
+                            if (text && this.authenticated && this.socket && this.socket.connected) {
+                                this.processPastedText(text);
+                                console.log('Pasted via paste event');
+                            }
+                        }
+                    });
+                }
 
                 // Initial resize
                 setTimeout(() => this.resizeTerminal(), 100);

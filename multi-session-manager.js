@@ -211,10 +211,25 @@ class MultiSessionManager extends EventEmitter {
       optionsModel: options.model
     });
     
+    // Get recipe name if recipe ID is provided
+    let recipeName = null;
+    if (options.recipeId) {
+      try {
+        const RecipeManager = require('./recipe-manager');
+        const recipe = await RecipeManager.getRecipe(options.recipeId);
+        if (recipe) {
+          recipeName = recipe.name || recipe.title || null;
+        }
+      } catch (error) {
+        console.warn(`Could not get recipe name for ID ${options.recipeId}:`, error.message);
+      }
+    }
+    
     await this.saveSessionMetadata(sessionId, {
       ...options,
       provider: finalProvider,
       model: finalModel,
+      recipeName: recipeName,
       worktreeId: this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main',
       originalWorktree: this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main'
     });
@@ -315,6 +330,7 @@ class MultiSessionManager extends EventEmitter {
       extensions: options.extensions || [],
       builtins: options.builtins || [],
       recipeId: options.recipeId || null,
+      recipeName: options.recipeName || null,
       provider: options.provider || null,
       model: options.model || null
     };
@@ -504,9 +520,20 @@ class MultiSessionManager extends EventEmitter {
       model: sessionContext.model
     };
     
-    // Include recipe ID if session was started with a recipe
+    // Include recipe ID and name if session was started with a recipe
     if (sessionContext.recipeId) {
       metadataOptions.recipeId = sessionContext.recipeId;
+      
+      // Try to get recipe name
+      try {
+        const RecipeManager = require('./recipe-manager');
+        const recipe = await RecipeManager.getRecipe(sessionContext.recipeId);
+        if (recipe) {
+          metadataOptions.recipeName = recipe.name || recipe.title || null;
+        }
+      } catch (error) {
+        console.warn(`Could not get recipe name for resumed session:`, error.message);
+      }
     }
     
     await this.saveSessionMetadata(sessionId, metadataOptions);

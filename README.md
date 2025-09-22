@@ -1,4 +1,4 @@
-# Wingman: Goose 
+# Wingman: Solvitur Ambulando 
 
 He can be your wingman... anytime.
 
