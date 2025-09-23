@@ -16,7 +16,7 @@ const readline = require('readline');
 const path = require('path');
 const keychainService = require('../secrets/keychain-service');
 const secretRequirements = require('../secrets/secret-requirements');
-const recipeManager = require('../recipe-manager');
+const recipeManager = require('../src/recipes/manager');
 
 class HeadlessKeychainInit {
   constructor() {
@@ -176,7 +176,7 @@ class HeadlessKeychainInit {
   }
 
   async initServerSecrets(serverName) {
-    const mcpServerRegistry = require('../mcp-server-registry');
+    const mcpServerRegistry = require('../src/mcp/registry');
     const server = await mcpServerRegistry.getServer(serverName);
     
     if (!server) {

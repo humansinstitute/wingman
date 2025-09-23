@@ -19,7 +19,7 @@ class ServerConfigManager extends EventEmitter {
     this.userServersFile = path.join(this.userConfigDir, 'servers.json');
     
     // Template directory (in source control)
-    this.templateDir = path.join(__dirname, 'templates', 'mcp-servers');
+    this.templateDir = path.join(process.cwd(), 'templates', 'mcp-servers');
     this.templateFile = path.join(this.templateDir, 'servers.json');
     
     // Backup and lock files
@@ -132,7 +132,7 @@ class ServerConfigManager extends EventEmitter {
       console.log(`📁 User configuration saved to: ${this.userServersFile}`);
       
       // Also copy the .env.example file if it doesn't exist
-      const envLoader = require('./secrets/env-file-loader');
+      const envLoader = require('../../../secrets/env-file-loader');
       await envLoader.initializeFromTemplate();
       
     } catch (error) {
@@ -220,207 +220,13 @@ class ServerConfigManager extends EventEmitter {
       createdAt: serverConfig.createdAt || new Date().toISOString()
     };
     
-    await this.saveConfig();
-    
-    this.emit('serverUpdated', serverConfig);
-    
-    console.log(`✅ Server ${serverConfig.name} (${serverConfig.id}) saved`);
+    await this.saveConfig(this.servers);
   }
 
-  /**
-   * Remove a server configuration
-   * @param {string} serverId - Server ID to remove
-   * @returns {Promise<boolean>} True if removed
-   */
-  async removeServer(serverId) {
-    if (this.servers.servers?.[serverId]) {
-      delete this.servers.servers[serverId];
-      await this.saveConfig();
-      
-      this.emit('serverRemoved', serverId);
-      
-      console.log(`✅ Server ${serverId} removed`);
-      return true;
-    }
-    
-    return false;
-  }
-
-  /**
-   * Validate a server configuration
-   * @param {Object} serverConfig - Server configuration to validate
-   * @returns {Object} {valid: boolean, errors: Array<string>}
-   */
-  validateServerConfig(serverConfig) {
-    const errors = [];
-    
-    // Required fields
-    if (!serverConfig.name) errors.push('Server name is required');
-    if (!serverConfig.type) errors.push('Server type is required');
-    if (!serverConfig.cmd) errors.push('Server command is required');
-    
-    // Validate type
-    if (serverConfig.type && !['stdio', 'http'].includes(serverConfig.type)) {
-      errors.push(`Invalid server type: ${serverConfig.type}`);
-    }
-    
-    // Validate args is array
-    if (serverConfig.args && !Array.isArray(serverConfig.args)) {
-      errors.push('Server args must be an array');
-    }
-    
-    // Validate env_keys is array
-    if (serverConfig.env_keys && !Array.isArray(serverConfig.env_keys)) {
-      errors.push('Server env_keys must be an array');
-    }
-    
-    return {
-      valid: errors.length === 0,
-      errors
-    };
-  }
-
-  /**
-   * Check required secrets for a server
-   * @param {string} serverId - Server ID
-   * @returns {Promise<Object>} {available: Array, missing: Array}
-   */
-  async checkRequiredSecrets(serverId) {
-    const server = this.getServer(serverId);
-    if (!server || !server.env_keys) {
-      return { available: [], missing: [] };
-    }
-    
-    const available = [];
-    const missing = [];
-    
-    // Check both .env file and Keychain
-    const envLoader = require('./secrets/env-file-loader');
-    const keychainService = require('./secrets/keychain-service');
-    
-    // Load .env if not already loaded
-    if (!envLoader.loaded) {
-      await envLoader.load();
-    }
-    
-    for (const key of server.env_keys) {
-      // Check .env first
-      if (envLoader.has(key)) {
-        available.push({ key, source: '.env' });
-        continue;
-      }
-      
-      // Check Keychain
-      try {
-        const result = await keychainService.readSecret({ server: server.name, key });
-        if (result.exists && result.value) {
-          available.push({ key, source: 'keychain' });
-        } else {
-          missing.push(key);
-        }
-      } catch (error) {
-        missing.push(key);
-      }
-    }
-    
-    return { available, missing };
-  }
-
-  /**
-   * Export configuration without secrets
-   * @param {string} serverId - Optional server ID to export
-   * @returns {Object} Sanitized configuration
-   */
-  exportConfig(serverId = null) {
-    const config = serverId ? { [serverId]: this.getServer(serverId) } : this.getAllServers();
-    
-    // Deep clone and remove sensitive data
-    const sanitized = JSON.parse(JSON.stringify(config));
-    
-    for (const server of Object.values(sanitized)) {
-      // Remove any potential secrets from args
-      if (server.args) {
-        server.args = server.args.map(arg => {
-          // Replace API key patterns
-          return arg
-            .replace(/tvly-[\w]+/gi, '${TAVILY_API_KEY}')
-            .replace(/ghp_[\w]+/gi, '${GITHUB_PERSONAL_ACCESS_TOKEN}')
-            .replace(/BSA-[\w]+/gi, '${BRAVE_API_KEY}');
-        });
-      }
-    }
-    
-    return sanitized;
-  }
-
-  /**
-   * Import configuration
-   * @param {Object} config - Configuration to import
-   * @param {boolean} merge - Whether to merge with existing config
-   * @returns {Promise<void>}
-   */
-  async importConfig(config, merge = true) {
-    const validation = this.validateImportConfig(config);
-    if (!validation.valid) {
-      throw new Error(`Invalid configuration: ${validation.errors.join(', ')}`);
-    }
-    
-    if (merge) {
-      // Merge with existing
-      for (const [id, server] of Object.entries(config)) {
-        await this.upsertServer(server);
-      }
-    } else {
-      // Replace entire config
-      this.servers.servers = config;
-      await this.saveConfig();
-    }
-    
-    console.log('✅ Configuration imported successfully');
-  }
-
-  /**
-   * Validate import configuration
-   * @param {Object} config - Configuration to validate
-   * @returns {Object} {valid: boolean, errors: Array<string>}
-   */
-  validateImportConfig(config) {
-    const errors = [];
-    
-    if (typeof config !== 'object') {
-      errors.push('Configuration must be an object');
-      return { valid: false, errors };
-    }
-    
-    for (const [id, server] of Object.entries(config)) {
-      const validation = this.validateServerConfig(server);
-      if (!validation.valid) {
-        errors.push(`Server ${id}: ${validation.errors.join(', ')}`);
-      }
-    }
-    
-    return {
-      valid: errors.length === 0,
-      errors
-    };
-  }
-
-  /**
-   * Get path to user configuration file
-   * @returns {string} Path to user servers.json
-   */
-  getUserConfigPath() {
-    return this.userServersFile;
-  }
-
-  /**
-   * Get path to user configuration directory
-   * @returns {string} Path to user mcp-servers directory
-   */
   getUserConfigDir() {
     return this.userConfigDir;
   }
 }
 
-// Export singleton instance
 module.exports = new ServerConfigManager();
+

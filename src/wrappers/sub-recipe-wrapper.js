@@ -1,4 +1,4 @@
-const SessionAwareGooseCLIWrapper = require('./session-aware-goose-wrapper');
+const SessionAwareGooseCLIWrapper = require('./session-aware-wrapper');
 const EventEmitter = require('events');
 const path = require('path');
 const fs = require('fs').promises;
@@ -184,13 +184,15 @@ class SubRecipeAwareWrapper extends SessionAwareGooseCLIWrapper {
     const subRecipeSessionName = `sub-${subRecipeSessionId}`;
     
     // Create temporary recipe file for sub-recipe
-    const tempDir = path.join(__dirname, 'temp');
+    const os = require('os');
+    const wingHome = process.env.WINGMAN_HOME || path.join(os.homedir(), '.wingman');
+    const tempDir = path.join(wingHome, 'tmp', 'recipes');
     await fs.mkdir(tempDir, { recursive: true });
     const subRecipePath = path.join(tempDir, `sub-recipe-${subRecipeSessionId}.json`);
     await fs.writeFile(subRecipePath, JSON.stringify(subRecipeData, null, 2));
     
     // Create sub-recipe wrapper
-    const SubRecipeWrapper = require('./session-aware-goose-wrapper');
+    const SubRecipeWrapper = require('./session-aware-wrapper');
     const subRecipeSession = new SubRecipeWrapper({
       sessionName: subRecipeSessionName,
       workingDirectory: this.options.workingDirectory,

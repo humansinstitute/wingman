@@ -18,7 +18,7 @@ const keychainService = require('../secrets/keychain-service');
 const secretRequirements = require('../secrets/secret-requirements');
 const preflightEngine = require('../preflight/preflight-engine');
 const failureHandler = require('../runtime/failure-handler');
-const recipeManager = require('../recipe-manager');
+const recipeManager = require('../src/recipes/manager');
 
 describe('MCP Runtime Determinism', () => {
   let testSessionId;

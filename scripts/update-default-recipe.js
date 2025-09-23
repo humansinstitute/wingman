@@ -8,7 +8,7 @@
  */
 
 const path = require('path');
-const recipeManager = require('../recipe-manager');
+const recipeManager = require('../src/recipes/manager');
 
 async function updateToDefaultRecipe(recipeId = '17e8b84071aad068fd5a2ad2d3442d44') {
   console.log(`🔄 Updating recipe ${recipeId} to be the default...`);

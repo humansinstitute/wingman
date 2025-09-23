@@ -8,7 +8,7 @@
  */
 
 const path = require('path');
-const recipeManager = require('../recipe-manager');
+const recipeManager = require('../src/recipes/manager');
 
 async function seedDefaultRecipe() {
   console.log('🌱 Seeding Default Recipe...');

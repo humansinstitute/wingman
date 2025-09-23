@@ -1,12 +1,11 @@
 #!/usr/bin/env node
+const GooseCLIInterface = require('./src/cli/index');
 
-const { exec, spawn } = require('child_process');
-const readline = require('readline');
-const util = require('util');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const execPromise = util.promisify(exec);
+if (require.main === module) {
+  new GooseCLIInterface();
+}
+
+module.exports = GooseCLIInterface;
 
 // Color codes
 const colors = {

@@ -11,11 +11,13 @@
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const WingmanConfig = require('../lib/wingman-config');
 const crypto = require('crypto');
 
 class EphemeralGooseConfig {
   constructor() {
-    this.tempBasePath = path.join(os.tmpdir(), 'wingman-sessions');
+    const home = process.env.WINGMAN_HOME || path.join(os.homedir(), '.wingman');
+    this.tempBasePath = path.join(home, 'tmp', 'sessions');
     this.configs = new Map(); // Track active configs for cleanup
   }
 

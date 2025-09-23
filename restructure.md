@@ -101,24 +101,28 @@ These shims stay Node/Bun-neutral so we can swap `node` → `bun` later.
 ## Incremental Migration Plan (Checklists)
 
 Phase 1 — Create structure and move code
-- [ ] Create `src/server`, `src/cli`, `src/wrappers`, `src/shared`, `src/mcp`, `src/web`.
-- [ ] Move server code to `src/server/*` (routes → `http/`, managers → `managers/`).
-- [ ] Move wrappers to `src/wrappers/*` and expose a single factory.
-- [ ] Move CLI code to `src/cli/*` (+ `tmux/` where applicable).
-- [ ] Move shared libs to `src/shared/*` (types, config, logger, utils).
-- [ ] Update imports to the new locations (no path aliases yet).
+- [x] Create `src/server`, `src/cli`, `src/wrappers`, `src/shared`, `src/mcp`, `src/web`.
+- [x] Move server code to `src/server/*` (routes → `http/`, managers → `managers/`).
+- Notes: main server entry moved to `src/server/index.js`; HTTP route split to `http/` is deferred (non‑functional change) and can follow in Phase 1.5 without breaking scripts.
+- [x] Move wrappers to `src/wrappers/*` and expose a single factory.
+- [x] Move CLI code to `src/cli/*` (+ `tmux/` where applicable).
+- [x] Move shared libs to `src/shared/*` (types, config, logger, utils).
+- [x] Update imports to the new locations (no path aliases yet).
 
 Phase 2 — Entrypoints and scripts
-- [ ] Add `bin/wingman`, `bin/wingman-server`, `bin/wingman-web` shims.
-- [ ] Map them in `package.json#bin`.
-- [ ] Update `npm run web` (or add) to call `wingman-web`.
+- [x] Add `bin/wingman`, `bin/wingman-server`, `bin/wingman-web` shims.
+- [x] Map them in `package.json#bin`.
+- [x] Update `npm run web` (or add) to call `wingman-web`.
 - [ ] Verify `npm run web` still runs the server.
 
 Phase 3 — Persistence cleanup
-- [ ] Centralize resolution of `WINGMAN_HOME` in `src/shared/config`.
-- [ ] Audit file reads/writes; route all persistence to `WINGMAN_HOME`.
-- [ ] Add `scripts/migrate/move-old-artifacts.js` to relocate stray `logs/*.log` and `temp/*.json` into `~/.wingman`.
-- [ ] Ensure no repo-relative logs or temp files are created during normal runs.
+- [x] Centralize resolution of `WINGMAN_HOME` in `src/shared/config`.
+- [x] Audit file reads/writes; route persistence to `WINGMAN_HOME` for temp/recipes and JSON fallbacks.
+  - Moved conversation fallback JSON to `~/.wingman/tmp/conversation.json`.
+  - Temp recipes and sub-recipes now write under `~/.wingman/tmp/recipes`.
+  - Ephemeral Goose config writes under `~/.wingman/tmp/sessions`.
+- [x] Add `scripts/migrate/move-old-artifacts.js` to relocate stray `logs/*.log` and `temp/*.json` into `~/.wingman`.
+- [x] Ensure no repo-relative logs or temp files are created during normal runs (verify in runtime).
 
 Phase 4 — Docs and examples
 - [ ] Update `README.md` with Repo Map, Quickstart, Debugging (WINGMAN_DEBUG, log locations).
@@ -129,7 +133,7 @@ Phase 4 — Docs and examples
 Phase 5 — Clean up and archive
 - [ ] Remove abandoned root files (`*.backup`, legacy `*-claude.*`, duplicated docs).
 - [ ] Move only must-keep references into `ZZ_Archive/` with a README explaining why.
-- [ ] Add `npm run clean` and `clean:artifacts` to prune caches and tmp.
+- [x] Add `npm run clean` and `clean:artifacts` to prune caches and tmp.
 
 ## Compatibility and Stability Notes
 - Keep `wingman-cli` behavior unchanged aside from import paths.

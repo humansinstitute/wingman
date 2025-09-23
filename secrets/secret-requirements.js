@@ -15,7 +15,7 @@ class SecretRequirements extends EventEmitter {
 
   getMCPServerRegistry() {
     if (!this.mcpServerRegistry) {
-      this.mcpServerRegistry = require('../mcp-server-registry');
+      this.mcpServerRegistry = require('../src/mcp/registry');
     }
     return this.mcpServerRegistry;
   }

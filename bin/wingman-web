@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+// Start server and serve public assets
+const { startServer } = require('../src/server');
+
+startServer().then(() => {
+  console.log('Wingman web server started. Serving ./public');
+}).catch((err) => {
+  console.error('Failed to start Wingman web server:', err);
+  process.exit(1);
+});
+

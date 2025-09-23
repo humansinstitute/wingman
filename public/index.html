@@ -3196,14 +3196,33 @@
             }
             
             appendMessage(message) {
-                console.log('Appending message:', message.role, message.source, message.content.substring(0, 50));
+                console.log('Appending message:', message.role, message.source, (message.content || '').substring(0, 50));
                 
-                // Skip thinking and tool messages - they're included in the main stream
+                // Skip streaming meta events
                 if (message.type === 'thinking' || message.source === 'goose-thinking' || message.source === 'goose-tool') {
                     return;
                 }
                 
                 const time = new Date(message.timestamp).toLocaleTimeString();
+                const raw = (message.content || '');
+                const content = raw.replace(/\r/g, '').trim();
+
+                // Drop empty/whitespace-only updates to avoid spurious "\n\n"
+                if (!content) {
+                    return;
+                }
+
+                // Helpers to classify Goose stream lines
+                const isGooseStatus = (msg) => (
+                    /^starting session\s*\|/i.test(msg) ||
+                    /^goose is running!/i.test(msg) ||
+                    /^context:\s/i.test(msg) ||
+                    /^working directory:\s/i.test(msg) ||
+                    /^logging to\s/i.test(msg)
+                );
+
+                const toolBannerMatch = content.match(/^[\s\S]*?\u2500{2,}\s*([^|\n]+?)\s*\|\s*([\w-]+)\s*\u2500{2,}\s*$/i);
+                const isToolParam = /^[A-Za-z0-9_]+\s*:\s+/.test(content);
                 
                 if (message.role === 'user') {
                     // User input in blue with timestamp
@@ -3211,10 +3230,37 @@
                 } else if (message.role === 'system') {
                     // System messages in gray italic with timestamp
                     this.appendText(`[${time}] ${message.content}\\n\\n`, 'system-message');
+                } else if (message.source === 'goose' && isGooseStatus(content)) {
+                    // Render only the meaningful status lines (skip blanks)
+                    const lines = content.split(/\n+/)
+                        .map(l => l.trim())
+                        .filter(l => l.length > 0);
+
+                    // Special-case: Context line should appear exactly once, no extra padding
+                    const contextLine = lines.find(l => /^context:\s/i.test(l));
+                    if (contextLine) {
+                        this.appendText(`${contextLine}\\n`, 'system-message');
+                        return; // do not render additional blank bars
+                    }
+
+                    // Other status lines (e.g., starting session, logging to, working directory)
+                    lines.forEach(l => {
+                        if (/^starting session\s*\|/i.test(l) || /^goose is running!/i.test(l) || /^logging to\s/i.test(l) || /^working directory:\s/i.test(l)) {
+                            this.appendText(`${l}\\n`, 'system-message');
+                        }
+                    });
+                } else if (message.source === 'goose' && toolBannerMatch) {
+                    // Render tool banner as a single system bar (grey line)
+                    const tool = toolBannerMatch[1].trim();
+                    const server = toolBannerMatch[2].trim();
+                    this.appendText(`─── ${tool} | ${server} ──────────────────────────\\n`, 'system-message');
+                } else if (message.source === 'goose' && isToolParam) {
+                    // Render simple tool parameter lines as system messages
+                    this.appendText(`${content}\\n`, 'system-message');
                 } else {
                     // Goose responses - format as markdown and flow naturally
                     console.log('Adding goose response as formatted text');
-                    this.appendFormattedText(message.content + '\\n\\n');
+                    this.appendFormattedText(content + '\\n\\n');
                 }
                 
                 // Always scroll to bottom after adding content

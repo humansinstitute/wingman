@@ -8,7 +8,11 @@
 const EventEmitter = require('events');
 const keychainService = require('./keychain-service');
 const secretRequirements = require('./secret-requirements');
-const envFileLoader = require('./env-file-loader');
+let envFileLoader = null;
+const allowEnv = process.env.WINGMAN_ENV_SECRETS === '1' || process.env.WINGMAN_ENV_SECRETS === 'true';
+if (allowEnv) {
+  envFileLoader = require('./env-file-loader');
+}
 
 class SecretInjector extends EventEmitter {
   constructor() {
@@ -18,7 +22,7 @@ class SecretInjector extends EventEmitter {
 
   getMCPServerRegistry() {
     if (!this.mcpServerRegistry) {
-      this.mcpServerRegistry = require('../mcp-server-registry');
+      this.mcpServerRegistry = require('../src/mcp/registry');
     }
     return this.mcpServerRegistry;
   }
@@ -54,25 +58,27 @@ class SecretInjector extends EventEmitter {
           let secretFound = false;
           
           try {
-            // Try .env file first if not already loaded
-            if (!envFileLoader.loaded) {
-              await envFileLoader.load();
-            }
-            
-            if (envFileLoader.has(key)) {
-              const value = envFileLoader.get(key);
-              if (value) {
-                // Inject from .env file
-                env[key] = value;
-                injected.push({
-                  server: serverName,
-                  key: key,
-                  source: '.env',
-                  injected: true
-                });
-                
-                console.log(`✅ Injected ${key} for ${serverName} (from .env)`);
-                secretFound = true;
+            // Only use .env if explicitly enabled
+            if (allowEnv && envFileLoader) {
+              if (!envFileLoader.loaded) {
+                await envFileLoader.load();
+              }
+
+              if (envFileLoader.has(key)) {
+                const value = envFileLoader.get(key);
+                if (value) {
+                  // Inject from .env file
+                  env[key] = value;
+                  injected.push({
+                    server: serverName,
+                    key: key,
+                    source: '.env',
+                    injected: true
+                  });
+                  
+                  console.log(`✅ Injected ${key} for ${serverName} (from .env)`);
+                  secretFound = true;
+                }
               }
             }
             
@@ -97,12 +103,13 @@ class SecretInjector extends EventEmitter {
             
             // If still not found, track as missing
             if (!secretFound) {
-              missing.push({
+              const missingItem = {
                 server: serverName,
                 key: key,
-                keychainName: keychainService.formatKeychainName(secretRef),
-                envFile: envFileLoader.envPath
-              });
+                keychainName: keychainService.formatKeychainName(secretRef)
+              };
+              if (allowEnv && envFileLoader) missingItem.envFile = envFileLoader.envPath;
+              missing.push(missingItem);
               
               console.warn(`⚠️ Missing secret: ${key} for ${serverName} (checked .env and keychain)`);
             }
@@ -114,13 +121,14 @@ class SecretInjector extends EventEmitter {
             });
             
             // Also track as missing
-            missing.push({
-              server: serverName,
-              key: key,
-              keychainName: keychainService.formatKeychainName(secretRef),
-              envFile: envFileLoader.envPath,
-              error: error.message
-            });
+              const missingItemErr = {
+                server: serverName,
+                key: key,
+                keychainName: keychainService.formatKeychainName(secretRef),
+                error: error.message
+              };
+              if (allowEnv && envFileLoader) missingItemErr.envFile = envFileLoader.envPath;
+              missing.push(missingItemErr);
           }
         }
       }
