@@ -9,7 +9,7 @@
 
 const WingmanConfig = require('../lib/wingman-config');
 const CompatibilityAdapter = require('../lib/compatibility-adapter');
-const RecipeManager = require('../recipe-manager');
+const RecipeManager = require('../src/recipes/manager');
 const { getDatabase } = require('../lib/database');
 
 class RecipeStatusTool {

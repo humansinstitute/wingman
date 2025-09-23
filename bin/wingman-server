@@ -1,0 +1,9 @@
+#!/usr/bin/env node
+// Thin server entrypoint shim
+const { startServer } = require('../src/server');
+
+startServer().catch((err) => {
+  console.error('Failed to start Wingman server:', err);
+  process.exit(1);
+});
+

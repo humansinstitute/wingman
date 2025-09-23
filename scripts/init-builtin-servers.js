@@ -1,6 +1,6 @@
 // Initialize built-in MCP servers in the registry
 const path = require('path');
-const mcpServerRegistry = require('../mcp-server-registry');
+const mcpServerRegistry = require('../src/mcp/registry');
 
 async function initializeBuiltInServers() {
   console.log('🔧 Initializing built-in MCP servers...');
@@ -210,4 +210,3 @@ if (require.main === module) {
 }
 
 module.exports = { initializeBuiltInServers };
-

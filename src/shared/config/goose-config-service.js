@@ -1,3 +1,4 @@
+// Bridge module: GooseConfigService during restructure
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
@@ -14,7 +15,6 @@ class GooseConfigService extends EventEmitter {
   }
 
   getConfigPaths() {
-    // Standard Goose config locations - check both YAML and JSON
     return [
       path.join(os.homedir(), '.config', 'goose', 'config.yaml'),
       path.join(os.homedir(), '.config', 'goose', 'config.json'),
@@ -48,13 +48,11 @@ class GooseConfigService extends EventEmitter {
         
         this.emit('configLoaded', this.configCache);
         return this.configCache;
-      } catch (error) {
-        // Continue to next config path
+      } catch (_) {
         continue;
       }
     }
     
-    // If no config found, return empty config
     console.warn('No valid Goose configuration found, using empty config');
     this.configCache = {
       path: null,
@@ -73,8 +71,6 @@ class GooseConfigService extends EventEmitter {
 
   async parseProviders(config) {
     const providers = [];
-    
-    // Handle nested providers object (JSON format)
     if (config.providers) {
       for (const [providerId, providerConfig] of Object.entries(config.providers)) {
         providers.push({
@@ -86,36 +82,16 @@ class GooseConfigService extends EventEmitter {
         });
       }
     }
-    
-    // Handle YAML format with top-level GOOSE_PROVIDER
     const currentProvider = config.GOOSE_PROVIDER;
     const currentModel = config.GOOSE_MODEL;
-    
-    // Detect available providers based on configuration keys
     const detectedProviders = new Set();
-    
-    if (currentProvider) {
-      detectedProviders.add(currentProvider);
-    }
-    
-    // Check for provider-specific configuration keys
-    if (config.OLLAMA_HOST) {
-      detectedProviders.add('ollama');
-    }
-    if (config.ANTHROPIC_API_KEY) {
-      detectedProviders.add('anthropic');
-    }
-    if (config.OPENAI_API_KEY) {
-      detectedProviders.add('openai');
-    }
-    if (config.GROQ_API_KEY) {
-      detectedProviders.add('groq');
-    }
-    
-    // Add detected providers to the list
+    if (currentProvider) detectedProviders.add(currentProvider);
+    if (config.OLLAMA_HOST) detectedProviders.add('ollama');
+    if (config.ANTHROPIC_API_KEY) detectedProviders.add('anthropic');
+    if (config.OPENAI_API_KEY) detectedProviders.add('openai');
+    if (config.GROQ_API_KEY) detectedProviders.add('groq');
     for (const providerId of detectedProviders) {
       let providerEntry = providers.find(p => p.id === providerId);
-      
       if (!providerEntry) {
         providerEntry = {
           id: providerId,
@@ -128,31 +104,34 @@ class GooseConfigService extends EventEmitter {
       } else {
         providerEntry.default = providerId === currentProvider;
       }
-      
-      // Add current model to the provider's models if not already there and it belongs to this provider
       if (currentModel && providerId === currentProvider && !providerEntry.models.includes(currentModel)) {
-        providerEntry.models.unshift(currentModel); // Add to beginning as it's the current model
+        providerEntry.models.unshift(currentModel);
       }
     }
-    
-    // For common providers, add some default models if none are specified
     for (const provider of providers) {
       if (provider.models.length === 0) {
         if (provider.id === 'ollama') {
-          // Try to get actual Ollama models
           try {
-            console.log('Fetching actual Ollama models...');
-            const ollamaModels = await this.getOllamaModels();
-            console.log('Ollama models fetched:', ollamaModels);
-            if (ollamaModels.length > 0) {
-              provider.models = ollamaModels;
-              console.log('Using actual Ollama models');
-            } else {
-              provider.models = this.getDefaultModelsForProvider(provider.id);
-              console.log('Using default Ollama models (no models found)');
-            }
-          } catch (error) {
-            console.log('Error fetching Ollama models:', error);
+            const http = require('http');
+            const ollamaHost = this.configCache?.config?.OLLAMA_HOST || 'localhost';
+            const models = await new Promise((resolve) => {
+              const req = http.get(`http://${ollamaHost}:11434/api/tags`, { timeout: 2000 }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  try {
+                    const parsed = JSON.parse(data);
+                    resolve(parsed.models?.map(m => m.name) || []);
+                  } catch {
+                    resolve([]);
+                  }
+                });
+              });
+              req.on('error', () => resolve([]));
+              req.on('timeout', () => { req.destroy(); resolve([]); });
+            });
+            provider.models = models.length > 0 ? models : this.getDefaultModelsForProvider(provider.id);
+          } catch {
             provider.models = this.getDefaultModelsForProvider(provider.id);
           }
         } else {
@@ -160,7 +139,6 @@ class GooseConfigService extends EventEmitter {
         }
       }
     }
-    
     return {
       providers,
       defaultProvider: config.default_provider || config.GOOSE_PROVIDER || null,
@@ -183,79 +161,18 @@ class GooseConfigService extends EventEmitter {
     return displayNames[providerId] || providerId;
   }
 
-  async getOllamaModels() {
-    try {
-      const http = require('http');
-      const ollamaHost = this.configCache?.config?.OLLAMA_HOST || 'localhost';
-      
-      return new Promise((resolve) => {
-        const req = http.get(`http://${ollamaHost}:11434/api/tags`, { timeout: 2000 }, (res) => {
-          let data = '';
-          res.on('data', chunk => data += chunk);
-          res.on('end', () => {
-            try {
-              const parsed = JSON.parse(data);
-              const models = parsed.models?.map(model => model.name) || [];
-              resolve(models);
-            } catch (error) {
-              resolve([]);
-            }
-          });
-        });
-        
-        req.on('error', () => resolve([]));
-        req.on('timeout', () => {
-          req.destroy();
-          resolve([]);
-        });
-      });
-    } catch (error) {
-      console.warn('Could not fetch Ollama models:', error.message);
-      return [];
-    }
-  }
-
   getDefaultModelsForProvider(providerId) {
-    // Return common models for each provider
-    const defaultModels = {
-      'anthropic': [
-        'claude-3-5-sonnet-20241022',
-        'claude-3-5-haiku-20241022', 
-        'claude-3-opus-20240229'
-      ],
-      'openrouter': [
-        'anthropic/claude-3.5-sonnet',
-        'anthropic/claude-3-opus',
-        'openai/gpt-4o',
-        'openai/gpt-4o-mini',
-        'meta-llama/llama-3.1-405b-instruct'
-      ],
-      'openai': [
-        'gpt-4o',
-        'gpt-4o-mini',
-        'gpt-4-turbo',
-        'gpt-3.5-turbo'
-      ],
-      'ollama': [
-        'llama3.2',
-        'llama3.1',
-        'codellama',
-        'mistral',
-        'phi3'
-      ],
-      'groq': [
-        'llama-3.1-405b-reasoning',
-        'llama-3.1-70b-versatile',
-        'llama-3.1-8b-instant',
-        'mixtral-8x7b-32768'
-      ]
+    const defaults = {
+      'anthropic': ['claude-3-5-sonnet-20241022','claude-3-5-haiku-20241022','claude-3-opus-20240229'],
+      'openrouter': ['anthropic/claude-3.5-sonnet','anthropic/claude-3-opus','openai/gpt-4o','openai/gpt-4o-mini','meta-llama/llama-3.1-405b-instruct'],
+      'openai': ['gpt-4o','gpt-4o-mini','gpt-4-turbo','gpt-3.5-turbo'],
+      'ollama': ['llama3.2','llama3.1','codellama','mistral','phi3'],
+      'groq': ['llama-3.1-405b-reasoning','llama-3.1-70b-versatile','llama-3.1-8b-instant','mixtral-8x7b-32768']
     };
-    
-    return defaultModels[providerId] || [];
+    return defaults[providerId] || [];
   }
 
   isProviderConfigured(providerConfig) {
-    // Check if provider has required configuration
     return !!(providerConfig.api_key || providerConfig.models);
   }
 
@@ -263,23 +180,15 @@ class GooseConfigService extends EventEmitter {
     if (!this.configCache) {
       await this.loadConfiguration();
     }
-
     const configPath = this.configCache.path;
-    
-    if (!configPath) {
-      console.warn('No config path to watch');
-      return;
-    }
-    
+    if (!configPath) return;
     try {
-      // Use fs.watch for file changes
       const { watch } = require('fs');
       const watcher = watch(configPath, (eventType) => {
         if (eventType === 'change') {
           this.handleConfigChange();
         }
       });
-      
       this.watchers.set(configPath, watcher);
     } catch (error) {
       console.warn('Could not watch config file:', error.message);
@@ -288,7 +197,6 @@ class GooseConfigService extends EventEmitter {
 
   async handleConfigChange() {
     try {
-      // Debounce rapid changes
       clearTimeout(this.changeTimeout);
       this.changeTimeout = setTimeout(async () => {
         const newConfig = await this.loadConfiguration();
@@ -312,29 +220,18 @@ class GooseConfigService extends EventEmitter {
     if (!provider) {
       return { valid: true, warnings: ['Using Goose default provider'] };
     }
-    
-    if (!this.configCache) {
-      return { valid: false, error: 'Configuration not loaded' };
-    }
-
+    if (!this.configCache) return { valid: false, error: 'Configuration not loaded' };
     const providerConfig = this.configCache.providers.providers.find(p => p.id === provider);
-    if (!providerConfig) {
-      return { valid: false, error: `Provider '${provider}' not configured` };
-    }
-
-    if (!providerConfig.configured) {
-      return { valid: false, error: `Provider '${provider}' not properly configured` };
-    }
-
+    if (!providerConfig) return { valid: false, error: `Provider '${provider}' not configured` };
+    if (!providerConfig.configured) return { valid: false, error: `Provider '${provider}' not properly configured` };
     if (model && providerConfig.models.length > 0 && !providerConfig.models.includes(model)) {
       return { valid: false, error: `Model '${model}' not available for provider '${provider}'` };
     }
-
     return { valid: true };
   }
 
   stopWatching() {
-    for (const [path, watcher] of this.watchers) {
+    for (const [, watcher] of this.watchers) {
       watcher.close();
     }
     this.watchers.clear();

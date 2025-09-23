@@ -14,7 +14,7 @@ class SecretsManager {
   constructor() {
     this.keychainService = require('../secrets/keychain-service');
     this.envFileLoader = require('../secrets/env-file-loader');
-    this.serverConfigManager = require('../server-config-manager');
+    this.serverConfigManager = require('../src/server/managers/server-config-manager');
   }
 
   async run(command, args = []) {
