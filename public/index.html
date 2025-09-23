@@ -3285,7 +3285,16 @@
             }
             
             formatMarkdown(text) {
-                return text
+                // Escape raw HTML so model/emitted tokens like <|tool_calls...|> render visibly
+                const escapeHtml = (s) => s
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+
+                // Start from escaped text, then layer markdown formatting
+                const escaped = escapeHtml(text);
+
+                return escaped
                     // Headers
                     .replace(/^### (.*$)/gim, '<h3>$1</h3>')
                     .replace(/^## (.*$)/gim, '<h2>$1</h2>')
