@@ -239,36 +239,22 @@ function getThemeForSession(sessionName) {
   return statusThemes[hash % statusThemes.length];
 }
 
-// Set tmux status bar colors and configuration for a session
-async function setSessionColors(sessionName, useSplitScreen = true) {
-  const theme = getThemeForSession(sessionName);
+// Apply essential per-session configuration (no look-and-feel overrides)
+async function setSessionColors(sessionName) {
+  const theme = getThemeForSession(sessionName); // theme computed but not applied
   const os = require('os');
   
   // Keep platform detection minimal; avoid reattach-to-user-namespace complexity
   
   try {
-    // Set status bar colors and essential configuration
+    // Essential configuration only; avoid status/theme overrides (handled by user's tmux.conf)
     const commands = [
-      // Status bar colors
-      `tmux set-option -t "${sessionName}" status-bg "${theme.bg}"`,
-      `tmux set-option -t "${sessionName}" status-fg "${theme.fg}"`,
-      `tmux set-option -t "${sessionName}" status-left-style "bg=${theme.accent},fg=${theme.bg}"`,
-      `tmux set-option -t "${sessionName}" status-right-style "bg=${theme.accent},fg=${theme.bg}"`,
-      `tmux set-option -t "${sessionName}" window-status-current-style "bg=${theme.accent},fg=${theme.bg}"`,
-      `tmux set-option -t "${sessionName}" window-status-style "bg=${theme.bg},fg=${theme.fg}"`,
-      `tmux set-option -t "${sessionName}" pane-active-border-style "fg=${theme.accent}"`,
-      `tmux set-option -t "${sessionName}" pane-border-style "fg=${theme.bg}"`,
-      
-      // Essential configuration
       `tmux set-option -t "${sessionName}" mouse on`,
       `tmux set-option -t "${sessionName}" history-limit 10000`,
-      
       `tmux set-option -t "${sessionName}" base-index 1`,
       `tmux set-window-option -t "${sessionName}" pane-base-index 1`,
       `tmux set-window-option -t "${sessionName}" mode-keys vi`,
       `tmux set-option -t "${sessionName}" renumber-windows on`,
-      
-      // Clipboard integration
       `tmux set-option -t "${sessionName}" set-clipboard on`
     ];
     
@@ -279,9 +265,9 @@ async function setSessionColors(sessionName, useSplitScreen = true) {
       try {
         await execPromise('which pbcopy');
         commands.push(
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi v send-keys -X begin-selection`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'pbcopy'`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'pbcopy'`
+          `tmux bind-key -T copy-mode-vi v send-keys -X begin-selection`,
+          `tmux bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'pbcopy'`,
+          `tmux bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'pbcopy'`
         );
       } catch {}
     } else {
@@ -290,9 +276,9 @@ async function setSessionColors(sessionName, useSplitScreen = true) {
       try {
         await execPromise('which wl-copy');
         commands.push(
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi v send-keys -X begin-selection`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'wl-copy'`,
-          `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'wl-copy'`
+          `tmux bind-key -T copy-mode-vi v send-keys -X begin-selection`,
+          `tmux bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'wl-copy'`,
+          `tmux bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'wl-copy'`
         );
         bound = true;
       } catch {}
@@ -300,30 +286,27 @@ async function setSessionColors(sessionName, useSplitScreen = true) {
         try {
           await execPromise('which xclip');
           commands.push(
-            `tmux bind-key -t "${sessionName}" -T copy-mode-vi v send-keys -X begin-selection`,
-            `tmux bind-key -t "${sessionName}" -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'xclip -selection clipboard -i'`,
-            `tmux bind-key -t "${sessionName}" -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'xclip -selection clipboard -i'`
+            `tmux bind-key -T copy-mode-vi v send-keys -X begin-selection`,
+            `tmux bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'xclip -selection clipboard -i'`,
+            `tmux bind-key -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel 'xclip -selection clipboard -i'`
           );
         } catch {}
       }
     }
     
     // Paste binding (works on both platforms)
-    commands.push(`tmux bind-key -t "${sessionName}" p paste-buffer`);
-    
-    // Conditionally add auto split screen keybindings
-    if (useSplitScreen) {
-      commands.push(
-        `tmux bind-key -t "${sessionName}" c new-window \\; split-window -h -c "#{pane_current_path}" \\; select-pane -L`,
-        `tmux bind-key -t "${sessionName}" S new-session \\; split-window -h -c "#{pane_current_path}" \\; select-pane -L`
-      );
-    } else {
-      // Standard keybindings for single pane mode
-      commands.push(
-        `tmux bind-key -t "${sessionName}" c new-window -c "#{pane_current_path}"`,
-        `tmux bind-key -t "${sessionName}" S new-session -c "#{pane_current_path}"`
-      );
-    }
+    commands.push(`tmux unbind-key p || true`);
+    commands.push(`tmux bind-key p paste-buffer`);
+
+    // Ensure prefix+r reloads user's tmux.conf inside this session
+    const tmuxConfEnv = process.env.TMUX_CONF || '$HOME/.tmux.conf';
+    const tmuxConfForTmux = tmuxConfEnv.startsWith('~')
+      ? tmuxConfEnv.replace(/^~(?=\/|$)/, '$HOME')
+      : tmuxConfEnv;
+    commands.push(
+      `tmux unbind-key r || true`,
+      `tmux bind-key r source-file \"${tmuxConfForTmux}\" \; display-message \"Reloaded ${tmuxConfForTmux}\"`
+    );
     
     // Execute all color commands
     for (const cmd of commands) {
@@ -337,53 +320,7 @@ async function setSessionColors(sessionName, useSplitScreen = true) {
   }
 }
 
-// Ask user about split screen preference for new sessions
-async function askSplitScreenPreference() {
-  return new Promise((resolve) => {
-    console.log();
-    console.log(`${colors.yellow}Session Layout Preference:${colors.reset}`);
-    console.log(`${colors.white}1. Single pane (default)${colors.reset}`);
-    console.log(`${colors.white}2. Split screen (left/right)${colors.reset}`);
-    console.log();
-    
-    rl.question(`${colors.cyan}Choose layout (1-2, Enter for single): ${colors.reset}`, (answer) => {
-      const choice = answer.trim();
-      const useSplitScreen = choice === '2';
-      
-      if (useSplitScreen) {
-        console.log(`${colors.green}✓ Split screen layout selected${colors.reset}`);
-      } else {
-        console.log(`${colors.green}✓ Single pane layout selected${colors.reset}`);
-      }
-      
-      resolve(useSplitScreen);
-    });
-  });
-}
-
-// Ask user about project-aware session setup
-async function askProjectSetupPreference() {
-  return new Promise((resolve) => {
-    console.log();
-    console.log(`${colors.yellow}Session Setup Preference:${colors.reset}`);
-    console.log(`${colors.white}1. Standard setup (single window)${colors.reset}`);
-    console.log(`${colors.white}2. Project-aware setup (multiple windows for ${projectContext.type})${colors.reset}`);
-    console.log();
-    
-    rl.question(`${colors.cyan}Choose setup (1-2, Enter for standard): ${colors.reset}`, (answer) => {
-      const choice = answer.trim();
-      const useProjectSetup = choice === '2';
-      
-      if (useProjectSetup) {
-        console.log(`${colors.green}✓ Project-aware setup selected${colors.reset}`);
-      } else {
-        console.log(`${colors.green}✓ Standard setup selected${colors.reset}`);
-      }
-      
-      resolve(useProjectSetup);
-    });
-  });
-}
+// (Removed) askSplitScreenPreference and askProjectSetupPreference — layout handled by user's tmux.conf
 
 // Clear screen and show header
 function showHeader() {
@@ -531,9 +468,6 @@ async function setupProjectFolders() {
   // Set default preferences
   console.log(`${colors.yellow}Session Preferences:${colors.reset}`);
   
-  const defaultLayout = await question(`${colors.cyan}Default session layout (single/split) [single]: ${colors.reset}`);
-  const layoutChoice = defaultLayout.toLowerCase() === 'split' ? 'split' : 'single';
-  
   const autoMenu = await question(`${colors.cyan}Auto-run project menus when available? [Y/n]: ${colors.reset}`);
   const autoMenuChoice = !autoMenu.toLowerCase().startsWith('n');
   
@@ -541,7 +475,6 @@ async function setupProjectFolders() {
   
   // Save configuration
   config.projectFolders = projectFolders;
-  config.preferences.defaultLayout = layoutChoice;
   config.preferences.autoMenu = autoMenuChoice;
   config.firstRun = false;
   
@@ -618,7 +551,6 @@ async function createProjectFolderSessions(projectFolders) {
   console.log();
   
   const config = loadWingmanConfig();
-  const useSplitScreen = config.preferences.defaultLayout === 'split';
   
   for (const folder of projectFolders) {
     try {
@@ -636,51 +568,15 @@ async function createProjectFolderSessions(projectFolders) {
       // Create session in the project folder directory
       await execPromise(`tmux new-session -d -s "${folder.name}" -c "${folder.path}"`);
       
-      // Apply theme and configuration
-      const theme = await setSessionColors(folder.name, useSplitScreen);
+      // Apply per-session bindings/options (no theme changes)
+      await setSessionColors(folder.name);
       
       // Set session description
       if (folder.description) {
         await execPromise(`tmux set-option -t "${folder.name}" @description "${folder.description}"`);
       }
       
-      // Setup session layout
-      if (useSplitScreen) {
-        await execPromise(`tmux split-window -h -t "${folder.name}:0" -c "${folder.path}"`);
-        await execPromise(`tmux select-pane -t "${folder.name}:0.0"`);
-      }
-      
-      // Check for and run menu if available and enabled
-      if (folder.autoMenu && config.preferences.autoMenu) {
-        const hasNpmMenu = await checkForNpmMenu(folder.path);
-        const hasMenuScript = await checkForMenuScript(folder.path);
-        
-        if (hasNpmMenu || hasMenuScript) {
-          let menuCommand = '';
-          let windowName = 'menu';
-          
-          if (hasNpmMenu) {
-            menuCommand = 'npm run menu';
-            console.log(`${colors.green}  ✓ Found npm run menu, will auto-start${colors.reset}`);
-          } else if (hasMenuScript) {
-            menuCommand = './menu.sh';
-            console.log(`${colors.green}  ✓ Found menu.sh script, will auto-start${colors.reset}`);
-          }
-          
-          if (menuCommand) {
-            // Create a dedicated window for the menu
-            await execPromise(`tmux new-window -t "${folder.name}" -n "${windowName}" -c "${folder.path}"`);
-            await execPromise(`tmux send-keys -t "${folder.name}:${windowName}" "${menuCommand}" Enter`);
-            
-            // Return to the first window
-            await execPromise(`tmux select-window -t "${folder.name}:0"`);
-          }
-        } else {
-          console.log(`${colors.blue}  No menu script found in ${folder.path}${colors.reset}`);
-        }
-      }
-      
-      console.log(`${colors.green}  ✓ Session '${folder.name}' created (${theme.name} theme)${colors.reset}`);
+      console.log(`${colors.green}  ✓ Session '${folder.name}' created${colors.reset}`);
       
     } catch (error) {
       console.log(`${colors.red}  ✗ Failed to create session '${folder.name}': ${error.message}${colors.reset}`);
@@ -743,9 +639,9 @@ async function checkForMenuScript(projectPath) {
 // Connect to a specific session
 async function connectToSpecificSession(sessionName) {
   try {
-    // Set session colors before connecting
-    const theme = await setSessionColors(sessionName);
-    console.log(`${colors.green}Connecting to session: ${sessionName} (${theme.name} theme)${colors.reset}`);
+    // Apply per-session bindings/options before connecting
+    await setSessionColors(sessionName);
+    console.log(`${colors.green}Connecting to session: ${sessionName}${colors.reset}`);
     await sleep(1000);
     
     // Update last session in config
@@ -934,9 +830,9 @@ async function connectToSession() {
       if (sessionIdx < endIdx && sessionIdx < totalSessions) {
         const selectedSession = sessions[sessionIdx];
         
-        // Set session colors before connecting
-        const theme = await setSessionColors(selectedSession);
-        console.log(`${colors.green}Connecting to session: ${selectedSession} (${theme.name} theme)${colors.reset}`);
+        // Apply per-session bindings/options before connecting
+        await setSessionColors(selectedSession);
+        console.log(`${colors.green}Connecting to session: ${selectedSession}${colors.reset}`);
         await sleep(1000);
         
         // Update last session in config
@@ -1055,58 +951,7 @@ function generateSessionNameSuggestions() {
   return suggestions.slice(0, 3); // Return top 3 suggestions
 }
 
-// Setup project-specific tmux session
-async function setupProjectSession(sessionName, useSplitScreen) {
-  try {
-    // Create session
-    await execPromise(`tmux new-session -d -s "${sessionName}"`);
-    
-    // Setup project-specific windows and panes
-    if (projectContext.type === 'nodejs' || projectContext.type === 'react' || projectContext.type === 'nextjs') {
-      // Create windows for Node.js projects
-      await execPromise(`tmux new-window -t "${sessionName}" -n "editor"`);
-      
-      if (projectContext.devCommand) {
-        await execPromise(`tmux new-window -t "${sessionName}" -n "dev"`);
-        await execPromise(`tmux send-keys -t "${sessionName}:dev" "npm run ${projectContext.devCommand}" Enter`);
-      }
-      
-      if (projectContext.testCommand) {
-        await execPromise(`tmux new-window -t "${sessionName}" -n "test"`);
-        await execPromise(`tmux send-keys -t "${sessionName}:test" "npm run ${projectContext.testCommand}" Enter`);
-      }
-      
-      // If has menu script, add menu window
-      if (projectContext.hasMenuScript) {
-        await execPromise(`tmux new-window -t "${sessionName}" -n "menu"`);
-        await execPromise(`tmux send-keys -t "${sessionName}:menu" "./menu.sh" Enter`);
-      }
-      
-    } else if (projectContext.type === 'rust') {
-      await execPromise(`tmux new-window -t "${sessionName}" -n "editor"`);
-      await execPromise(`tmux new-window -t "${sessionName}" -n "cargo"`);
-      await execPromise(`tmux send-keys -t "${sessionName}:cargo" "cargo run" Enter`);
-      
-    } else if (projectContext.type === 'go') {
-      await execPromise(`tmux new-window -t "${sessionName}" -n "editor"`);
-      await execPromise(`tmux new-window -t "${sessionName}" -n "go"`);
-      await execPromise(`tmux send-keys -t "${sessionName}:go" "go run ." Enter`);
-    }
-    
-    // Setup initial window with split if requested
-    if (useSplitScreen) {
-      await execPromise(`tmux split-window -h -t "${sessionName}:0" -c "#{pane_current_path}"`);
-      await execPromise(`tmux select-pane -t "${sessionName}:0.0"`);
-    }
-    
-    // Select first window
-    await execPromise(`tmux select-window -t "${sessionName}:0"`);
-    
-  } catch (error) {
-    console.log(`${colors.red}Error setting up project session: ${error.message}${colors.reset}`);
-    throw error;
-  }
-}
+// (Removed) setupProjectSession — window/pane setup is left to user's tmux.conf
 
 // Create a new session
 async function createNewSession() {
@@ -1164,9 +1009,9 @@ async function createNewSession() {
       const connectChoice = await question('Do you want to connect to it instead? (y/n): ');
       
       if (connectChoice.toLowerCase() === 'y') {
-        // Set session colors before connecting
-        const theme = await setSessionColors(sessionName);
-        console.log(`${colors.green}Connecting to existing session: ${sessionName} (${theme.name} theme)${colors.reset}`);
+        // Apply per-session bindings/options before connecting
+        await setSessionColors(sessionName);
+        console.log(`${colors.green}Connecting to existing session: ${sessionName}${colors.reset}`);
         await sleep(1000);
         
         rl.close();
@@ -1182,19 +1027,8 @@ async function createNewSession() {
       }
     } catch (error) {
       // Session doesn't exist, create it
-      const theme = getThemeForSession(sessionName);
-      console.log(`${colors.green}Creating session: ${sessionName} (${theme.name} theme)${colors.reset}`);
-      
-      // Ask about project-aware setup
-      let useProjectSetup = false;
-      if (projectContext.name && projectContext.type !== 'unknown') {
-        console.log();
-        useProjectSetup = await askProjectSetupPreference();
-      }
-      
-      // Ask user about split screen preference
-      const useSplitScreen = await askSplitScreenPreference();
-      
+      console.log(`${colors.green}Creating session: ${sessionName}${colors.reset}`);
+
       // Ask for optional description
       console.log();
       const description = await question(`${colors.cyan}Enter session description (optional): ${colors.reset}`);
@@ -1203,20 +1037,10 @@ async function createNewSession() {
       
       // Create session with project-aware setup or standard setup
       try {
-        if (useProjectSetup) {
-          await setupProjectSession(sessionName, useSplitScreen);
-        } else {
-          // Standard session creation
-          await execPromise(`tmux new-session -d -s "${sessionName}"`);
-          
-          // Conditionally auto-split the initial window
-          if (useSplitScreen) {
-            await execPromise(`tmux split-window -h -t "${sessionName}:0" -c "#{pane_current_path}"`);
-            await execPromise(`tmux select-pane -t "${sessionName}:0.0"`);
-          }
-        }
-        
-        await setSessionColors(sessionName, useSplitScreen);
+        // Standard session creation only
+        await execPromise(`tmux new-session -d -s "${sessionName}"`);
+
+        await setSessionColors(sessionName);
         
         // Set description if provided
         if (description) {
@@ -1529,7 +1353,6 @@ async function manageConfiguration() {
     // Show current configuration
     console.log(`${colors.cyan}Current Configuration:${colors.reset}`);
     console.log(`${colors.white}  First Run: ${config.firstRun ? 'Yes' : 'No'}${colors.reset}`);
-    console.log(`${colors.white}  Default Layout: ${config.preferences.defaultLayout}${colors.reset}`);
     console.log(`${colors.white}  Auto Menu: ${config.preferences.autoMenu ? 'Yes' : 'No'}${colors.reset}`);
     console.log(`${colors.white}  Reconnect to Recent: ${config.preferences.reconnectToRecent ? 'Yes' : 'No'}${colors.reset}`);
     console.log(`${colors.white}  Last Session: ${config.lastSession || 'None'}${colors.reset}`);
@@ -1780,18 +1603,12 @@ async function updatePreferences() {
   const config = loadWingmanConfig();
   
   console.log(`${colors.cyan}Current preferences:${colors.reset}`);
-  console.log(`${colors.white}  Default Layout: ${config.preferences.defaultLayout}${colors.reset}`);
   console.log(`${colors.white}  Auto Menu: ${config.preferences.autoMenu ? 'Yes' : 'No'}${colors.reset}`);
   console.log(`${colors.white}  Reconnect to Recent: ${config.preferences.reconnectToRecent ? 'Yes' : 'No'}${colors.reset}`);
   console.log();
   
-  const layout = await question(`Default session layout (single/split) [${config.preferences.defaultLayout}]: `);
   const autoMenu = await question(`Auto-run project menus (y/n) [${config.preferences.autoMenu ? 'y' : 'n'}]: `);
   const reconnect = await question(`Reconnect to recent session (y/n) [${config.preferences.reconnectToRecent ? 'y' : 'n'}]: `);
-  
-  if (layout === 'single' || layout === 'split') {
-    config.preferences.defaultLayout = layout;
-  }
   
   if (autoMenu.toLowerCase() === 'y' || autoMenu.toLowerCase() === 'n') {
     config.preferences.autoMenu = autoMenu.toLowerCase() === 'y';

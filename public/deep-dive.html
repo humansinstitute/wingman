@@ -294,6 +294,10 @@
             gap: 0.25rem;
             white-space: nowrap;
         }
+        /* Make arrow buttons 50% wider horizontally */
+        #tmux-left, #tmux-up, #tmux-down, #tmux-right {
+            padding: 0.375rem 1.125rem;
+        }
         
         .tmux-btn:hover {
             background: var(--accent-light);
@@ -520,6 +524,10 @@
                 flex: 0 0 auto;
                 min-width: auto;
             }
+            /* Arrow buttons 50% wider than mobile default */
+            #tmux-left, #tmux-up, #tmux-down, #tmux-right {
+                padding: 0.375rem 0.75rem;
+            }
             
             .tmux-dropdown-btn {
                 font-size: 0.65rem;
@@ -684,6 +692,10 @@
                                 <span class="tmux-cmd-key">⌃B P</span>
                                 <span class="tmux-cmd-desc">Previous Window</span>
                             </div>
+                            <div class="tmux-cmd" data-cmd="left">
+                                <span class="tmux-cmd-key">←</span>
+                                <span class="tmux-cmd-desc">Left Arrow</span>
+                            </div>
                             <div class="tmux-cmd" data-cmd="up">
                                 <span class="tmux-cmd-key">↑</span>
                                 <span class="tmux-cmd-desc">Up Arrow</span>
@@ -691,6 +703,10 @@
                             <div class="tmux-cmd" data-cmd="down">
                                 <span class="tmux-cmd-key">↓</span>
                                 <span class="tmux-cmd-desc">Down Arrow</span>
+                            </div>
+                            <div class="tmux-cmd" data-cmd="right">
+                                <span class="tmux-cmd-key">→</span>
+                                <span class="tmux-cmd-desc">Right Arrow</span>
                             </div>
                             <div class="tmux-cmd" data-cmd="shifttab">
                                 <span class="tmux-cmd-key">⇧Tab</span>
@@ -720,11 +736,17 @@
                     <button id="tmux-tab" class="tmux-btn" title="Send Tab">
                         <span>Tab</span>
                     </button>
+                    <button id="tmux-left" class="tmux-btn" title="Send Left Arrow">
+                        <span>←</span>
+                    </button>
                     <button id="tmux-up" class="tmux-btn" title="Send Up Arrow">
                         <span>↑</span>
                     </button>
                     <button id="tmux-down" class="tmux-btn" title="Send Down Arrow">
                         <span>↓</span>
+                    </button>
+                    <button id="tmux-right" class="tmux-btn" title="Send Right Arrow">
+                        <span>→</span>
                     </button>
                     <button id="tmux-return" class="tmux-btn" title="Send Return/Enter">
                         <span>rtrn</span>
@@ -784,8 +806,10 @@
                 this.tmuxDropdownContent = document.getElementById('tmux-dropdown-content');
                 this.tmuxEscape = document.getElementById('tmux-escape');
                 this.tmuxTab = document.getElementById('tmux-tab');
+                this.tmuxLeft = document.getElementById('tmux-left');
                 this.tmuxUp = document.getElementById('tmux-up');
                 this.tmuxDown = document.getElementById('tmux-down');
+                this.tmuxRight = document.getElementById('tmux-right');
                 this.tmuxReturn = document.getElementById('tmux-return');
                 this.tmuxCancel = document.getElementById('tmux-cancel');
                 
@@ -863,6 +887,17 @@
                     });
                 }
                 
+                // Left arrow button
+                if (this.tmuxLeft) {
+                    this.tmuxLeft.addEventListener('click', () => {
+                        if (this.authenticated && this.socket && this.socket.connected) {
+                            flashButton(this.tmuxLeft);
+                            // Send Left arrow escape sequence
+                            this.socket.emit('terminal-input', '\x1b[D');
+                        }
+                    });
+                }
+                
                 // Up arrow button
                 if (this.tmuxUp) {
                     this.tmuxUp.addEventListener('click', () => {
@@ -881,6 +916,17 @@
                             flashButton(this.tmuxDown);
                             // Send Down arrow escape sequence
                             this.socket.emit('terminal-input', '\x1b[B');
+                        }
+                    });
+                }
+                
+                // Right arrow button
+                if (this.tmuxRight) {
+                    this.tmuxRight.addEventListener('click', () => {
+                        if (this.authenticated && this.socket && this.socket.connected) {
+                            flashButton(this.tmuxRight);
+                            // Send Right arrow escape sequence
+                            this.socket.emit('terminal-input', '\x1b[C');
                         }
                     });
                 }
@@ -1001,6 +1047,12 @@
                         break;
                     case 'down':
                         this.socket.emit('terminal-input', '\x1b[B'); // Down arrow escape sequence
+                        break;
+                    case 'left':
+                        this.socket.emit('terminal-input', '\x1b[D'); // Left arrow escape sequence
+                        break;
+                    case 'right':
+                        this.socket.emit('terminal-input', '\x1b[C'); // Right arrow escape sequence
                         break;
                     case 'shifttab':
                         this.socket.emit('terminal-input', '\x1b[Z'); // Shift+Tab escape sequence
