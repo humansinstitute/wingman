@@ -406,11 +406,12 @@ class MultiSessionManager extends EventEmitter {
     if (this.dbInitialized) {
       const metadata = this.sessionMetadata.get(this.activeSessionId);
       if (metadata) {
+        const messageSource = settings?.source || 'web';
         const msg = {
           role: 'user',
           content,
           timestamp: new Date().toISOString(),
-          source: 'web'
+          source: messageSource
         };
         await this.db.addMessage(metadata.sessionName, msg).catch(() => {});
         // Update cache immediately so UI reflects the message without waiting
