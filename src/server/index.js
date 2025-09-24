@@ -117,6 +117,10 @@ class GooseWebServer {
       res.sendFile(path.join(process.cwd(), 'public', 'recipes.html'));
     });
 
+    this.app.get('/projects', (req, res) => {
+      res.sendFile(path.join(process.cwd(), 'public', 'projects.html'));
+    });
+
     this.app.get('/deep-dive', (req, res) => {
       res.sendFile(path.join(process.cwd(), 'public', 'deep-dive.html'));
     });
@@ -124,7 +128,289 @@ class GooseWebServer {
     this.app.get('/mcp-servers', (req, res) => {
       res.sendFile(path.join(process.cwd(), 'public', 'mcp-servers.html'));
     });
-    
+
+    const toProjectResponse = (project) => {
+      if (!project) return null;
+      return {
+        id: project.id,
+        name: project.name,
+        description: project.description || '',
+        systemPrompt: project.system_prompt || '',
+        createdAt: project.created_at,
+        updatedAt: project.updated_at
+      };
+    };
+
+    const toTaskResponse = (task) => {
+      if (!task) return null;
+      return {
+        id: task.id,
+        projectId: task.project_id,
+        name: task.name,
+        prompt: task.prompt || '',
+        status: task.status || 'Waiting',
+        session: task.session || '',
+        position: task.position ?? 0,
+        createdAt: task.created_at,
+        updatedAt: task.updated_at
+      };
+    };
+
+    const parseId = (raw) => {
+      const value = Number.parseInt(raw, 10);
+      return Number.isInteger(value) && value > 0 ? value : null;
+    };
+
+    const normalizeStatus = (status) => {
+      const allowed = ['Waiting', 'In Progress', 'Complete'];
+      if (typeof status !== 'string') {
+        return 'Waiting';
+      }
+      const trimmed = status.trim();
+      if (!trimmed) {
+        return 'Waiting';
+      }
+      const match = allowed.find((value) => value.toLowerCase() === trimmed.toLowerCase());
+      return match || 'Waiting';
+    };
+
+    this.app.get('/api/projects', async (req, res) => {
+      try {
+        const db = require('../shared/utils/database').getDatabase();
+        const projects = await db.getProjects();
+        res.json(projects.map(toProjectResponse));
+      } catch (error) {
+        console.error('Failed to fetch projects:', error);
+        res.status(500).json({ error: 'Failed to load projects' });
+      }
+    });
+
+    this.app.post('/api/projects', async (req, res) => {
+      try {
+        const { name = '', description = '', systemPrompt = '' } = req.body || {};
+        const trimmedName = name.trim();
+        const trimmedDescription = description.trim();
+        const trimmedPrompt = systemPrompt.trim();
+
+        if (!trimmedName) {
+          return res.status(400).json({ error: 'Project name is required' });
+        }
+
+        const db = require('../shared/utils/database').getDatabase();
+        const project = await db.createProject({
+          name: trimmedName,
+          description: trimmedDescription,
+          systemPrompt: trimmedPrompt
+        });
+
+        res.status(201).json(toProjectResponse(project));
+      } catch (error) {
+        if (error && (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'SQLITE_CONSTRAINT')) {
+          return res.status(409).json({ error: 'A project with that name already exists' });
+        }
+
+        console.error('Failed to create project:', error);
+        res.status(500).json({ error: 'Failed to create project' });
+      }
+    });
+
+    this.app.put('/api/projects/:id', async (req, res) => {
+      try {
+        const projectId = Number.parseInt(req.params.id, 10);
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+          return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const { name, description, systemPrompt } = req.body || {};
+        const trimmedName = typeof name === 'string' ? name.trim() : undefined;
+        const trimmedDescription = typeof description === 'string' ? description.trim() : undefined;
+        const trimmedPrompt = typeof systemPrompt === 'string' ? systemPrompt.trim() : undefined;
+
+        if (trimmedName !== undefined && trimmedName.length === 0) {
+          return res.status(400).json({ error: 'Project name is required' });
+        }
+
+        const db = require('../shared/utils/database').getDatabase();
+        const existing = await db.getProjectById(projectId);
+        if (!existing) {
+          return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const updated = await db.updateProject(projectId, {
+          name: trimmedName !== undefined ? trimmedName : undefined,
+          description: trimmedDescription !== undefined ? trimmedDescription : undefined,
+          systemPrompt: trimmedPrompt !== undefined ? trimmedPrompt : undefined
+        });
+
+        res.json(toProjectResponse(updated));
+      } catch (error) {
+        if (error && (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'SQLITE_CONSTRAINT')) {
+          return res.status(409).json({ error: 'A project with that name already exists' });
+        }
+
+        console.error('Failed to update project:', error);
+        res.status(500).json({ error: 'Failed to update project' });
+      }
+    });
+
+    this.app.delete('/api/projects/:id', async (req, res) => {
+      try {
+        const projectId = Number.parseInt(req.params.id, 10);
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+          return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const db = require('../shared/utils/database').getDatabase();
+        const existing = await db.getProjectById(projectId);
+        if (!existing) {
+          return res.status(404).json({ error: 'Project not found' });
+        }
+
+        await db.deleteProject(projectId);
+        res.status(204).send();
+      } catch (error) {
+        console.error('Failed to delete project:', error);
+        res.status(500).json({ error: 'Failed to delete project' });
+      }
+    });
+
+    this.app.get('/api/projects/:id/tasks', async (req, res) => {
+      try {
+        const projectId = parseId(req.params.id);
+        if (!projectId) {
+          return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const db = require('../shared/utils/database').getDatabase();
+        const project = await db.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const tasks = await db.getProjectTasks(projectId);
+        res.json(tasks.map(toTaskResponse));
+      } catch (error) {
+        console.error('Failed to fetch project tasks:', error);
+        res.status(500).json({ error: 'Failed to load tasks' });
+      }
+    });
+
+    this.app.post('/api/projects/:id/tasks', async (req, res) => {
+      try {
+        const projectId = parseId(req.params.id);
+        if (!projectId) {
+          return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const { name = '', prompt = '', status = 'Waiting', session = '', position } = req.body || {};
+        const trimmedName = name.trim();
+        if (!trimmedName) {
+          return res.status(400).json({ error: 'Task name is required' });
+        }
+
+        const db = require('../shared/utils/database').getDatabase();
+        const project = await db.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const parsedPosition = Number.isInteger(position) ? position : null;
+        const task = await db.createProjectTask(projectId, {
+          name: trimmedName,
+          prompt: typeof prompt === 'string' ? prompt.trim() : '',
+          status: normalizeStatus(status),
+          session: typeof session === 'string' ? session.trim() : null,
+          position: parsedPosition
+        });
+
+        res.status(201).json(toTaskResponse(task));
+      } catch (error) {
+        console.error('Failed to create task:', error);
+        res.status(500).json({ error: 'Failed to create task' });
+      }
+    });
+
+    this.app.put('/api/projects/:id/tasks/:taskId', async (req, res) => {
+      try {
+        const projectId = parseId(req.params.id);
+        const taskId = parseId(req.params.taskId);
+
+        if (!projectId || !taskId) {
+          return res.status(400).json({ error: 'Invalid project or task id' });
+        }
+
+        const db = require('../shared/utils/database').getDatabase();
+        const project = await db.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const existingTask = await db.getProjectTaskById(taskId);
+        if (!existingTask || existingTask.project_id !== projectId) {
+          return res.status(404).json({ error: 'Task not found' });
+        }
+
+        const updates = {};
+        if (typeof req.body?.name === 'string') {
+          const trimmed = req.body.name.trim();
+          if (!trimmed) {
+            return res.status(400).json({ error: 'Task name is required' });
+          }
+          updates.name = trimmed;
+        }
+
+        if (typeof req.body?.prompt === 'string') {
+          updates.prompt = req.body.prompt.trim();
+        }
+
+        if (req.body?.status !== undefined) {
+          updates.status = normalizeStatus(req.body.status);
+        }
+
+        if (req.body?.session !== undefined) {
+          updates.session = typeof req.body.session === 'string' ? req.body.session.trim() : null;
+        }
+
+        if (Number.isInteger(req.body?.position)) {
+          updates.position = req.body.position;
+        }
+
+        const task = await db.updateProjectTask(taskId, updates);
+        res.json(toTaskResponse(task));
+      } catch (error) {
+        console.error('Failed to update task:', error);
+        res.status(500).json({ error: 'Failed to update task' });
+      }
+    });
+
+    this.app.delete('/api/projects/:id/tasks/:taskId', async (req, res) => {
+      try {
+        const projectId = parseId(req.params.id);
+        const taskId = parseId(req.params.taskId);
+
+        if (!projectId || !taskId) {
+          return res.status(400).json({ error: 'Invalid project or task id' });
+        }
+
+        const db = require('../shared/utils/database').getDatabase();
+        const project = await db.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const existingTask = await db.getProjectTaskById(taskId);
+        if (!existingTask || existingTask.project_id !== projectId) {
+          return res.status(404).json({ error: 'Task not found' });
+        }
+
+        await db.deleteProjectTask(taskId);
+        res.status(204).send();
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+        res.status(500).json({ error: 'Failed to delete task' });
+      }
+    });
+
     // Conversation endpoints
     // Goose config: providers/models
     this.app.get('/api/goose-config/providers', async (req, res) => {

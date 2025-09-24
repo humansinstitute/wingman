@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MCP Server Catalog - Wingman: Solvitur Ambulando</title>
-    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png">
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Light.png" id="favicon-light">
+    <link rel="icon" type="image/png" href="Wingman_Goose_Logo_Dark.png" id="favicon-dark" disabled>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -59,7 +60,7 @@
         }
 
         /* Dark theme */
-        [data-theme="dark"] {
+        body.dark-theme {
             --bg-gradient-start: #1c1917;
             --bg-gradient-end: #292524;
             --bg-primary: #1c1917;
@@ -100,45 +101,360 @@
             padding: 2rem 1rem;
         }
 
-        .header {
+        .page-heading {
             text-align: center;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
         }
 
-        .header h1 {
-            font-size: 2.5rem;
+        .page-heading h2 {
+            font-size: 2rem;
             margin-bottom: 0.5rem;
             color: var(--accent-primary);
         }
 
-        .header p {
+        .page-heading p {
             color: var(--text-secondary);
-            font-size: 1.1rem;
+            font-size: 1.05rem;
         }
 
-        .nav {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .nav-link {
-            padding: 0.75rem 1.5rem;
+        .header {
             background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
             color: var(--text-primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            transition: transform 0.2s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.1);
+        }
+
+        .logo-light {
+            display: inline;
+        }
+
+        .logo-dark {
+            display: none;
+        }
+
+        body.dark-theme .logo-light {
+            display: none;
+        }
+
+        body.dark-theme .logo-dark {
+            display: inline;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .connection-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-primary);
+            transition: background 0.3s ease;
+            z-index: 1000;
+        }
+
+        .connection-bar.disconnected {
+            background: #dc2626;
+        }
+
+        .goose-status {
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .goose-status:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .status-active {
+            background: var(--accent-primary);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .status-inactive {
+            background: var(--text-disabled);
+            color: white;
+        }
+
+        .status-error {
+            background: #dc2626;
+            color: white;
+        }
+
+        .provider-model-info,
+        .working-directory-info {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+        }
+
+        .provider-model-info {
+            margin-right: 0.75rem;
+        }
+
+        .working-directory-info {
+            margin-right: 0.75rem;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .working-directory-display {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        body.dark-theme .provider-model-info,
+        body.dark-theme .working-directory-info,
+        body.dark-theme .working-directory-display {
+            color: var(--accent-primary);
+        }
+
+        .session-count-badge {
+            color: inherit;
+            font-size: inherit;
+            margin-left: 0;
+            font-weight: inherit;
+            display: inline;
+        }
+
+        .primary-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .primary-nav .nav-link {
+            color: var(--text-secondary);
             text-decoration: none;
-            border-radius: 0.5rem;
-            border: 1px solid var(--border-primary);
-            transition: all 0.2s;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
             font-weight: 500;
         }
 
-        .nav-link:hover {
+        .primary-nav .nav-link:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .primary-nav .nav-link.is-active {
             background: var(--accent-light);
-            color: var(--accent-tertiary);
             border-color: var(--accent-primary);
+            color: var(--accent-secondary);
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 48px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .theme-icon-light {
+            display: inline;
+        }
+
+        .theme-icon-dark {
+            display: none;
+        }
+
+        body.dark-theme .theme-icon-light {
+            display: none;
+        }
+
+        body.dark-theme .theme-icon-dark {
+            display: inline;
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem 0.75rem;
+            transition: background 0.2s ease;
+            color: var(--text-primary);
+        }
+
+        .mobile-menu-toggle:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-primary);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+            padding: 1rem 1.5rem;
+            display: block;
+        }
+
+        .mobile-menu.show {
+            transform: translateY(0);
+        }
+
+        .mobile-menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .mobile-menu-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+            color: var(--text-primary);
+        }
+
+        .mobile-menu-close:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .mobile-menu-items {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .mobile-menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+        }
+
+        .mobile-menu-item a {
+            color: inherit;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .mobile-menu-item a.is-active {
+            font-weight: 600;
+            color: var(--accent-secondary);
+        }
+
+        .mobile-menu-label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        @media (min-width: 769px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .primary-nav {
+                display: none;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .header {
+                padding: 1rem;
+            }
+
+            .logo {
+                width: 28px;
+                height: 28px;
+            }
+
+            .header h1 {
+                font-size: 1.25rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #gooseStatus,
+            #providerModelInfo,
+            #workingDirectoryInfo {
+                display: none !important;
+            }
+
+            .mobile-menu-item .goose-status {
+                margin: 0;
+                flex: 1;
+                text-align: center;
+            }
         }
 
         .controls {
@@ -526,17 +842,75 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🔌 MCP Server Catalog</h1>
-            <p>Manage and configure Model Context Protocol servers for your recipes</p>
-        </div>
+    <div id="connectionBar" class="connection-bar"></div>
 
-        <div class="nav">
-            <a href="/" class="nav-link">🏠 Home</a>
-            <a href="/recipes" class="nav-link">📋 Recipes</a>
-            <a href="/mcp-servers" class="nav-link" style="background: var(--accent-light); color: var(--accent-tertiary);">🔌 MCP Servers</a>
-            <a href="/deep-dive" class="nav-link">🔍 Deep Dive</a>
+    <div class="header">
+        <h1>
+            <img src="Wingman_Goose_Logo_Light.png" alt="Wingman Goose" class="logo logo-light">
+            <img src="Wingman_Goose_Logo_Dark.png" alt="Wingman Goose" class="logo logo-dark">
+            Wingman: Solvitur Ambulando
+        </h1>
+        <div class="header-right">
+            <nav class="primary-nav">
+                <a href="/" class="nav-link" data-page="chat">Chat</a>
+                <a href="/projects" class="nav-link" data-page="projects">Projects</a>
+                <a href="/recipes" class="nav-link" data-page="recipes">Recipes</a>
+                <a href="/mcp-servers" class="nav-link" data-page="mcp">MCP Config</a>
+                <a href="/deep-dive" class="nav-link" data-page="deep-dive">Deep Dive</a>
+            </nav>
+            <div id="providerModelInfo" class="provider-model-info" style="display: none;">
+                <span id="providerModelText"></span>
+            </div>
+            <div id="workingDirectoryInfo" class="working-directory-info" style="display: none;">
+                <div id="workingDirectoryDisplay" class="working-directory-display"></div>
+            </div>
+            <div id="gooseStatus" class="goose-status status-inactive">
+                <span id="sessionNameDisplay">No Session Active</span>
+                <span id="sessionCountBadge" class="session-count-badge" style="display: none;"></span>
+            </div>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+                <span class="theme-icon-light">☀️</span>
+                <span class="theme-icon-dark">🌙</span>
+            </button>
+            <button id="mobileMenuToggle" class="mobile-menu-toggle" aria-label="Open menu">☰</button>
+        </div>
+    </div>
+
+    <div id="mobileMenu" class="mobile-menu">
+        <div class="mobile-menu-header">
+            <h3 style="color: var(--text-primary); margin: 0;">Menu</h3>
+            <button id="mobileMenuClose" class="mobile-menu-close" aria-label="Close menu">×</button>
+        </div>
+        <div class="mobile-menu-items">
+            <div class="mobile-menu-item">
+                <a href="/" data-page="chat">💬 Chat</a>
+            </div>
+            <div class="mobile-menu-item">
+                <a href="/projects" data-page="projects">🗂️ Projects</a>
+            </div>
+            <div class="mobile-menu-item">
+                <a href="/recipes" data-page="recipes">📋 Recipes</a>
+            </div>
+            <div class="mobile-menu-item">
+                <a href="/mcp-servers" data-page="mcp">🔌 MCP Config</a>
+            </div>
+            <div class="mobile-menu-item">
+                <a href="/deep-dive" data-page="deep-dive">🔍 Deep Dive</a>
+            </div>
+            <div class="mobile-menu-item">
+                <span class="mobile-menu-label">Theme</span>
+                <button id="mobileThemeToggle" class="theme-toggle" aria-label="Toggle theme">
+                    <span class="theme-icon-light">☀️ Light</span>
+                    <span class="theme-icon-dark">🌙 Dark</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="page-heading">
+            <h2>🔌 MCP Server Catalog</h2>
+            <p>Manage and configure Model Context Protocol servers for your recipes</p>
         </div>
 
         <div class="stats-bar">
@@ -662,6 +1036,86 @@
             </form>
         </div>
     </div>
+
+    <script>
+        (function() {
+            const themeToggle = document.getElementById('themeToggle');
+            const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+            const mobileMenu = document.getElementById('mobileMenu');
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const mobileMenuClose = document.getElementById('mobileMenuClose');
+            const faviconLight = document.getElementById('favicon-light');
+            const faviconDark = document.getElementById('favicon-dark');
+            const desktopNavLinks = document.querySelectorAll('.primary-nav .nav-link[data-page]');
+            const mobileNavLinks = document.querySelectorAll('#mobileMenu .mobile-menu-item a[data-page]');
+            const navLinks = [...desktopNavLinks, ...mobileNavLinks];
+
+            const currentPage = (() => {
+                const path = window.location.pathname.replace(/\/$/, '') || '/';
+                if (path === '/' || path === '/index.html') return 'chat';
+                if (path.startsWith('/projects')) return 'projects';
+                if (path.startsWith('/recipes')) return 'recipes';
+                if (path.startsWith('/mcp-servers')) return 'mcp';
+                if (path.startsWith('/deep-dive')) return 'deep-dive';
+                return '';
+            })();
+
+            navLinks.forEach(link => {
+                if (link.dataset.page === currentPage) {
+                    link.classList.add('is-active');
+                }
+            });
+
+            function updateFavicon(isDark) {
+                if (!faviconLight || !faviconDark) {
+                    return;
+                }
+
+                faviconLight.disabled = !!isDark;
+                faviconDark.disabled = !isDark;
+            }
+
+            function applyTheme(theme) {
+                const isDark = theme === 'dark';
+                document.body.classList.toggle('dark-theme', isDark);
+                localStorage.setItem('goose-theme', isDark ? 'dark' : 'light');
+                updateFavicon(isDark);
+            }
+
+            const savedTheme = localStorage.getItem('goose-theme') || 'light';
+            applyTheme(savedTheme);
+
+            function toggleTheme() {
+                const isDark = document.body.classList.contains('dark-theme');
+                applyTheme(isDark ? 'light' : 'dark');
+            }
+
+            themeToggle?.addEventListener('click', toggleTheme);
+            mobileThemeToggle?.addEventListener('click', toggleTheme);
+
+            function showMobileMenu() {
+                if (!mobileMenu) return;
+                mobileMenu.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function hideMobileMenu() {
+                if (!mobileMenu) return;
+                mobileMenu.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+
+            mobileMenuToggle?.addEventListener('click', showMobileMenu);
+            mobileMenuClose?.addEventListener('click', hideMobileMenu);
+            mobileMenu?.addEventListener('click', (event) => {
+                if (event.target === mobileMenu) {
+                    hideMobileMenu();
+                }
+            });
+
+            mobileNavLinks.forEach(link => link.addEventListener('click', hideMobileMenu));
+        })();
+    </script>
 
     <script>
         let servers = [];
