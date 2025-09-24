@@ -330,6 +330,53 @@ class GooseWebServer {
       }
     });
 
+    this.app.patch('/api/projects/:id/tasks/reorder', async (req, res) => {
+      try {
+        const projectId = parseId(req.params.id);
+        if (!projectId) {
+          return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const { taskIds } = req.body || {};
+        if (!Array.isArray(taskIds) || taskIds.length === 0) {
+          return res.status(400).json({ error: 'taskIds array is required' });
+        }
+
+        const normalized = taskIds.map((id) => parseId(id)).filter((value) => value !== null);
+        if (normalized.length !== taskIds.length) {
+          return res.status(400).json({ error: 'taskIds must include valid task identifiers' });
+        }
+
+        const uniqueCount = new Set(normalized).size;
+        if (uniqueCount !== normalized.length) {
+          return res.status(400).json({ error: 'taskIds must not contain duplicates' });
+        }
+
+        const db = require('../shared/utils/database').getDatabase();
+        const project = await db.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const existingTasks = await db.getProjectTasks(projectId);
+        if (!Array.isArray(existingTasks) || existingTasks.length !== normalized.length) {
+          return res.status(400).json({ error: 'taskIds must include all project task ids' });
+        }
+
+        const existingIds = new Set(existingTasks.map((task) => task.id));
+        const missing = normalized.filter((id) => !existingIds.has(id));
+        if (missing.length > 0) {
+          return res.status(400).json({ error: 'taskIds contains unknown tasks for this project' });
+        }
+
+        const reordered = await db.reorderProjectTasks(projectId, normalized);
+        res.json(reordered.map(toTaskResponse));
+      } catch (error) {
+        console.error('Failed to reorder tasks:', error);
+        res.status(500).json({ error: 'Failed to reorder tasks' });
+      }
+    });
+
     this.app.put('/api/projects/:id/tasks/:taskId', async (req, res) => {
       try {
         const projectId = parseId(req.params.id);

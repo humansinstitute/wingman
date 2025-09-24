@@ -413,6 +413,56 @@
             gap: 2rem;
         }
 
+        /* Pull-to-refresh styles */
+        .pull-to-refresh {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100%);
+            background: var(--accent-primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0 0 12px 12px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            z-index: 1002;
+            transition: transform 0.3s ease, background 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .pull-to-refresh.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .pull-to-refresh.refreshing {
+            background: var(--accent-secondary);
+        }
+
+        .refresh-icon {
+            width: 16px;
+            height: 16px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .refresh-icon.idle {
+            animation: none;
+            border: none;
+            width: auto;
+            height: auto;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         .page-title {
             font-size: 2rem;
             font-weight: 600;
@@ -614,22 +664,6 @@
             border-radius: 9999px;
             padding: 0.2rem 0.6rem;
             font-size: 0.75rem;
-        }
-
-        .project-prompt {
-            margin-top: 0.25rem;
-            padding: 0.75rem;
-            border-radius: 8px;
-            border: 1px solid var(--border-primary);
-            background: var(--bg-primary);
-            font-family: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-            white-space: pre-wrap;
-            color: var(--text-secondary);
-        }
-
-        .project-prompt--empty {
-            color: var(--text-muted);
-            font-style: italic;
         }
 
         .project-loading {
@@ -849,6 +883,17 @@
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
+            cursor: grab;
+        }
+
+        .task-item.is-dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .task-list--saving {
+            opacity: 0.6;
+            pointer-events: none;
         }
 
         .task-item-header {
@@ -856,6 +901,28 @@
             justify-content: space-between;
             gap: 1rem;
             align-items: flex-start;
+        }
+
+        .task-item-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+        }
+
+        .task-drag-handle {
+            font-size: 1.1rem;
+            line-height: 1;
+            color: var(--text-muted);
+            cursor: grab;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            padding: 0.1rem 0.2rem;
+        }
+
+        .task-item.is-dragging .task-drag-handle,
+        .task-drag-handle:active {
+            cursor: grabbing;
         }
 
         .task-item-info {
@@ -1026,6 +1093,10 @@
     </style>
 </head>
 <body>
+    <div id="pullToRefresh" class="pull-to-refresh">
+        <div id="refreshIcon" class="refresh-icon idle">⟳</div>
+        <span id="refreshText">Pull to refresh</span>
+    </div>
     <div id="connectionBar" class="connection-bar"></div>
 
     <div class="header">
@@ -1341,8 +1412,23 @@
                 this.tasksByProject = new Map();
                 this.taskSaving = false;
                 this.originalTaskSubmitText = undefined;
+                this.taskReordering = false;
+                this.draggingTaskId = null;
+                this.pointerDragActive = false;
+                this.pointerDragPointerId = null;
+                this.pointerOriginalTouchAction = '';
+
+                this.pullToRefresh = document.getElementById('pullToRefresh');
+                this.refreshIcon = document.getElementById('refreshIcon');
+                this.refreshText = document.getElementById('refreshText');
+                this.pullStartY = 0;
+                this.pullCurrentY = 0;
+                this.pullThreshold = 80;
+                this.isPulling = false;
+                this.isRefreshing = false;
 
                 this.bindEvents();
+                this.setupPullToRefresh();
                 this.loadProjects();
             }
 
@@ -1370,6 +1456,14 @@
 
                 this.newTaskBtn?.addEventListener('click', () => this.openTaskForm());
                 this.tasksList?.addEventListener('click', (event) => this.handleTaskAction(event));
+                this.tasksList?.addEventListener('dragstart', (event) => this.handleTaskDragStart(event));
+                this.tasksList?.addEventListener('dragover', (event) => this.handleTaskDragOver(event));
+                this.tasksList?.addEventListener('drop', (event) => this.handleTaskDrop(event));
+                this.tasksList?.addEventListener('dragend', () => this.handleTaskDragEnd());
+                this.tasksList?.addEventListener('pointerdown', (event) => this.handleTaskPointerDown(event));
+                this.tasksList?.addEventListener('pointermove', (event) => this.handleTaskPointerMove(event));
+                this.tasksList?.addEventListener('pointerup', (event) => this.handleTaskPointerUp(event));
+                this.tasksList?.addEventListener('pointercancel', (event) => this.handleTaskPointerCancel(event));
                 this.taskCancelBtn?.addEventListener('click', () => this.hideTaskForm());
                 this.taskForm?.addEventListener('submit', (event) => this.submitTask(event));
 
@@ -1380,6 +1474,152 @@
                         this.hideTasksModal();
                     }
                 });
+            }
+
+            setupPullToRefresh() {
+                if (!this.pullToRefresh) {
+                    return;
+                }
+
+                if (!this.isMobile() && !this.isPWA()) {
+                    return;
+                }
+
+                const header = document.querySelector('.header');
+                if (!header) {
+                    return;
+                }
+
+                this.pullTouchStartHandler = this.onPullTouchStart.bind(this);
+                this.pullTouchMoveHandler = this.onPullTouchMove.bind(this);
+                this.pullTouchEndHandler = this.onPullTouchEnd.bind(this);
+
+                header.addEventListener('touchstart', this.pullTouchStartHandler, { passive: false });
+                header.addEventListener('touchmove', this.pullTouchMoveHandler, { passive: false });
+                header.addEventListener('touchend', this.pullTouchEndHandler, { passive: false });
+            }
+
+            onPullTouchStart(event) {
+                if (this.isRefreshing || this.isInputFocused(event.target)) {
+                    return;
+                }
+
+                this.pullStartY = event.touches[0].clientY;
+                this.pullCurrentY = this.pullStartY;
+                this.isPulling = false;
+            }
+
+            onPullTouchMove(event) {
+                if (!this.pullToRefresh) {
+                    return;
+                }
+
+                if (this.isRefreshing || this.isInputFocused(event.target)) {
+                    return;
+                }
+
+                this.pullCurrentY = event.touches[0].clientY;
+                const pullDistance = this.pullCurrentY - this.pullStartY;
+
+                if (pullDistance <= 0) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                this.isPulling = true;
+                const progress = Math.min(pullDistance / this.pullThreshold, 1);
+
+                this.pullToRefresh.classList.add('visible');
+
+                if (this.refreshText) {
+                    this.refreshText.textContent = pullDistance >= this.pullThreshold
+                        ? 'Release to refresh'
+                        : 'Pull to refresh';
+                }
+
+                if (this.refreshIcon) {
+                    this.refreshIcon.style.transform = pullDistance >= this.pullThreshold
+                        ? 'rotate(180deg)'
+                        : `rotate(${progress * 180}deg)`;
+                    if (!this.refreshIcon.textContent) {
+                        this.refreshIcon.textContent = '⟳';
+                    }
+                }
+            }
+
+            onPullTouchEnd() {
+                if (!this.isPulling || this.isRefreshing) {
+                    return;
+                }
+
+                const pullDistance = this.pullCurrentY - this.pullStartY;
+
+                if (pullDistance >= this.pullThreshold) {
+                    this.triggerPullRefresh();
+                } else {
+                    this.resetPullToRefresh();
+                }
+
+                this.isPulling = false;
+            }
+
+            isMobile() {
+                return window.innerWidth <= 768;
+            }
+
+            isPWA() {
+                return window.matchMedia('(display-mode: standalone)').matches ||
+                    window.navigator.standalone === true ||
+                    document.referrer.includes('android-app://');
+            }
+
+            isInputFocused(target) {
+                if (!target) return false;
+                return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+            }
+
+            async triggerPullRefresh() {
+                if (this.isRefreshing) {
+                    return;
+                }
+
+                this.isRefreshing = true;
+                if (this.pullToRefresh) {
+                    this.pullToRefresh.classList.add('visible', 'refreshing');
+                }
+                if (this.refreshText) {
+                    this.refreshText.textContent = 'Refreshing...';
+                }
+                if (this.refreshIcon) {
+                    this.refreshIcon.className = 'refresh-icon';
+                    this.refreshIcon.textContent = '';
+                    this.refreshIcon.style.transform = 'rotate(0deg)';
+                }
+
+                try {
+                    await this.loadProjects();
+                } catch (error) {
+                    console.error('Projects pull-to-refresh failed:', error);
+                } finally {
+                    setTimeout(() => this.resetPullToRefresh(), 300);
+                }
+            }
+
+            resetPullToRefresh() {
+                if (this.pullToRefresh) {
+                    this.pullToRefresh.classList.remove('visible', 'refreshing');
+                }
+                if (this.refreshText) {
+                    this.refreshText.textContent = 'Pull to refresh';
+                }
+                if (this.refreshIcon) {
+                    this.refreshIcon.className = 'refresh-icon idle';
+                    this.refreshIcon.textContent = '⟳';
+                    this.refreshIcon.style.transform = 'rotate(0deg)';
+                }
+                this.isRefreshing = false;
+                this.isPulling = false;
             }
 
             openCreateModal() {
@@ -1495,7 +1735,6 @@
                 const name = ProjectsPage.escapeHtml(project.name || 'Untitled project');
                 const description = project.description ? ProjectsPage.escapeHtml(project.description) : '';
                 const hasPrompt = project.systemPrompt && project.systemPrompt.trim().length > 0;
-                const prompt = hasPrompt ? ProjectsPage.escapeHtml(project.systemPrompt) : '';
                 const created = this.formatRelative(project.createdAt);
                 const updated = this.formatRelative(project.updatedAt);
 
@@ -1510,10 +1749,7 @@
                         </p>
                         <div class="project-meta">
                             <span>Created ${created}</span>
-                            ${hasPrompt ? '<span>Custom prompt</span>' : ''}
-                        </div>
-                        <div class="project-prompt ${hasPrompt ? '' : 'project-prompt--empty'}">
-                            ${hasPrompt ? prompt : 'No system prompt yet.'}
+                            ${hasPrompt ? '<span>Custom prompt configured</span>' : ''}
                         </div>
                         <div class="project-item-actions">
                             <button class="project-action-button project-action-button--tasks" data-action="tasks" data-project-id="${project.id}">Tasks</button>
@@ -1684,6 +1920,374 @@
                 }
             }
 
+            startDraggingTask(item) {
+                if (!item) {
+                    return false;
+                }
+
+                const taskId = item.dataset.taskId ?? '';
+                if (!taskId) {
+                    return false;
+                }
+
+                this.draggingTaskId = taskId;
+                item.classList.add('is-dragging');
+                return true;
+            }
+
+            handleTaskDragStart(event) {
+                if (this.taskReordering) {
+                    event.preventDefault();
+                    return;
+                }
+
+                const target = event.target instanceof HTMLElement ? event.target.closest('.task-item') : null;
+                if (!target) {
+                    return;
+                }
+
+                if (!this.startDraggingTask(target)) {
+                    return;
+                }
+
+                if (event.dataTransfer) {
+                    event.dataTransfer.effectAllowed = 'move';
+                    try {
+                        event.dataTransfer.setData('text/plain', this.draggingTaskId);
+                    } catch (_) {
+                        // Ignore browsers that disallow setting data
+                    }
+                }
+            }
+
+            handleTaskDragOver(event) {
+                if (!this.draggingTaskId || this.taskReordering) {
+                    return;
+                }
+
+                event.preventDefault();
+                if (event.dataTransfer) {
+                    event.dataTransfer.dropEffect = 'move';
+                }
+
+                const target = event.target instanceof HTMLElement ? event.target.closest('.task-item') : null;
+                const list = this.tasksList;
+                if (!target || !list) {
+                    return;
+                }
+
+                const draggingEl = list.querySelector('.task-item.is-dragging');
+                if (!draggingEl || target === draggingEl) {
+                    return;
+                }
+
+                const rect = target.getBoundingClientRect();
+                const offset = event.clientY - rect.top;
+
+                if (offset > rect.height / 2) {
+                    target.after(draggingEl);
+                } else {
+                    target.before(draggingEl);
+                }
+            }
+
+            handleTaskDrop(event) {
+                if (!this.draggingTaskId || this.taskReordering) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const order = this.getRenderedTaskOrder();
+                this.finalizeTaskReorder(order);
+            }
+
+            handleTaskDragEnd() {
+                if (this.tasksList) {
+                    const draggingEl = this.tasksList.querySelector('.task-item.is-dragging');
+                    if (draggingEl) {
+                        draggingEl.classList.remove('is-dragging');
+                    }
+                }
+                this.draggingTaskId = null;
+            }
+
+            handleTaskPointerDown(event) {
+                if (this.taskReordering) {
+                    return;
+                }
+
+                if (this.pointerDragActive) {
+                    return;
+                }
+
+                if (event.isPrimary === false) {
+                    return;
+                }
+
+                if (event.pointerType !== 'touch' && event.pointerType !== 'pen') {
+                    return;
+                }
+
+                const targetElement = event.target instanceof HTMLElement ? event.target : null;
+                if (!targetElement) {
+                    return;
+                }
+
+                if (targetElement.closest('.task-item-actions')) {
+                    return;
+                }
+
+                const dragHandle = targetElement.closest('.task-drag-handle');
+                if (!dragHandle) {
+                    return;
+                }
+
+                const taskItem = dragHandle.closest('.task-item');
+                if (!taskItem) {
+                    return;
+                }
+
+                const started = this.startDraggingTask(taskItem);
+                if (!started) {
+                    return;
+                }
+
+                this.pointerDragActive = true;
+                this.pointerDragPointerId = event.pointerId;
+
+                if (this.tasksList) {
+                    if (typeof this.tasksList.setPointerCapture === 'function') {
+                        try {
+                            this.tasksList.setPointerCapture(event.pointerId);
+                        } catch (_) {
+                            // Ignore capture errors
+                        }
+                    }
+
+                    this.pointerOriginalTouchAction = this.tasksList.style.touchAction || '';
+                    this.tasksList.style.touchAction = 'none';
+                }
+
+                event.preventDefault();
+            }
+
+            handleTaskPointerMove(event) {
+                if (!this.pointerDragActive || event.pointerId !== this.pointerDragPointerId) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const list = this.tasksList;
+                if (!list) {
+                    return;
+                }
+
+                const overElement = document.elementFromPoint(event.clientX, event.clientY);
+                const target = overElement instanceof HTMLElement ? overElement.closest('.task-item') : null;
+                const draggingEl = list.querySelector('.task-item.is-dragging');
+
+                if (!target || !draggingEl || target === draggingEl) {
+                    return;
+                }
+
+                const rect = target.getBoundingClientRect();
+                const offset = event.clientY - rect.top;
+
+                if (offset > rect.height / 2) {
+                    target.after(draggingEl);
+                } else {
+                    target.before(draggingEl);
+                }
+            }
+
+            handleTaskPointerUp(event) {
+                if (!this.pointerDragActive || event.pointerId !== this.pointerDragPointerId) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                this.pointerDragActive = false;
+                this.pointerDragPointerId = null;
+                if (this.tasksList) {
+                    if (typeof this.tasksList.releasePointerCapture === 'function') {
+                        try {
+                            this.tasksList.releasePointerCapture(event.pointerId);
+                        } catch (_) {
+                            // Ignore release errors
+                        }
+                    }
+                    this.tasksList.style.touchAction = this.pointerOriginalTouchAction || '';
+                }
+                this.pointerOriginalTouchAction = '';
+
+                const order = this.getRenderedTaskOrder();
+                this.finalizeTaskReorder(order);
+                this.handleTaskDragEnd();
+            }
+
+            handleTaskPointerCancel(event) {
+                if (!this.pointerDragActive || event.pointerId !== this.pointerDragPointerId) {
+                    return;
+                }
+
+                this.pointerDragActive = false;
+                this.pointerDragPointerId = null;
+                if (this.tasksList) {
+                    if (typeof this.tasksList.releasePointerCapture === 'function') {
+                        try {
+                            this.tasksList.releasePointerCapture(event.pointerId);
+                        } catch (_) {
+                            // Ignore release errors
+                        }
+                    }
+                    this.tasksList.style.touchAction = this.pointerOriginalTouchAction || '';
+                }
+                this.pointerOriginalTouchAction = '';
+
+                this.handleTaskDragEnd();
+                if (this.currentTasksProjectId) {
+                    this.renderTasks(this.currentTasksProjectId);
+                }
+            }
+
+            getRenderedTaskOrder() {
+                if (!this.tasksList) {
+                    return [];
+                }
+
+                return Array.from(this.tasksList.querySelectorAll('.task-item[data-task-id]'))
+                    .map((item) => item.dataset.taskId || '')
+                    .filter((id) => id !== '');
+            }
+
+            finalizeTaskReorder(orderIds) {
+                if (!this.currentTasksProjectId || !Array.isArray(orderIds) || orderIds.length === 0) {
+                    return;
+                }
+
+                const projectId = this.currentTasksProjectId;
+                const currentTasks = this.tasksByProject.get(projectId) || [];
+
+                if (orderIds.length !== currentTasks.length) {
+                    this.renderTasks(projectId);
+                    return;
+                }
+
+                const alreadyOrdered = currentTasks.every((task, index) => task.id === orderIds[index]);
+                if (alreadyOrdered) {
+                    return;
+                }
+
+                const taskMap = new Map(currentTasks.map((task) => [task.id, task]));
+                const reorderedTasks = [];
+                for (const id of orderIds) {
+                    const task = taskMap.get(id);
+                    if (!task) {
+                        this.renderTasks(projectId);
+                        return;
+                    }
+                    reorderedTasks.push(task);
+                }
+
+                const previousTasks = currentTasks.map((task) => ({ ...task }));
+                reorderedTasks.forEach((task, index) => {
+                    task.position = index;
+                });
+
+                this.tasksByProject.set(projectId, reorderedTasks);
+                this.persistTaskOrder(projectId, orderIds, previousTasks);
+            }
+
+            async persistTaskOrder(projectId, orderIds, previousTasks) {
+                if (this.taskReordering) {
+                    return;
+                }
+
+                this.taskReordering = true;
+                this.tasksList?.classList.add('task-list--saving');
+
+                const numericOrder = orderIds
+                    .map((id) => Number.parseInt(String(id), 10))
+                    .filter((value) => Number.isInteger(value) && value > 0);
+
+                if (numericOrder.length !== orderIds.length) {
+                    const fallback = Array.isArray(previousTasks)
+                        ? previousTasks.map((task) => ({ ...task, id: task.id != null ? String(task.id) : '' }))
+                        : [];
+                    this.tasksByProject.set(projectId, fallback);
+                    this.renderTasks(projectId);
+                    this.tasksList?.classList.remove('task-list--saving');
+                    this.taskReordering = false;
+                    window.alert('Unable to reorder tasks. Please try again.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/projects/${projectId}/tasks/reorder`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ taskIds: numericOrder })
+                    });
+
+                    const payload = await ProjectsPage.safeJson(response);
+
+                    if (!response.ok) {
+                        const message = payload?.error || 'Failed to reorder tasks.';
+                        throw new Error(message);
+                    }
+
+                    if (Array.isArray(payload)) {
+                        const normalized = payload
+                            .map((task) => this.normalizeTask(task))
+                            .filter((task) => task && task.id !== '');
+                        normalized.sort((a, b) => a.position - b.position);
+                        this.tasksByProject.set(projectId, normalized);
+                        this.renderTasks(projectId);
+                    } else {
+                        this.renderTasks(projectId);
+                    }
+                } catch (error) {
+                    console.error('Failed to reorder tasks:', error);
+                    const fallback = Array.isArray(previousTasks)
+                        ? previousTasks.map((task) => ({ ...task, id: task.id != null ? String(task.id) : '' }))
+                        : [];
+                    this.tasksByProject.set(projectId, fallback);
+                    this.renderTasks(projectId);
+                    window.alert('Unable to reorder tasks. Please try again.');
+                } finally {
+                    this.tasksList?.classList.remove('task-list--saving');
+                    this.taskReordering = false;
+                }
+            }
+
+            normalizeTask(task) {
+                if (!task) {
+                    return null;
+                }
+
+                const rawId = task.id ?? task.taskId ?? task.task_id;
+                const positionValue = task.position ?? task.position_index ?? 0;
+                const numericPosition = Number.parseInt(String(positionValue), 10);
+
+                return {
+                    id: rawId != null ? String(rawId) : '',
+                    projectId: task.projectId ?? task.project_id ?? null,
+                    name: typeof task.name === 'string' ? task.name : '',
+                    prompt: typeof task.prompt === 'string' ? task.prompt : '',
+                    status: typeof task.status === 'string' && task.status.trim() ? task.status : 'Waiting',
+                    session: typeof task.session === 'string' ? task.session : '',
+                    position: Number.isInteger(numericPosition) && numericPosition >= 0 ? numericPosition : 0,
+                    createdAt: task.createdAt ?? task.created_at ?? null,
+                    updatedAt: task.updatedAt ?? task.updated_at ?? null
+                };
+            }
+
             openTasksModal(rawProjectId) {
                 const projectId = Number.parseInt(String(rawProjectId), 10);
                 if (!Number.isInteger(projectId) || projectId <= 0) {
@@ -1695,6 +2299,15 @@
 
                 this.currentTasksProjectId = projectId;
                 this.currentTaskId = null;
+                this.taskReordering = false;
+                this.draggingTaskId = null;
+                this.tasksList?.classList.remove('task-list--saving');
+                this.pointerDragActive = false;
+                this.pointerDragPointerId = null;
+                this.pointerOriginalTouchAction = '';
+                if (this.tasksList) {
+                    this.tasksList.style.touchAction = '';
+                }
 
                 if (this.tasksModalTitle) {
                     this.tasksModalTitle.textContent = `Tasks · ${projectName}`;
@@ -1732,6 +2345,15 @@
                 this.tasksModal.setAttribute('aria-hidden', 'true');
                 this.currentTasksProjectId = null;
                 this.currentTaskId = null;
+                this.taskReordering = false;
+                this.draggingTaskId = null;
+                this.tasksList?.classList.remove('task-list--saving');
+                this.pointerDragActive = false;
+                this.pointerDragPointerId = null;
+                this.pointerOriginalTouchAction = '';
+                if (this.tasksList) {
+                    this.tasksList.style.touchAction = '';
+                }
                 this.hideTaskForm();
                 this.setTaskFormError('');
                 if (this.tasksError) {
@@ -1765,12 +2387,10 @@
 
                     const data = await ProjectsPage.safeJson(response);
                     const tasks = Array.isArray(data)
-                        ? data.map((task) => ({
-                            ...task,
-                            id: task.id != null ? String(task.id) : ''
-                        })).filter((task) => task.id !== '')
+                        ? data.map((task) => this.normalizeTask(task)).filter((task) => task && task.id !== '')
                         : [];
 
+                    tasks.sort((a, b) => a.position - b.position);
                     this.tasksByProject.set(projectId, tasks);
                     this.renderTasks(projectId);
                 } catch (error) {
@@ -1818,19 +2438,22 @@
                 const updated = this.formatRelative(task.updatedAt);
 
                 return `
-                    <article class="task-item" data-task-id="${task.id}">
+                    <article class="task-item" data-task-id="${task.id}" draggable="true">
                         <div class="task-item-header">
-                            <div class="task-item-info">
-                                <div class="task-name">${name}</div>
-                                <div class="task-meta">
-                                    <span class="task-status ${statusClass}">${ProjectsPage.escapeHtml(status)}</span>
-                                    <span>Updated ${ProjectsPage.escapeHtml(updated)}</span>
-                                    ${session ? `<span class="task-session">Session: ${session}</span>` : ''}
+                            <div class="task-item-left">
+                                <span class="task-drag-handle" aria-hidden="true" title="Drag to reorder" draggable="false">⋮⋮</span>
+                                <div class="task-item-info">
+                                    <div class="task-name">${name}</div>
+                                    <div class="task-meta">
+                                        <span class="task-status ${statusClass}">${ProjectsPage.escapeHtml(status)}</span>
+                                        <span>Updated ${ProjectsPage.escapeHtml(updated)}</span>
+                                        ${session ? `<span class="task-session">Session: ${session}</span>` : ''}
+                                    </div>
                                 </div>
                             </div>
                             <div class="task-item-actions">
-                                <button type="button" data-task-action="edit" data-task-id="${task.id}">Edit</button>
-                                <button type="button" class="task-delete" data-task-action="delete" data-task-id="${task.id}">Delete</button>
+                                <button type="button" data-task-action="edit" data-task-id="${task.id}" draggable="false">Edit</button>
+                                <button type="button" class="task-delete" data-task-action="delete" data-task-id="${task.id}" draggable="false">Delete</button>
                             </div>
                         </div>
                         <div class="task-prompt ${hasPrompt ? '' : 'task-prompt--empty'}">
