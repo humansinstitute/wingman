@@ -1,8 +1,3 @@
 #!/usr/bin/env node
-// Thin CLI entrypoint shim
-const GooseCLIInterface = require('../src/cli');
-
-if (require.main === module) {
-  new GooseCLIInterface();
-}
-
+// Legacy tmux-based Wingman CLI entrypoint
+require('../wingman-cli.js');

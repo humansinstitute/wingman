@@ -12,6 +12,7 @@
     "start": "node scripts/start-with-scheduler.js src/index.js",
     "start:no-scheduler": "node src/index.js",
     "cli": "node ./bin/wingman",
+    "wingman-goose": "node ./bin/wingman-goose",
     "web": "node ./bin/wingman-web",
     "web:no-scheduler": "node ./bin/wingman-web",
     "scheduler": "node scheduler/schedule.js",
