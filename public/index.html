@@ -1931,6 +1931,12 @@
                 </div>
             </div>
             
+            <div class="button-group" style="margin-top: 1rem;">
+                <button id="startCodexAgentBtn" class="btn btn-secondary">Start Codex Session</button>
+                <button id="startClaudeAgentBtn" class="btn btn-secondary">Start Claude Session</button>
+                <button id="startGooseAgentBtn" class="btn btn-secondary">Start Goose Session (AgentAPI)</button>
+            </div>
+            
             <div class="form-group" style="margin: 1rem 0;">
                 <label class="form-label" for="sessionSearchFilter">Search Sessions</label>
                 <input type="text" id="sessionSearchFilter" class="form-input" placeholder="Type to filter sessions...">
@@ -2112,6 +2118,9 @@
                 this.closeModal = document.getElementById('closeModal');
                 this.newSessionName = document.getElementById('newSessionName');
                 this.createNewSessionBtn = document.getElementById('createNewSessionBtn');
+                this.startCodexAgentBtn = document.getElementById('startCodexAgentBtn');
+                this.startClaudeAgentBtn = document.getElementById('startClaudeAgentBtn');
+                this.startGooseAgentBtn = document.getElementById('startGooseAgentBtn');
                 
                 // Wizard elements
                 this.sessionWizardModal = document.getElementById('sessionWizardModal');
@@ -2573,6 +2582,9 @@
                 safeAddEventListener(this.gooseStatus, 'gooseStatus', 'click', () => this.showSessionModal());
                 safeAddEventListener(this.closeModal, 'closeModal', 'click', () => this.hideSessionModal());
                 safeAddEventListener(this.createNewSessionBtn, 'createNewSessionBtn', 'click', () => this.startSessionWizard());
+                safeAddEventListener(this.startCodexAgentBtn, 'startCodexAgentBtn', 'click', () => this.startCodexSession());
+                safeAddEventListener(this.startClaudeAgentBtn, 'startClaudeAgentBtn', 'click', () => this.startClaudeSession());
+                safeAddEventListener(this.startGooseAgentBtn, 'startGooseAgentBtn', 'click', () => this.startGooseAgentSession());
                 
                 // Archive event listeners
                 safeAddEventListener(document.getElementById('hideArchivedBtn'), 'hideArchivedBtn', 'click', () => this.hideArchivedSessions());
@@ -2990,6 +3002,11 @@
                     } else if (status.recipeId) {
                         displayText += ` (📋 ${status.recipeId})`;
                     }
+                    if (status.transport) {
+                        const transportLabel = status.transport === 'agentapi' ? 'AgentAPI' : status.transport;
+                        const portLabel = status.port ? ` @:${status.port}` : '';
+                        displayText += ` [${transportLabel}${portLabel}]`;
+                    }
                     this.sessionNameDisplay.textContent = displayText;
                     
                     // Update working directory display
@@ -3021,6 +3038,11 @@
                             mobileDisplayText += ` (📋 ${status.recipeName})`;
                         } else if (status.recipeId) {
                             mobileDisplayText += ` (📋 ${status.recipeId})`;
+                        }
+                        if (status.transport) {
+                            const transportLabel = status.transport === 'agentapi' ? 'AgentAPI' : status.transport;
+                            const portLabel = status.port ? ` @:${status.port}` : '';
+                            mobileDisplayText += ` [${transportLabel}${portLabel}]`;
                         }
                         this.mobileSessionNameDisplay.textContent = mobileDisplayText;
                     }
@@ -5381,8 +5403,91 @@
                     this.scrollToBottom();
                 }
             }
+
+            async startCodexSession() {
+                const sessionName = this.newSessionName?.value?.trim() || undefined;
+                const workingDirectory = this.currentWorkingDirectory || undefined;
+                return this.startAgentSession({
+                    sessionName,
+                    workingDirectory,
+                    prefix: 'codex',
+                    agentCli: 'codex',
+                    serverType: 'codex',
+                    successLabel: 'Codex'
+                });
+            }
+
+            async startClaudeSession() {
+                const sessionName = this.newSessionName?.value?.trim() || undefined;
+                const workingDirectory = this.currentWorkingDirectory || undefined;
+                return this.startAgentSession({
+                    sessionName,
+                    workingDirectory,
+                    prefix: 'claude',
+                    agentCli: 'claude',
+                    serverType: 'claude',
+                    successLabel: 'Claude'
+                });
+            }
+
+            async startGooseAgentSession() {
+                const sessionName = this.newSessionName?.value?.trim() || undefined;
+                const workingDirectory = this.currentWorkingDirectory || undefined;
+                return this.startAgentSession({
+                    sessionName,
+                    workingDirectory,
+                    prefix: 'goose',
+                    agentCli: 'goose',
+                    agentArgs: ['chat'],
+                    serverType: 'goose',
+                    successLabel: 'Goose (AgentAPI)'
+                });
+            }
+
+            async startAgentSession({ sessionName, workingDirectory, prefix, agentCli, agentArgs = [], serverType, successLabel }) {
+                const finalSessionName = sessionName || `${prefix || agentCli}-${Date.now()}`;
+                const payload = {
+                    sessionName: finalSessionName,
+                    agentCli,
+                    serverOptions: { type: serverType || agentCli }
+                };
+
+                if (workingDirectory) {
+                    payload.workingDirectory = workingDirectory;
+                }
+
+                if (Array.isArray(agentArgs) && agentArgs.length > 0) {
+                    payload.agentArgs = agentArgs;
+                }
+
+                try {
+                    const response = await fetch('/api/agents/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        const portInfo = result.port ? ` (AgentAPI @:${result.port})` : '';
+                        const label = successLabel || agentCli;
+                        this.appendText(`✅ Started ${label} session: ${result.sessionName}${portInfo}\n`, 'system-message');
+                        this.hideSessionModal();
+                        this.scrollToBottom();
+                        return result;
+                    }
+
+                    throw new Error(result.error || 'Failed to start session');
+                } catch (error) {
+                    console.error(`Error starting ${agentCli} session:`, error);
+                    this.appendText(`❌ Failed to start ${successLabel || agentCli} session: ${error.message}\n`, 'system-message');
+                    this.scrollToBottom();
+                    return null;
+                }
+            }
         }
-        
+
         // Initialize the app
         window.app = new GooseStreamingApp();
     </script>

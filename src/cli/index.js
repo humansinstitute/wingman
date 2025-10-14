@@ -248,7 +248,7 @@ class WingmanCLI {
     });
 
     this.socket.on('sessionInterrupted', () => {
-      console.log(chalk.yellow('🛑 Goose session interrupted.'));
+      console.log(chalk.yellow('🛑 Session interrupted.'));
       this.rl.prompt();
     });
 
@@ -311,6 +311,12 @@ class WingmanCLI {
         return;
       }
 
+      if (trimmedInput.startsWith('/agent-start')) {
+        await this.handleAgentStart(trimmedInput);
+        this.rl.prompt();
+        return;
+      }
+
       if (trimmedInput.startsWith('/goose-stop')) {
         await this.handleGooseStop();
         this.rl.prompt();
@@ -368,14 +374,16 @@ class WingmanCLI {
     console.log(chalk.cyan('  /exit                - Exit the CLI'));
     console.log(chalk.magenta('\n=== Goose Session ==='));
     console.log(chalk.magenta('  /goose-start [name]  - Start new Goose session'));
-    console.log(chalk.magenta('  /goose-stop          - Stop current Goose session'));
+    console.log(chalk.magenta('  /goose-stop          - Stop current session'));
     console.log(chalk.magenta('  /goose-resume <name> - Resume existing session'));
     console.log(chalk.magenta('  /goose-sessions      - List saved sessions'));
-    console.log(chalk.magenta('  /goose-status        - Show Goose status'));
+    console.log(chalk.magenta('  /goose-status        - Show session status'));
     console.log(chalk.magenta('  /goose-interrupt     - Interrupt current operation'));
+    console.log(chalk.blue('\n=== AgentAPI Session ==='));
+    console.log(chalk.blue('  /agent-start [options] <agent-cli> [args] - Start AgentAPI-backed session'));
     console.log(chalk.yellow('\n=== Commands ==='));
-    console.log(chalk.yellow('  /goose-cmd <command> - Send raw command to Goose'));
-    console.log(chalk.yellow('  Any other text       - Send message to Goose\n'));
+    console.log(chalk.yellow('  /goose-cmd <command> - Send raw command to Goose/agent CLI'));
+    console.log(chalk.yellow('  Any other text       - Send message to active session\n'));
   }
 
   printStatus() {
@@ -383,7 +391,19 @@ class WingmanCLI {
     const activeText = status.active ? chalk.green('Active') : chalk.red('Inactive');
     const readyText = status.ready ? chalk.green('Ready') : chalk.yellow('Starting...');
     const nameText = status.sessionName ? chalk.cyan(status.sessionName) : chalk.gray('None');
-    console.log(chalk.gray(`Status – Session: ${nameText} | ${activeText} | ${readyText}`));
+    const transportText = status.transport ? chalk.gray(` via ${status.transport}`) : '';
+    const portText = status.port ? chalk.gray(` @:${status.port}`) : '';
+    console.log(chalk.gray(`Status – Session: ${nameText}${transportText}${portText} | ${activeText} | ${readyText}`));
+  }
+
+  parseCommandArgs(input) {
+    const args = [];
+    const regex = /"([^"]*)"|'([^']*)'|(\S+)/g;
+    let match;
+    while ((match = regex.exec(input))) {
+      args.push(match[1] ?? match[2] ?? match[3]);
+    }
+    return args;
   }
 
   displayMessage(message, fromHistory = false) {
@@ -422,12 +442,12 @@ class WingmanCLI {
 
   async handleUserMessage(content) {
     if (!this.currentStatus.active) {
-      console.log(chalk.red('❌ No active Goose session. Start one with /goose-start [name].'));
+      console.log(chalk.red('❌ No active session. Start one with /goose-start or /agent-start.'));
       return;
     }
 
     if (!this.currentStatus.ready) {
-      console.log(chalk.yellow('⏳ Goose session is starting up. Please wait.'));
+      console.log(chalk.yellow('⏳ Session is starting up. Please wait.'));
       return;
     }
 
@@ -456,7 +476,7 @@ class WingmanCLI {
 
       if (response.data?.success) {
         console.log(chalk.green(`✅ Started Goose session: ${response.data.sessionName}`));
-        this.currentStatus = { active: true, sessionName: response.data.sessionName, ready: true };
+        this.currentStatus = { active: true, sessionName: response.data.sessionName, ready: true, transport: 'goose' };
       } else {
         throw new Error(response.data?.error || 'Unknown error');
       }
@@ -465,11 +485,186 @@ class WingmanCLI {
     }
   }
 
+  async handleAgentStart(input) {
+    const raw = input.replace('/agent-start', '').trim();
+    if (!raw) {
+      console.log(chalk.red('❌ Usage: /agent-start [--name session] [--binary path] [--cwd dir] [--port N] <agent-cli> [args...]'));
+      return;
+    }
+
+    const tokens = this.parseCommandArgs(raw);
+    if (tokens.length === 0) {
+      console.log(chalk.red('❌ Usage: /agent-start [options] <agent-cli> [args...]'));
+      return;
+    }
+
+    let sessionName = null;
+    let agentBinaryPath = null;
+    let workingDirectory = null;
+    const serverOptions = {};
+    const env = {};
+    let agentCli = null;
+    const agentArgs = [];
+
+    const readValue = (currentToken, currentIndex) => {
+      if (currentToken.includes('=')) {
+        return currentToken.split('=').slice(1).join('=');
+      }
+      if (currentIndex + 1 < tokens.length) {
+        return tokens[currentIndex + 1];
+      }
+      return null;
+    };
+
+    const advanceIfNeeded = (token, index) => {
+      if (!token.includes('=') && index + 1 < tokens.length) {
+        return index + 1;
+      }
+      return index;
+    };
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+
+      if (token === '--') {
+        continue;
+      }
+
+      switch (true) {
+        case token.startsWith('--name'):
+          sessionName = readValue(token, i) || sessionName;
+          i = advanceIfNeeded(token, i);
+          continue;
+        case token.startsWith('--binary'):
+          agentBinaryPath = readValue(token, i) || agentBinaryPath;
+          i = advanceIfNeeded(token, i);
+          continue;
+        case token.startsWith('--cwd'):
+        case token.startsWith('--working-dir'):
+          workingDirectory = readValue(token, i) || workingDirectory;
+          i = advanceIfNeeded(token, i);
+          continue;
+        case token.startsWith('--port'):
+          {
+            const value = readValue(token, i);
+            const parsed = value ? parseInt(value, 10) : NaN;
+            if (!Number.isNaN(parsed)) {
+              serverOptions.port = parsed;
+            }
+            i = advanceIfNeeded(token, i);
+          }
+          continue;
+        case token.startsWith('--allowed-hosts'):
+          serverOptions.allowedHosts = readValue(token, i);
+          i = advanceIfNeeded(token, i);
+          continue;
+        case token.startsWith('--allowed-origins'):
+          serverOptions.allowedOrigins = readValue(token, i);
+          i = advanceIfNeeded(token, i);
+          continue;
+        case token.startsWith('--chat-base-path'):
+          serverOptions.chatBasePath = readValue(token, i);
+          i = advanceIfNeeded(token, i);
+          continue;
+        case token.startsWith('--term-width'):
+          {
+            const value = readValue(token, i);
+            const parsed = value ? parseInt(value, 10) : NaN;
+            if (!Number.isNaN(parsed)) serverOptions.termWidth = parsed;
+            i = advanceIfNeeded(token, i);
+          }
+          continue;
+        case token.startsWith('--term-height'):
+          {
+            const value = readValue(token, i);
+            const parsed = value ? parseInt(value, 10) : NaN;
+            if (!Number.isNaN(parsed)) serverOptions.termHeight = parsed;
+            i = advanceIfNeeded(token, i);
+          }
+          continue;
+        case token.startsWith('--type'):
+          serverOptions.type = readValue(token, i);
+          i = advanceIfNeeded(token, i);
+          continue;
+        case token.startsWith('--initial-prompt'):
+          serverOptions.initialPrompt = readValue(token, i);
+          i = advanceIfNeeded(token, i);
+          continue;
+        case token === '--verbose':
+          serverOptions.verbose = true;
+          continue;
+        case token.startsWith('--env'):
+          {
+            const pair = readValue(token, i);
+            i = advanceIfNeeded(token, i);
+            if (pair && pair.includes('=')) {
+              const [key, ...rest] = pair.split('=');
+              env[key] = rest.join('=');
+            } else {
+              console.log(chalk.yellow('⚠️ Ignored --env without KEY=VALUE'));
+            }
+          }
+          continue;
+        default:
+          if (!agentCli) {
+            agentCli = token;
+          } else {
+            agentArgs.push(token);
+          }
+      }
+
+      if (!token.startsWith('--')) {
+        // already handled above
+        continue;
+      }
+    }
+
+    if (!agentCli) {
+      console.log(chalk.red('❌ Missing agent CLI. Provide one after options, e.g. /agent-start claude'));
+      return;
+    }
+
+    const payload = {
+      sessionName: sessionName || `agent-${Date.now()}`,
+      agentCli,
+      agentArgs,
+      agentBinaryPath,
+      workingDirectory,
+      serverOptions,
+      env
+    };
+
+    // Clean empty objects to keep payload tidy
+    if (!payload.agentBinaryPath) delete payload.agentBinaryPath;
+    if (!payload.workingDirectory) delete payload.workingDirectory;
+    if (payload.serverOptions && Object.keys(payload.serverOptions).length === 0) delete payload.serverOptions;
+    if (payload.env && Object.keys(payload.env).length === 0) delete payload.env;
+
+    try {
+      const response = await this.http.post('/api/agents/start', payload);
+      if (response.data?.success) {
+        const portDisplay = response.data.port ? ` on port ${response.data.port}` : '';
+        console.log(chalk.green(`✅ Started AgentAPI session: ${response.data.sessionName}${portDisplay}`));
+        this.currentStatus = {
+          active: true,
+          sessionName: response.data.sessionName,
+          ready: true,
+          transport: response.data.transport || 'agentapi',
+          port: response.data.port || null
+        };
+      } else {
+        throw new Error(response.data?.error || 'Unknown error');
+      }
+    } catch (error) {
+      console.log(chalk.red(`❌ Failed to start AgentAPI session: ${error.response?.data?.error || error.message}`));
+    }
+  }
+
   async handleGooseStop() {
     try {
       await this.http.post('/api/goose/stop');
-      console.log(chalk.green('⏹ Stopped Goose session.'));
-      this.currentStatus = { active: false, sessionName: null, ready: false };
+      console.log(chalk.green('⏹ Stopped session.'));
+      this.currentStatus = { active: false, sessionName: null, ready: false, transport: null, port: null };
     } catch (error) {
       console.log(chalk.red(`❌ Failed to stop session: ${error.response?.data?.error || error.message}`));
     }
@@ -486,7 +681,13 @@ class WingmanCLI {
       const response = await this.http.post('/api/goose/resume', { sessionName });
       if (response.data?.success) {
         console.log(chalk.green(`✅ Resumed session: ${sessionName}`));
-        this.currentStatus = { active: true, sessionName, ready: true };
+        this.currentStatus = {
+          active: true,
+          sessionName,
+          ready: true,
+          transport: response.data.transport || this.currentStatus.transport || 'goose',
+          port: response.data.port || null
+        };
       } else {
         throw new Error(response.data?.error || 'Unknown error');
       }
@@ -501,7 +702,7 @@ class WingmanCLI {
       const sessions = response.data || [];
 
       if (sessions.length === 0) {
-        console.log(chalk.gray('No saved Goose sessions.'));
+      console.log(chalk.gray('No saved sessions.'));
         return;
       }
 
@@ -528,7 +729,7 @@ class WingmanCLI {
 
   async handleGooseInterrupt() {
     if (!this.currentStatus.active) {
-      console.log(chalk.gray('No active Goose session to interrupt.'));
+      console.log(chalk.gray('No active session to interrupt.'));
       return;
     }
 

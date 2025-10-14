@@ -692,9 +692,94 @@ class GooseWebServer {
         });
         await this.multiSessionManager.startSession(sessionResult.sessionId);
         await this.multiSessionManager.switchSession(sessionResult.sessionId);
+        const metadata = this.multiSessionManager.sessionMetadata.get(sessionResult.sessionId) || {};
         this.io.emit('sessionsUpdate', { type: 'sessionStarted', sessionId: sessionResult.sessionId, sessionName: sessionResult.sessionName });
-        this.io.emit('gooseStatusUpdate', { active: true, sessionName: sessionResult.sessionName, ready: true });
-        res.json({ success: true, sessionId: sessionResult.sessionId, sessionName: sessionResult.sessionName });
+        this.io.emit('gooseStatusUpdate', {
+          active: true,
+          sessionName: sessionResult.sessionName,
+          ready: true,
+          transport: 'goose',
+          port: null,
+          workingDirectory: metadata.workingDirectory || null,
+          recipeName: metadata.recipeName || null,
+          recipeId: metadata.recipeId || null
+        });
+        res.json({
+          success: true,
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName,
+          transport: 'goose',
+          port: null,
+          workingDirectory: metadata.workingDirectory || null,
+          recipeName: metadata.recipeName || null,
+          recipeId: metadata.recipeId || null
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    this.app.post('/api/agents/start', async (req, res) => {
+      try {
+        const {
+          sessionName,
+          agentCli,
+          agentArgs,
+          agentCommand,
+          agentBinaryPath,
+          workingDirectory,
+          serverOptions,
+          env,
+          debug
+        } = req.body || {};
+
+        if (!agentCli && (!Array.isArray(agentCommand) || agentCommand.length === 0)) {
+          return res.status(400).json({ error: 'agentCli or agentCommand array is required' });
+        }
+
+        const sessionResult = await this.multiSessionManager.createSession({
+          transport: 'agentapi',
+          sessionName: sessionName || `agent-${Date.now()}`,
+          agentCli: agentCli || (Array.isArray(agentCommand) ? agentCommand[0] : null),
+          agentArgs,
+          agentCommand,
+          agentBinaryPath,
+          workingDirectory: workingDirectory || process.cwd(),
+          serverOptions: serverOptions || {},
+          env: env || {},
+          debug: !!debug
+        });
+
+        const startResult = await this.multiSessionManager.startSession(sessionResult.sessionId);
+        await this.multiSessionManager.switchSession(sessionResult.sessionId);
+
+        const metadata = this.multiSessionManager.sessionMetadata.get(sessionResult.sessionId) || {};
+        const port = startResult?.port || sessionResult.wrapper?.getListeningPort?.() || metadata.port || null;
+
+        this.io.emit('sessionsUpdate', {
+          type: 'sessionStarted',
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName,
+          transport: 'agentapi'
+        });
+
+        this.io.emit('gooseStatusUpdate', {
+          active: true,
+          sessionName: sessionResult.sessionName,
+          ready: true,
+          transport: 'agentapi',
+          port,
+          workingDirectory: metadata.workingDirectory || null
+        });
+
+        res.json({
+          success: true,
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName,
+          transport: 'agentapi',
+          port,
+          workingDirectory: metadata.workingDirectory || null
+        });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -749,11 +834,30 @@ class GooseWebServer {
         await this.multiSessionManager.startSession(sessionResult.sessionId);
         await this.multiSessionManager.switchSession(sessionResult.sessionId);
 
+        const metadata = this.multiSessionManager.sessionMetadata.get(sessionResult.sessionId) || {};
+
         // Broadcast updates
         this.io.emit('sessionsUpdate', { type: 'sessionStarted', sessionId: sessionResult.sessionId, sessionName: sessionResult.sessionName });
-        this.io.emit('gooseStatusUpdate', { active: true, sessionName: sessionResult.sessionName, ready: true });
+        this.io.emit('gooseStatusUpdate', {
+          active: true,
+          sessionName: sessionResult.sessionName,
+          ready: true,
+          transport: 'goose',
+          port: null,
+          workingDirectory: metadata.workingDirectory || null,
+          recipeName: metadata.recipeName || metadata.sessionName || null,
+          recipeId: metadata.recipeId || null
+        });
 
-        res.json({ success: true, sessionId: sessionResult.sessionId, sessionName: sessionResult.sessionName, recipe: { id: recipe.id, name: recipe.name || recipe.title } });
+        res.json({
+          success: true,
+          sessionId: sessionResult.sessionId,
+          sessionName: sessionResult.sessionName,
+          transport: 'goose',
+          port: null,
+          workingDirectory: metadata.workingDirectory || null,
+          recipe: { id: recipe.id, name: recipe.name || recipe.title }
+        });
       } catch (error) {
         // Ensure JSON response for UI
         res.status(500).json({ error: error.message || String(error) });
@@ -766,8 +870,22 @@ class GooseWebServer {
         if (!sessionName) return res.status(400).json({ error: 'Session name is required' });
         const result = await this.multiSessionManager.resumeSession(sessionName);
         if (result.success) {
-          this.io.emit('sessionsUpdate', { type: 'sessionResumed', sessionId: result.sessionId, sessionName });
-          this.io.emit('gooseStatusUpdate', { active: true, sessionName, ready: true });
+          this.io.emit('sessionsUpdate', {
+            type: 'sessionResumed',
+            sessionId: result.sessionId,
+            sessionName,
+            transport: result.transport
+          });
+          this.io.emit('gooseStatusUpdate', {
+            active: true,
+            sessionName,
+            ready: true,
+            transport: result.transport,
+            port: result.port || null,
+            workingDirectory: result.workingDirectory || null,
+            recipeName: result.recipeName || null,
+            recipeId: result.recipeId || null
+          });
         }
         res.json(result);
       } catch (error) {
@@ -780,7 +898,7 @@ class GooseWebServer {
         try { await this.multiSessionManager.interruptActiveSession(); } catch {}
         const result = await this.multiSessionManager.forceStopActiveSession();
         this.io.emit('sessionForceStopped', { sessionId: result.sessionId, timestamp: new Date().toISOString() });
-        this.io.emit('gooseStatusUpdate', { active: false, sessionName: null, ready: false });
+        this.io.emit('gooseStatusUpdate', { active: false, sessionName: null, ready: false, transport: null, port: null, workingDirectory: null, recipeName: null, recipeId: null });
         res.json(result);
       } catch (error) {
         res.status(500).json({ error: error.message });
@@ -803,7 +921,7 @@ class GooseWebServer {
         if (!content) return res.status(400).json({ error: 'Content required' });
         console.log(`[HTTP] /api/message received: ${String(content).slice(0,120)}${String(content).length>120?'...':''}`);
         const activeId = this.multiSessionManager.activeSessionId;
-        if (!activeId) return res.status(400).json({ error: 'No active Goose session. Please start a session first.' });
+        if (!activeId) return res.status(400).json({ error: 'No active session. Please start a session first.' });
         const result = await this.multiSessionManager.sendMessageToActiveSession(content, settings);
         res.json({ success: true, result });
       } catch (error) {
@@ -1080,15 +1198,20 @@ class GooseWebServer {
           socket.emit('gooseStatusUpdate', {
             active: true,
             sessionName: meta?.sessionName || null,
-            ready: !!(wrapper && wrapper.isReady)
+            ready: !!(wrapper && wrapper.isReady),
+            transport: meta?.transport || 'goose',
+            port: meta?.port || (typeof wrapper?.getListeningPort === 'function' ? wrapper.getListeningPort() : null),
+            workingDirectory: meta?.workingDirectory || null,
+            recipeName: meta?.recipeName || null,
+            recipeId: meta?.recipeId || null
           });
         } else {
           socket.emit('conversationHistory', []);
-          socket.emit('gooseStatusUpdate', { active: false, sessionName: null, ready: false });
+          socket.emit('gooseStatusUpdate', { active: false, sessionName: null, ready: false, transport: null, port: null });
         }
       } catch (e) {
         socket.emit('conversationHistory', []);
-        socket.emit('gooseStatusUpdate', { active: false, sessionName: null, ready: false });
+        socket.emit('gooseStatusUpdate', { active: false, sessionName: null, ready: false, transport: null, port: null });
       }
     });
   }

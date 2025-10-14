@@ -1,5 +1,6 @@
 const EventEmitter = require('events');
 const SessionAwareGooseCLIWrapper = require('../../wrappers/session-aware-wrapper');
+const AgentAPISession = require('../../agents/agentapi-session');
 const { getDatabase } = require('../../shared/utils/database');
 const WingmanConfig = require('../../shared/config/wingman-config');
 
@@ -166,31 +167,72 @@ class MultiSessionManager extends EventEmitter {
   async createSession(options) {
     const sessionId = this.generateSessionId();
     const sessionName = options.sessionName || sessionId;
-    
-    console.log(`Creating new session: ${sessionId} (${sessionName})`);
-    
-    // Extract provider/model from options
-    const { provider, model, providerOverride, ...wrapperOptions } = options;
-    
+    const transport = options.transport || 'goose';
+
+    console.log(`Creating new session: ${sessionId} (${sessionName}) via ${transport}`);
+
+    if (transport === 'agentapi') {
+      const workingDirectory = options.workingDirectory || process.cwd();
+      const wrapper = new AgentAPISession({
+        sessionId,
+        sessionName,
+        workingDirectory,
+        agentBinaryPath: options.agentBinaryPath,
+        agentCli: options.agentCli,
+        agentArgs: options.agentArgs,
+        agentCommand: options.agentCommand,
+        serverOptions: options.serverOptions || {},
+        env: options.env || {},
+        debug: options.debug
+      });
+
+      this.setupSessionEvents(sessionId, wrapper);
+      this.sessions.set(sessionId, wrapper);
+
+      await this.saveSessionMetadata(sessionId, {
+        sessionName,
+        workingDirectory,
+        debug: options.debug || false,
+        transport,
+        port: options.serverOptions?.port || null,
+        agentCli: options.agentCli || (Array.isArray(options.agentCommand) ? options.agentCommand[0] : null),
+        agentArgs: options.agentArgs || [],
+        agentCommand: options.agentCommand || null,
+        agentBinaryPath: options.agentBinaryPath || null,
+        env: options.env || {},
+        serverOptions: options.serverOptions || {}
+      });
+
+      this.conversationCache.set(sessionId, []);
+      console.log(`Initialized empty conversation cache for session ${sessionId}`);
+
+      return {
+        sessionId,
+        wrapper,
+        sessionName,
+        metadata: this.sessionMetadata.get(sessionId)
+      };
+    }
+
+    // Default Goose-backed session
+    const { provider, model, providerOverride, transport: _ignoredTransport, ...wrapperOptions } = options;
+
     console.log('Session creation options:', {
       provider,
       model,
       providerOverride,
       hasProviderOverride: !!providerOverride
     });
-    
-    // Determine final provider/model
+
     let finalProvider = provider;
     let finalModel = model;
-    
-    // Handle provider override from recipe launch
+
     if (providerOverride) {
       finalProvider = providerOverride.provider;
       finalModel = providerOverride.model;
       console.log('Applied provider override:', { finalProvider, finalModel });
     }
-    
-    // Create wrapper with provider/model options
+
     const wrapper = new SessionAwareGooseCLIWrapper({
       ...wrapperOptions,
       sessionId,
@@ -198,20 +240,17 @@ class MultiSessionManager extends EventEmitter {
       provider: finalProvider,
       model: finalModel
     });
-    
-    // Set up event forwarding with session context
+
     this.setupSessionEvents(sessionId, wrapper);
-    
-    // Store session with provider/model and worktree metadata
     this.sessions.set(sessionId, wrapper);
-    console.log('Saving metadata with provider/model:', { 
-      finalProvider, 
+
+    console.log('Saving metadata with provider/model:', {
+      finalProvider,
       finalModel,
       optionsProvider: options.provider,
       optionsModel: options.model
     });
-    
-    // Get recipe name if recipe ID is provided
+
     let recipeName = null;
     if (options.recipeId) {
       try {
@@ -224,23 +263,23 @@ class MultiSessionManager extends EventEmitter {
         console.warn(`Could not get recipe name for ID ${options.recipeId}:`, error.message);
       }
     }
-    
+
     await this.saveSessionMetadata(sessionId, {
       ...options,
+      transport,
       provider: finalProvider,
       model: finalModel,
       recipeName: recipeName,
       worktreeId: this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main',
       originalWorktree: this.wingmanConfig ? this.wingmanConfig.getWorktreeId() : 'main'
     });
-    
-    // Initialize empty conversation cache for new session
+
     this.conversationCache.set(sessionId, []);
     console.log(`Initialized empty conversation cache for session ${sessionId}`);
-    
-    return { 
-      sessionId, 
-      wrapper, 
+
+    return {
+      sessionId,
+      wrapper,
       sessionName,
       metadata: this.sessionMetadata.get(sessionId)
     };
@@ -263,25 +302,34 @@ class MultiSessionManager extends EventEmitter {
     
     wrapper.on('streamContent', (data) => {
       const message = {
-        role: data.role || 'assistant', // Use role from data if provided, default to assistant
+        role: data.role || 'assistant',
         content: data.content,
-        timestamp: data.timestamp,
-        source: data.source
+        timestamp: data.timestamp || new Date().toISOString(),
+        source: data.source,
+        messageId: data.messageId || data.id || null,
+        id: data.id || data.messageId || null
       };
-      
-      // Store message in database
+
+      const isNew = this.updateConversationCache(sessionId, message);
+
       if (this.dbInitialized) {
         const metadata = this.sessionMetadata.get(sessionId);
         if (metadata) {
-          this.db.addMessage(metadata.sessionName, message).catch(error => {
-            console.error('Error storing message:', error);
-          });
+          if (isNew) {
+            this.db.addMessage(metadata.sessionName, message).catch(error => {
+              console.error('Error storing message:', error);
+            });
+          } else if (message.messageId) {
+            this.db.updateMessageByMessageId(metadata.sessionName, message.messageId, {
+              content: message.content,
+              timestamp: message.timestamp
+            }).catch(error => {
+              console.error('Error updating message:', error);
+            });
+          }
         }
       }
-      
-      // Update conversation cache
-      this.updateConversationCache(sessionId, message);
-      
+
       // Only emit for active session to avoid UI confusion
       if (sessionId === this.activeSessionId) {
         this.emit('sessionMessage', {
@@ -317,16 +365,17 @@ class MultiSessionManager extends EventEmitter {
     wrapper.on('close', (code) => {
       this.emit('sessionClosed', { sessionId, code });
     });
+
+    if (typeof wrapper.on === 'function') {
+      wrapper.on('processingComplete', (payload) => {
+        if (sessionId === this.activeSessionId) {
+          this.emit('processingComplete', { sessionId, status: payload?.status || 'stable' });
+        }
+      });
+    }
   }
   
   async saveSessionMetadata(sessionId, options) {
-    console.log('saveSessionMetadata called with options:', {
-      provider: options.provider,
-      model: options.model,
-      hasProvider: 'provider' in options,
-      hasModel: 'model' in options
-    });
-    
     const metadata = {
       sessionId,
       sessionName: options.sessionName || sessionId,
@@ -339,13 +388,16 @@ class MultiSessionManager extends EventEmitter {
       recipeId: options.recipeId || null,
       recipeName: options.recipeName || null,
       provider: options.provider || null,
-      model: options.model || null
+      model: options.model || null,
+      transport: options.transport || 'goose',
+      port: options.port || null,
+      agentCli: options.agentCli || (Array.isArray(options.agentCommand) ? options.agentCommand[0] : null),
+      agentArgs: Array.isArray(options.agentArgs) ? options.agentArgs : [],
+      agentCommand: Array.isArray(options.agentCommand) ? options.agentCommand : null,
+      agentBinaryPath: options.agentBinaryPath || null,
+      env: options.env || {},
+      serverOptions: options.serverOptions || {}
     };
-    
-    console.log('Final metadata to store:', {
-      provider: metadata.provider,
-      model: metadata.model
-    });
     
     this.sessionMetadata.set(sessionId, metadata);
     
@@ -365,18 +417,36 @@ class MultiSessionManager extends EventEmitter {
     if (!this.conversationCache.has(sessionId)) {
       this.conversationCache.set(sessionId, []);
     }
-    this.conversationCache.get(sessionId).push(message);
+    const conversation = this.conversationCache.get(sessionId);
+    if (message.messageId) {
+      const existingIndex = conversation.findIndex((entry) => entry.messageId === message.messageId);
+      if (existingIndex !== -1) {
+        conversation[existingIndex] = { ...conversation[existingIndex], ...message };
+        return false;
+      }
+    }
+    conversation.push(message);
+    return true;
   }
   
   async startSession(sessionId) {
     const wrapper = this.sessions.get(sessionId);
     if (!wrapper) throw new Error('Session not found');
-    await wrapper.start();
+    const startResult = await wrapper.start();
     const metadata = this.sessionMetadata.get(sessionId);
     if (this.dbInitialized && metadata) {
       await this.db.updateSessionStatus(metadata.sessionName, 'active');
+      if (startResult && typeof startResult.port !== 'undefined' && metadata.transport === 'agentapi') {
+        metadata.port = startResult.port;
+        this.sessionMetadata.set(sessionId, metadata);
+        try {
+          await this.db.setSessionMetadata(metadata.sessionName, 'agent_port', String(startResult.port));
+        } catch (error) {
+          console.error('Failed to persist agent port metadata:', error);
+        }
+      }
     }
-    return { success: true };
+    return { success: true, port: startResult?.port };
   }
   
   async sendMessageToActiveSession(content, settings = {}) {
@@ -422,7 +492,7 @@ class MultiSessionManager extends EventEmitter {
     }
     
     const result = await wrapper.sendMessage(content, settings);
-    console.log(`[MultiSession] Message injected into Goose stdin for session ${this.activeSessionId}`);
+    console.log(`[MultiSession] Message dispatched to session ${this.activeSessionId}`);
     return result;
   }
   
@@ -516,41 +586,82 @@ class MultiSessionManager extends EventEmitter {
       }
     }
     
+    const transport = sessionContext.transport || 'goose';
+
     // Create new session for resume
     const sessionId = this.generateSessionId();
-    const wrapperOptions = {
-      sessionId,
-      sessionName,
-      workingDirectory: sessionContext.workingDirectory || process.cwd(),
-      debug: sessionContext.debug || false,
-      extensions: sessionContext.extensions || [],
-      builtins: sessionContext.builtins || []
-    };
-    
-    // Include recipe config if session was started with a recipe
-    if (sessionContext.recipeConfig) {
-      wrapperOptions.recipeConfig = sessionContext.recipeConfig;
+    let wrapper;
+    let metadataOptions;
+
+    if (transport === 'agentapi') {
+      const serverOptions = { ...(sessionContext.serverOptions || {}) };
+      if (serverOptions.port) {
+        delete serverOptions.port; // allow allocator to choose a fresh port
+      }
+
+      const agentOptions = {
+        sessionId,
+        sessionName,
+        workingDirectory: sessionContext.workingDirectory || process.cwd(),
+        agentBinaryPath: sessionContext.agentBinaryPath,
+        agentCli: sessionContext.agentCli,
+        agentArgs: sessionContext.agentArgs || [],
+        agentCommand: sessionContext.agentCommand,
+        serverOptions,
+        env: sessionContext.env || {},
+        debug: sessionContext.debug || false
+      };
+
+      wrapper = new AgentAPISession(agentOptions);
+
+      metadataOptions = {
+        sessionName,
+        workingDirectory: agentOptions.workingDirectory,
+        debug: agentOptions.debug,
+        transport,
+        port: null, // fresh port allocated on resume
+        agentCli: agentOptions.agentCli,
+        agentArgs: agentOptions.agentArgs,
+        agentCommand: agentOptions.agentCommand,
+        agentBinaryPath: agentOptions.agentBinaryPath,
+        env: agentOptions.env,
+        serverOptions: agentOptions.serverOptions
+      };
+    } else {
+      const wrapperOptions = {
+        sessionId,
+        sessionName,
+        workingDirectory: sessionContext.workingDirectory || process.cwd(),
+        debug: sessionContext.debug || false,
+        extensions: sessionContext.extensions || [],
+        builtins: sessionContext.builtins || []
+      };
+      
+      // Include recipe config if session was started with a recipe
+      if (sessionContext.recipeConfig) {
+        wrapperOptions.recipeConfig = sessionContext.recipeConfig;
+      }
+      
+      wrapper = new SessionAwareGooseCLIWrapper(wrapperOptions);
+      
+      metadataOptions = {
+        sessionName,
+        workingDirectory: sessionContext.workingDirectory,
+        debug: sessionContext.debug,
+        extensions: sessionContext.extensions,
+        builtins: sessionContext.builtins,
+        provider: sessionContext.provider,
+        model: sessionContext.model,
+        transport
+      };
     }
-    
-    const wrapper = new SessionAwareGooseCLIWrapper(wrapperOptions);
     
     // Set up events and store session
     this.setupSessionEvents(sessionId, wrapper);
     this.sessions.set(sessionId, wrapper);
     
-    // Create metadata
-    const metadataOptions = {
-      sessionName,
-      workingDirectory: sessionContext.workingDirectory,
-      debug: sessionContext.debug,
-      extensions: sessionContext.extensions,
-      builtins: sessionContext.builtins,
-      provider: sessionContext.provider,
-      model: sessionContext.model
-    };
-    
     // Include recipe ID and name if session was started with a recipe
-    if (sessionContext.recipeId) {
+    if (sessionContext.recipeId && transport !== 'agentapi') {
       metadataOptions.recipeId = sessionContext.recipeId;
       
       // Try to get recipe name
@@ -595,7 +706,17 @@ class MultiSessionManager extends EventEmitter {
     // Switch to the resumed session (broadcasts conversation)
     await this.switchSession(sessionId);
     
-    return { success: true, sessionId };
+    const meta = this.sessionMetadata.get(sessionId);
+    return {
+      success: true,
+      sessionId,
+      transport,
+      port: meta?.port || null,
+      workingDirectory: meta?.workingDirectory || null,
+      sessionName,
+      recipeName: meta?.recipeName || null,
+      recipeId: meta?.recipeId || null
+    };
   }
   
   async getAvailableSessions() {
